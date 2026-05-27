@@ -1,0 +1,21 @@
+{
+  "appId": "com.retroppies.photobooth",
+  "productName": "Retroppies Photobooth",
+  "directories": {
+    "output": "dist-electron"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*"
+  ],
+  "mac": {
+    "target": "dmg",
+    "category": "public.app-category.entertainment"
+  },
+  "win": {
+    "target": "nsis"
+  },
+  "linux": {
+    "target": "AppImage"
+  }
+}

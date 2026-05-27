@@ -1,5 +1,33 @@
 # Retroppies Photobooth — Session Context
 
+## ⚠️ Session Migration Note
+Original cloud session migrated to local on **2026-05-27**.
+Context now lives in `.copilot-context/SESSION_CONTEXT.md` (this file).
+GitHub Copilot instructions are in `.github/copilot-instructions.md`.
+
+## Session 2 Summary (2026-05-27) — Project Initialization
+
+### What was done
+- Created `.github/copilot-instructions.md` with mandatory doc-reading rules for every Copilot session
+- Created `TODO.md` progress tracker with full 2-week roadmap checkboxes
+- Scaffolded entire project: `package.json`, `vite.config.ts`, `tsconfig.json`, `tailwind.config.ts`, `postcss.config.js`, `electron-builder.json`, `.env`
+- Created `index.html`, `src/main.tsx`, `src/App.tsx` (lazy-loaded router for all 15 halaman)
+- Created `src/styles/global.css` (Tailwind + kiosk layout)
+- Created all 6 Zustand stores: `authStore`, `sessionStore`, `cartStore`, `photoStore`, `layoutStore`, `uiStore`
+- Created all 8 service modules: `apiClient`, `authService`, `productService`, `voucherService`, `paymentService`, `templateService`, `finalizeService`, `emailService`, `hardwareService`
+- Created all 15 halaman page components (complete implementations, not stubs)
+- Created shared components: `BackgroundVideo`, `TopTimerBar`, `GlobalModalHost`, `ToastHost`
+- Created `electron/main.js` and `electron/preload.js` (kiosk mode, IPC for print)
+- Created `src/types/index.ts`
+- Build passes ✅ (948ms, zero TypeScript errors)
+
+### Current State
+- **Week 1, Day 1 & 2** tasks: COMPLETE
+- **Week 1, Day 3** tasks: Halaman 0–2 components exist, need testing/polish
+- All page components are functional scaffolds ready for integration
+
+
+
 ## 1) Product Snapshot
 Retroppies Photobooth is a kiosk-style, vintage-themed photo experience for touchscreen cafe environments. Users go from product/payment setup to timed photo capture, template composition, filter styling, and final print/email delivery.
 
