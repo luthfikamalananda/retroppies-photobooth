@@ -281,6 +281,22 @@ Using Zustand with the following stores:
 
 Private project for Retroppies Cafe Project
 
+## 🔄 Context/Documentation Task Status
+
+Status update (2026-05-27):
+
+- ✅ Context & documentation task sudah **merged ke `main`**:
+  - PR: https://github.com/luthfikamalananda/retroppies-photobooth/pull/1
+  - Pipeline: https://github.com/luthfikamalananda/retroppies-photobooth/actions/runs/26505368379
+- ⏳ Jika task terkait masih berstatus **Draft/WIP** pada PR lain, anggap file belum siap full untuk di-pull dan tunggu notifikasi merge.
+- ℹ️ Copilot **tidak bisa menjalankan `git pull` di local machine user**. Pull harus dilakukan manual oleh user via Git CLI atau VS Code.
+
+Setelah status merged, update lokal dengan:
+
+```bash
+git pull origin main
+```
+
 ## 📞 Contact
 
 **Developer:** luthfikamalananda
