@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 
 ## Purpose
-Deliver a touchscreen photobooth kiosk app with a complete 15-halaman flow from admin login to final print trigger.
+Deliver a touchscreen photobooth kiosk app with a complete 15-page (halaman) flow from admin login to final print trigger.
 
 ## Goals
 - Fast, fun vintage photobooth journey.

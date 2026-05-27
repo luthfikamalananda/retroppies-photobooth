@@ -3,6 +3,8 @@
 ## 1) Product Snapshot
 Retroppies Photobooth is a kiosk-style, vintage-themed photo experience for touchscreen cafe environments. Users go from product/payment setup to timed photo capture, template composition, filter styling, and final print/email delivery.
 
+**Terminology:** "Halaman" = "Page" in Indonesian.
+
 ## 2) 15 Halaman Specifications (Halaman 0–14)
 
 | Halaman | Name | Purpose | Core Elements | Navigation |

@@ -7,7 +7,7 @@
 4. Grayscale — luminance weighted conversion.
 5. Warm — red/yellow lift, slight shadows.
 6. Cold — blue/cyan lift, mild contrast.
-7. Polaroid — soft fade + warm highlights.
+7. Polaroid — reduced contrast, slight magenta/yellow shift, and lifted blacks for vintage instant-film tone.
 8. Vignette — radial edge darkening.
 
 ## Implementation (Canvas/WebGL)
