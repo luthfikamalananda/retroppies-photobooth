@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient'
+import { apiClient, BaseResponse } from './apiClient'
 import { USE_MOCK } from '@/mocks/mockFlag'
 import { mockLogin } from '@/mocks/data/auth.mock'
 
@@ -7,14 +7,23 @@ interface LoginRequest {
   password: string
 }
 
-interface LoginResponse {
+export interface ResultLogin {
   token: string
-  admin: { id: string; name: string }
-  settings: { sessionDurationSec: number; currency: string }
+  userId: number
+  username: string
+  roleId: number
+  permissions: string[]
+  tenantId: number
+  isSuperadmin: boolean
 }
 
-export async function login(credentials: LoginRequest): Promise<LoginResponse> {
+export async function login(credentials: LoginRequest): Promise<BaseResponse<ResultLogin>> {
   if (USE_MOCK) return mockLogin(credentials)
-  const res = await apiClient.post<LoginResponse>('/auth/login', credentials)
+  const res = await apiClient.post<BaseResponse<ResultLogin>>('/users/login', credentials, {
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Basic ' + btoa(`photobox:PhotoBox123@`)
+    },
+  })
   return res.data
 }

@@ -5,8 +5,9 @@ import { useAuthStore } from '@/store/authStore'
 
 export function StartPhotoPage() {
   const { goTo } = useSessionStore()
-  const { settings, startTimer, setConsent } = { ...useSessionStore(), ...useAuthStore() }
-  const sessionSettings = useAuthStore(s => s.settings)
+  const { startTimer, setConsent } = { ...useSessionStore(), ...useAuthStore() }
+  // Hardcoded session settings for now, can be made dynamic later
+  const sessionSettings = { sessionDurationSec: 300 }
   const startTimer_ = useSessionStore(s => s.startTimer)
   const setConsent_ = useSessionStore(s => s.setConsent)
 

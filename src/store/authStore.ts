@@ -1,36 +1,23 @@
+import { ResultLogin } from '@/services/authService'
 import { create } from 'zustand'
-
-interface AdminProfile {
-  id: string
-  name: string
-}
-
-interface SessionSettings {
-  sessionDurationSec: number
-  currency: string
-}
+import { createJSONStorage, persist } from 'zustand/middleware'
 
 interface AuthState {
-  token: string | null
-  admin: AdminProfile | null
-  settings: SessionSettings
-  isAuthenticated: boolean
-  setAuth: (token: string, admin: AdminProfile, settings: SessionSettings) => void
-  clearAuth: () => void
+  user: ResultLogin | null
+  setUser: (user: ResultLogin | null) => void
+  clearUser: () => void
 }
 
-const DEFAULT_SETTINGS: SessionSettings = {
-  sessionDurationSec: 180,
-  currency: 'IDR',
-}
-
-export const useAuthStore = create<AuthState>((set) => ({
-  token: null,
-  admin: null,
-  settings: DEFAULT_SETTINGS,
-  isAuthenticated: false,
-  setAuth: (token, admin, settings) =>
-    set({ token, admin, settings, isAuthenticated: true }),
-  clearAuth: () =>
-    set({ token: null, admin: null, settings: DEFAULT_SETTINGS, isAuthenticated: false }),
-}))
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      setUser: (response) => set({ user: response }),
+      clearUser: () => set({ user: null }),
+    }),
+    {
+      name: 'auth',
+      storage: createJSONStorage(() => sessionStorage),
+    }
+  )
+);

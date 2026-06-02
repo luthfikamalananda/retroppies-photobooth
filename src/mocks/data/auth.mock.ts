@@ -1,14 +1,10 @@
+import { ResultLogin } from '@/services/authService'
 import { mockDelay } from '../mockFlag'
+import { BaseResponse } from '@/services/apiClient'
 
 interface LoginRequest {
   username: string
   password: string
-}
-
-interface LoginResponse {
-  token: string
-  admin: { id: string; name: string }
-  settings: { sessionDurationSec: number; currency: string }
 }
 
 // Accepted mock credentials
@@ -17,7 +13,7 @@ const MOCK_ACCOUNTS: Record<string, string> = {
   operator: 'pass1234',
 }
 
-export async function mockLogin(credentials: LoginRequest): Promise<LoginResponse> {
+export async function mockLogin(credentials: LoginRequest): Promise<BaseResponse<ResultLogin>> {
   await mockDelay(800)
 
   const validPassword = MOCK_ACCOUNTS[credentials.username]
@@ -26,11 +22,18 @@ export async function mockLogin(credentials: LoginRequest): Promise<LoginRespons
   }
 
   return {
-    token: 'mock-jwt-token-dev-only',
-    admin: { id: 'mock-admin-1', name: credentials.username },
-    settings: {
-      sessionDurationSec: 180,
-      currency: 'IDR',
-    },
+    message: 'Login successful (mock)',
+    statusCode: 200,
+    success: true,
+    responseDatetime: new Date().toISOString(),
+    result: {
+      token: 'mock-jwt-token-dev-only',
+      userId: 1,
+      roleId: -99,
+      tenantId: 1,
+      isSuperadmin: false,
+      username: credentials.username,
+      permissions: ['read', 'write', 'delete'],
+    }
   }
 }

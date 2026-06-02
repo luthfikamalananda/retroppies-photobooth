@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '@/store/authStore'
+import { logoMark, logoRetroppies } from '@/assets'
 import { useSessionStore } from '@/store/sessionStore'
 import { useUIStore } from '@/store/uiStore'
 import { login } from '@/services/authService'
@@ -13,7 +14,7 @@ export function AdminLoginPage() {
     const [error, setError] = useState<string | null>(null)
     const [hardwareStatus, setHardwareStatus] = useState<{ cameraAvailable: boolean; printerAvailable: boolean } | null>(null)
 
-    const setAuth = useAuthStore(s => s.setAuth)
+    const { setUser } = useAuthStore()
     const goTo = useSessionStore(s => s.goTo)
     const { setLoading, loading } = useUIStore()
     const isLoading = loading['login'] ?? false
@@ -27,9 +28,12 @@ export function AdminLoginPage() {
         setLoading('login', true)
         try {
             const res = await login({ username, password })
-            setAuth(res.token, res.admin, res.settings)
-            const hw = await checkHardware()
-            setHardwareStatus(hw)
+            if (res.result && res.success) {
+                setUser(res.result)
+                const hw = await checkHardware()
+                setHardwareStatus(hw)
+
+            }
             setTimeout(() => goTo(1), 800)
         } catch {
             setError('Login gagal. Periksa username dan password.')
@@ -54,8 +58,16 @@ export function AdminLoginPage() {
             )}
 
             <div className="bg-black/60 backdrop-blur-md border border-retro-amber/40 rounded-2xl p-10 w-full max-w-md flex flex-col gap-6">
-                <h1 className="font-display text-retro-cream text-4xl text-center">RETROPPIES</h1>
-                <p className="font-body text-retro-cream/60 text-center text-sm">Admin Login</p>
+                <div className="flex flex-col items-center gap-2">
+                    <img
+                        src={logoRetroppies}
+                        alt="Retroppies"
+                        className="w-48 h-max select-none pointer-events-none"
+                        draggable={false}
+                    />
+                    <h1 className="font-body text-retro-cream text-sm text-center">Admin Login</h1>
+                    {/* <p className="font-body text-retro-cream/60 text-center text-sm">Admin Login</p> */}
+                </div>
 
                 {/* Mock mode credential hint */}
                 {USE_MOCK && (

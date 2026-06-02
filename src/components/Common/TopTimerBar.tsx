@@ -1,11 +1,18 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useSessionStore } from '@/store/sessionStore'
-import { useAuthStore } from '@/store/authStore'
 
 export function TopTimerBar() {
   const { timerSeconds, timerRunning, tickTimer, resetSession } = useSessionStore()
-  const settings = useAuthStore(s => s.settings)
+  // Capture the initial duration when the timer starts so the progress bar
+  // always uses the correct total, even as timerSeconds counts down.
+  const totalSecRef = useRef(180)
+  useEffect(() => {
+    if (timerRunning && timerSeconds > totalSecRef.current) {
+      totalSecRef.current = timerSeconds
+    }
+  }, [timerRunning, timerSeconds])
+  const sessionDurationSec = totalSecRef.current
 
   useEffect(() => {
     if (!timerRunning) return
@@ -20,7 +27,7 @@ export function TopTimerBar() {
     }
   }, [timerSeconds, timerRunning, resetSession])
 
-  const totalSec = settings.sessionDurationSec
+  const totalSec = sessionDurationSec
   const progress = totalSec > 0 ? timerSeconds / totalSec : 0
   const minutes = Math.floor(timerSeconds / 60)
   const seconds = timerSeconds % 60

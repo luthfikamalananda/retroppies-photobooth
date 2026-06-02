@@ -11,9 +11,11 @@ export interface Product {
   imageUrl?: string
 }
 
+
+
 export async function getProducts(type?: 'bundle' | 'addon'): Promise<Product[]> {
   if (USE_MOCK) return mockGetProducts(type)
   const params = type ? { type } : {}
-  const res = await apiClient.get<Product[]>('/products', { params })
+  const res = await apiClient.post<Product[]>('/products/get', { ...params })
   return res.data
 }

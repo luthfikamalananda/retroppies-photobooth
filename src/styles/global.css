@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  RetroGaming font (by Daymarius) — self-hosted.
+  Download: https://www.dafont.com/retro-gaming.font
+  Letakkan file  RetroGaming.ttf  di  src/assets/fonts/
+*/
+@font-face {
+  font-family: 'Retro Gaming';
+  src: url('../assets/fonts/Retro\ Gaming.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

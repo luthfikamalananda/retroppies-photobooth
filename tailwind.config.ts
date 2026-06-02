@@ -16,6 +16,8 @@ export default {
         retro: ['"Press Start 2P"', 'monospace'],
         display: ['"VT323"', 'monospace'],
         body: ['"IBM Plex Mono"', 'monospace'],
+        gaming: ['"Retro Gaming"', 'regular'],   // self-hosted — src/assets/fonts/RetroGaming.ttf
+        bebas: ['"Bebas Neue"', 'sans-serif'],      // Google Fonts
       },
     },
   },
