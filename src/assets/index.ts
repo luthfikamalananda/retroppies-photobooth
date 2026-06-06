@@ -23,6 +23,16 @@ import logoChooseProduct from './logo-choose-product.svg'
 import logoHowToUse from './logo-how-to-use.svg'
 import logoRec from './logo-rec.svg'
 import logoBattery from './logo-battery.svg'
-import logoBack from './logo-back.svg'
+import logoBack from './btn-back.svg'
+import logoSkip from './btn-skip.svg'
+import logoExtraPrint from './logo-extra-print.svg'
+import logoAddOns from './logo-adds-on.svg'
 
-export { logoFull, logoMark, secondaryBg, logoChooseProduct, logoHowToUse, logoRec, logoBattery, logoBack, logoRetroppies }
+import btnIncrement from './btn-increment.svg'
+import btnDecrement from './btn-decrement.svg'
+import btnChoose from './btn-choose.svg'
+import btnNextBlack from './btn-next-black.svg'
+import btnSkipBlack from './btn-skip-black.svg'
+
+
+export { logoFull, logoMark, secondaryBg, logoChooseProduct, logoHowToUse, logoRec, logoBattery, logoBack, logoSkip, logoExtraPrint, logoAddOns, logoRetroppies, btnChoose, btnIncrement, btnDecrement, btnNextBlack, btnSkipBlack }

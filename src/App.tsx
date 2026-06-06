@@ -1,5 +1,6 @@
 import { AnimatePresence } from 'framer-motion'
 import { useSessionStore } from '@/store/sessionStore'
+import { useAuthStore } from '@/store/authStore'
 import { BackgroundVideo } from '@/components/Common/BackgroundVideo'
 import { TopTimerBar } from '@/components/Common/TopTimerBar'
 import { GlobalModalHost } from '@/components/Common/GlobalModalHost'
@@ -8,6 +9,7 @@ import { MockModeBadge } from '@/components/Common/MockModeBadge'
 
 // Halaman components (lazy-loaded for performance)
 import { lazy, Suspense } from 'react'
+import { useCartStore } from './store/cartStore'
 
 const AdminLoginPage = lazy(() => import('@/components/Auth/AdminLoginPage').then(m => ({ default: m.AdminLoginPage })))
 const LandingPage = lazy(() => import('@/components/Onboarding/LandingPage').then(m => ({ default: m.LandingPage })))
@@ -45,8 +47,25 @@ const PAGE_COMPONENTS: Record<number, React.ComponentType> = {
 
 const TIMER_VISIBLE_HALAMAN = [9, 10, 11, 12, 13, 14]
 
+// Protected halaman that require authentication
+const PROTECTED_HALAMAN = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+
 export default function App() {
   const currentHalaman = useSessionStore(s => s.currentHalaman)
+  const goTo = useSessionStore(s => s.goTo)
+  const user = useAuthStore(s => s.user)
+
+  const { productAddOns, productBundle, productPrint, voucher } = useCartStore() // for cart persistence across halaman, if needed in the future
+  console.log('Current Cart State:', { productBundle, productPrint, productAddOns, voucher }) // Debug log for cart state
+
+  // Check if current halaman is protected and user is not authenticated
+  const isProtectedPage = PROTECTED_HALAMAN.includes(currentHalaman)
+  const needsAuth = isProtectedPage && !user
+
+  // If protected page but no auth, redirect to login
+  if (needsAuth) {
+    goTo(0)
+  }
 
   const PageComponent = PAGE_COMPONENTS[currentHalaman] ?? LandingPage
   const showTimer = TIMER_VISIBLE_HALAMAN.includes(currentHalaman)

@@ -4,15 +4,17 @@ import { useSessionStore } from '@/store/sessionStore'
 import { useCartStore } from '@/store/cartStore'
 import { getProducts, type Product } from '@/services/productService'
 import { useUIStore } from '@/store/uiStore'
-import { logoBack, logoChooseProduct } from '@/assets'
+import { btnChoose, logoBack, logoChooseProduct } from '@/assets'
+import { useAuthStore } from '@/store/authStore'
 
 export function ProductPage() {
   const { goNext, goBack } = useSessionStore()
-  const { selectedPackage, setPackage } = useCartStore()
+  const { productBundle, setProductBundle } = useCartStore()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const setBg = useUIStore((s) => s.setBackgroundVariant)
+  const { user } = useAuthStore()
 
   useEffect(() => {
     setBg('image')
@@ -20,9 +22,23 @@ export function ProductPage() {
   }, [])
 
   useEffect(() => {
-    getProducts('bundle')
-      .then(setProducts)
-      .catch(() => setError('Gagal memuat produk. Coba lagi.'))
+    if (!user) {
+      setError('User tidak ditemukan. Silakan login ulang.')
+      setLoading(false)
+      return
+    }
+    getProducts({ tenantId: user.tenantId, keyword: '', page: 1, limit: 999 })
+      .then((res) => {
+        if (res.result.products?.length === 0) {
+          setError('Produk tidak tersedia. Hubungi admin.')
+        } else {
+          setProducts(() => res.result.products.filter(p => p.productType === 'bundling'))
+        }
+      })
+      .catch((e) => {
+        console.error(e)
+        setError('Gagal memuat produk. Coba lagi.')
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -79,41 +95,47 @@ export function ProductPage() {
           </div>
         )}
         {!loading && !error && (
-          <div className="flex gap-6 flex-wrap justify-center w-full">
+          // make the height of the product card the same as, and make the image inside the card cover the whole card with object-cover
+          <div className="grid grid-flow-col gap-12 flex-1 px-12 justify-evenly items-center">
             {products.map((p) => (
               <ProductCard
                 key={p.id}
                 product={p}
-                selected={selectedPackage?.productId === p.id}
-                onSelect={() => setPackage({ productId: p.id, name: p.name, price: p.price, qty: 1 })}
+                onSelect={() => {
+                  setProductBundle(p)
+                  goNext()
+                }}
               />
             ))}
           </div>
         )}
       </div>
-
-      <div className="flex gap-4 justify-center">
-        <button
-          className="touch-target px-10 py-4 bg-retro-amber text-retro-brown font-body font-semibold rounded-full disabled:opacity-40"
-          onClick={goNext}
-          disabled={!selectedPackage}
-        >
-          Lanjut →
-        </button>
-      </div>
     </motion.div>
   )
 }
 
-function ProductCard({ product, selected, onSelect }: { product: Product; selected: boolean; onSelect: () => void }) {
+function ProductCard({
+  product,
+  onSelect
+}: {
+  product: Product;
+  onSelect: () => void
+}) {
   return (
-    <button
-      className={`touch-target w-52 bg-black/50 border-2 rounded-2xl p-6 flex flex-col gap-3 text-center transition-all ${selected ? 'border-retro-amber scale-105' : 'border-retro-amber/20 hover:border-retro-amber/50'}`}
-      onClick={onSelect}
+    <motion.div className={`w-48 p-4 h-full flex flex-col items-center hover:border-retro-amber transition-all justify-between gap-2`}
+    // whileHover={{ scale: 1.05 }}
     >
-      <p className="font-body text-retro-cream text-lg">{product.name}</p>
-      {product.description && <p className="font-body text-retro-cream/60 text-sm">{product.description}</p>}
-      <p className="font-display text-retro-amber text-2xl">Rp {product.price.toLocaleString('id-ID')}</p>
-    </button>
+      <img src={product.productPhoto} alt={product.productName} className="w-full h-32 object-cover rounded-lg" />
+      <div className="flex flex-col items-center gap-1">
+        <p className="font-bebas text-[#B23E3E] text-2xl line-clamp-2 text-center text-nowrap">{product.productName}</p>
+        <p className="font-bebas text-[#B23E3E] text-3xl text-center">Rp {product.productPrice.toLocaleString('id-ID')}</p>
+      </div>
+      <motion.img
+        src={btnChoose}
+        alt="Choose"
+        className={`w-full scale-150  mt-2 transition-all object-cover cursor-pointer hover:*:scale-160 hover:scale-[1.6]`}
+        onClick={onSelect}
+      />
+    </motion.div>
   )
 }

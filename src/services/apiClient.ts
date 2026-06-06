@@ -32,6 +32,12 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().clearUser()
+      // Navigate to login page via dynamic import to avoid circular dependency
+      import('@/store/sessionStore').then(m => {
+        m.useSessionStore.getState().goTo(0)
+      }).catch(() => {
+        // Silent fail if import fails
+      })
     }
     return Promise.reject(error)
   }

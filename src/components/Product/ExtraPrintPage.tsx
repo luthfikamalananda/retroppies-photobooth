@@ -1,44 +1,180 @@
-import { motion } from 'framer-motion'
-import { useSessionStore } from '@/store/sessionStore'
+import { btnDecrement, btnIncrement, btnNextBlack, btnSkipBlack, logoBack, logoExtraPrint, logoSkip } from '@/assets'
+import { getProducts, type Product } from '@/services/productService'
+import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
+import { useSessionStore } from '@/store/sessionStore'
+import { useUIStore } from '@/store/uiStore'
+import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 
 export function ExtraPrintPage() {
-  const { goNext, goBack } = useSessionStore()
-  const { extraPrintQty, setExtraPrintQty, subtotal } = useCartStore()
+  const { goNext, goBack, goTo } = useSessionStore()
+  const { productBundle, productPrint, setProductPrint } = useCartStore()
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const setBg = useUIStore((s) => s.setBackgroundVariant)
+  const { user } = useAuthStore()
+
+  useEffect(() => {
+    setBg('image')
+    return () => setBg('video') // restore saat halaman ini ditinggalkan
+  }, [])
+
+  useEffect(() => {
+    if (productBundle === null) {
+      goTo(3) // langsung lompat ke ProductPage
+      return
+    }
+    if (!user) {
+      setError('User tidak ditemukan. Silakan login ulang.')
+      setLoading(false)
+      return
+    }
+    getProducts({ tenantId: user.tenantId, keyword: '', page: 1, limit: 999 })
+      .then((res) => {
+        if (res.result.products?.length === 0) {
+          setError('Produk tidak tersedia. Hubungi admin.')
+        } else {
+          setProducts(() => res.result.products.filter(p => p.productType === 'print'))
+        }
+      })
+      .catch((e) => {
+        console.error(e)
+        setError('Gagal memuat produk. Coba lagi.')
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
   return (
     <motion.div
-      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-10 px-10"
+      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-6 px-10"
       initial={{ opacity: 0, x: 60 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -60 }}
     >
-      <h2 className="font-display text-retro-cream text-5xl">Extra Print</h2>
-      <p className="font-body text-retro-cream/60">Tambah cetakan ekstra dari foto kamu</p>
 
-      <div className="flex flex-col items-center gap-8">
-        <div className="flex items-center gap-8">
-          <button
-            className="touch-target w-16 h-16 rounded-full border-2 border-retro-amber text-retro-cream text-3xl flex items-center justify-center hover:bg-retro-amber/20 disabled:opacity-30"
-            onClick={() => setExtraPrintQty(Math.max(0, extraPrintQty - 1))}
-            disabled={extraPrintQty === 0}
-          >
-            −
-          </button>
-          <span className="font-display text-retro-cream text-7xl w-24 text-center">{extraPrintQty}</span>
-          <button
-            className="touch-target w-16 h-16 rounded-full border-2 border-retro-amber text-retro-cream text-3xl flex items-center justify-center hover:bg-retro-amber/20"
-            onClick={() => setExtraPrintQty(extraPrintQty + 1)}
-          >
-            +
-          </button>
-        </div>
-        <p className="font-body text-retro-cream/50 text-sm">Subtotal: Rp {subtotal.toLocaleString('id-ID')}</p>
+      <div className='flex flex-row w-full justify-between items-center'>
+        <motion.img
+          src={logoBack}
+          alt="How To Use"
+          whileTap={{ scale: 0.95 }}
+          onClick={goBack}
+          className="touch-target w-36 h-max select-none cursor-pointer"
+          initial={{ rotate: -20, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          draggable={false}
+        />
+
+        <motion.img
+          src={logoExtraPrint}
+          alt="Extra Print"
+          className="w-96 h-28 select-none pointer-events-none"
+          initial={{ rotate: -20, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          draggable={false}
+        />
+
+        <motion.img
+          src={logoBack}
+          alt="How To Use"
+          onClick={goBack}
+          className="w-36 h-max select-none pointer-events-none cursor-pointer invisible"
+          initial={{ rotate: -20, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          draggable={false}
+        />
       </div>
 
-      <div className="flex gap-4 justify-center">
-        <button className="touch-target px-10 py-4 border border-retro-amber/50 text-retro-cream font-body rounded-full" onClick={goBack}>← Kembali</button>
-        <button className="touch-target px-10 py-4 bg-retro-amber text-retro-brown font-body font-semibold rounded-full" onClick={goNext}>Lanjut →</button>
+      <div className="flex-1 flex items-center justify-center w-full">
+        {loading && <p className="font-body text-retro-cream/60 text-xl">Memuat...</p>}
+        {error && (
+          <div className="text-center">
+            <p className="font-body text-red-400 text-lg">{error}</p>
+            <button className="mt-4 touch-target px-8 py-3 bg-retro-amber text-retro-brown font-body rounded-full" onClick={() => window.location.reload()}>Coba Lagi</button>
+          </div>
+        )}
+        {!loading && !error && (
+          // make the height of the product card the same as, and make the image inside the card cover the whole card with object-cover
+          <div className="grid grid-flow-col gap-12 flex-1 px-12 justify-evenly items-center">
+            {products.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={p}
+                onSelect={(type: 'decrement' | 'increment') => {
+                  if (type === 'increment') {
+                    const tempProductPrint = productPrint ? [...productPrint] : []
+                    tempProductPrint.push(p)
+                    setProductPrint(tempProductPrint)
+                  } else if (type === 'decrement') {
+                    if (!productPrint || productPrint.length === 0) return
+                    const tempProductPrint = [...productPrint]
+                    const index = tempProductPrint.findIndex(prod => prod.id === p.id)
+                    if (index !== -1) {
+                      tempProductPrint.splice(index, 1)
+                      setProductPrint(tempProductPrint)
+                    }
+                  }
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-row w-full justify-end items-center ">
+        <motion.img
+          key={productPrint.length > 0 ? 'next' : 'skip'}  // ← ini trigger-nya
+          src={productPrint.length > 0 ? btnNextBlack : btnSkipBlack}
+          alt="How To Use"
+          whileTap={{ scale: 0.95 }}
+          onClick={goNext}
+          className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+          initial={{ rotate: 0, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          draggable={false}
+        />
+      </div>
+    </motion.div>
+  )
+}
+
+function ProductCard({
+  product,
+  onSelect
+}: {
+  product: Product;
+  onSelect: (type: 'decrement' | 'increment') => void
+}) {
+  const { productPrint } = useCartStore()
+
+  return (
+    <motion.div className={`w-48 p-4 h-full flex flex-col items-center hover:border-retro-amber transition-all justify-between gap-2`}
+    // whileHover={{ scale: 1.05 }}
+    >
+      <img src={product.productPhoto} alt={product.productName} className="w-full h-32 object-cover rounded-lg" />
+      <div className="flex flex-col items-center gap-1">
+        <p className="font-bebas text-[#B23E3E] text-2xl line-clamp-2 text-center text-nowrap">{product.productName}</p>
+        <p className="font-bebas text-[#B23E3E] text-3xl text-center">Rp {product.productPrice.toLocaleString('id-ID')}</p>
+      </div>
+      <div className="gap-4 grid grid-flow-col justify-evenly items-center">
+        <motion.img
+          src={btnDecrement}
+          alt="Choose"
+          className={`w-10 transition-all object-cover cursor-pointer`}
+          onClick={() => onSelect('decrement')}
+        />
+        <p className="font-bebas text-[#B23E3E] text-lg text-center">{productPrint?.length || 0}</p>
+        <motion.img
+          src={btnIncrement}
+          alt="Choose"
+          className={`w-10 transition-all object-cover cursor-pointer`}
+          onClick={() => onSelect('increment')}
+        />
       </div>
     </motion.div>
   )

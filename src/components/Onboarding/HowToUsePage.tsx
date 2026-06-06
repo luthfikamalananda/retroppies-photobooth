@@ -11,6 +11,7 @@ import howToUse5 from '@/assets/how-to-use-5.svg'
 import howToUse6 from '@/assets/how-to-use-6.svg'
 import howToUse7 from '@/assets/how-to-use-7.svg'
 import { useState } from 'react'
+import { logoSkip } from '@/assets'
 
 const STEPS = [
   { title: 'Choose Product', img: howToUse1 },
@@ -79,20 +80,18 @@ export function HowToUsePage() {
         ))}
       </div>
 
-      <div className="flex gap-4 w-full justify-end flex-shrink-0">
-        <button
-          className="touch-target px-10 py-4 border border-retro-amber/50 text-retro-cream font-body rounded-full hover:bg-white/10 transition-colors"
-          onClick={goBack}
-        >
-          ← Kembali
-        </button>
-        <button
-          className="touch-target px-10 py-4 bg-retro-amber text-retro-brown font-body font-semibold rounded-full"
-          onClick={goNext}
-        >
-          Lanjut →
-        </button>
-      </div>
+      {/* <div className="flex gap-4 w-full justify-end flex-shrink-0 fixed bottom-4 right-0"> */}
+      <motion.img
+        src={logoSkip}
+        alt="Skip Button"
+        onClick={goNext}
+        className="w-36 h-max cursor-pointer flex gap-4 justify-end flex-shrink-0 fixed bottom-4 right-6"
+        initial={{ rotate: -20, opacity: 0 }}
+        animate={{ rotate: 0, opacity: 1 }}
+        transition={{ delay: 0.8 }}
+        draggable={false}
+      />
+      {/* </div> */}
     </motion.div>
   )
 }
