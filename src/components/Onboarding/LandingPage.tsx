@@ -4,10 +4,16 @@ import logoFull from '@/assets/retroppies-logo.svg'
 import logoPlay from '@/assets/logo-play.svg'
 import logoBattery from '@/assets/logo-battery.svg'
 import logoPressStart from '@/assets/logo-press-start.svg'
+import { useEffect } from 'react'
 
 
 export function LandingPage() {
   const goNext = useSessionStore(s => s.goNext)
+  const setTransaction = useSessionStore(s => s.setTransaction)
+
+  useEffect(() => {
+    setTransaction(null) // reset transaksi saat masuk halaman ini
+  }, [])
 
   return (
     <motion.div

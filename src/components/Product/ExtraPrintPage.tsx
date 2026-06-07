@@ -8,7 +8,7 @@ import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 
 export function ExtraPrintPage() {
-  const { goNext, goBack, goTo } = useSessionStore()
+  const { goNext, goBack, goTo, setTransaction } = useSessionStore()
   const { productBundle, productPrint, setProductPrint } = useCartStore()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -16,12 +16,17 @@ export function ExtraPrintPage() {
   const setBg = useUIStore((s) => s.setBackgroundVariant)
   const { user } = useAuthStore()
 
+  let isInitialized = false; // flag untuk memastikan init hanya sekali
+
   useEffect(() => {
-    setBg('image')
-    return () => setBg('video') // restore saat halaman ini ditinggalkan
+    setTransaction(null) // reset transaksi saat masuk halaman ini
+    setBg('image-white')
+    return () => setBg('video-black') // restore saat halaman ini ditinggalkan
   }, [])
 
   useEffect(() => {
+    if (isInitialized) return
+    isInitialized = true
     if (productBundle === null) {
       goTo(3) // langsung lompat ke ProductPage
       return
@@ -63,7 +68,7 @@ export function ExtraPrintPage() {
           className="touch-target w-36 h-max select-none cursor-pointer"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 0.2 }}
           draggable={false}
         />
 
@@ -73,7 +78,7 @@ export function ExtraPrintPage() {
           className="w-96 h-28 select-none pointer-events-none"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 0.2 }}
           draggable={false}
         />
 
@@ -84,7 +89,7 @@ export function ExtraPrintPage() {
           className="w-36 h-max select-none pointer-events-none cursor-pointer invisible"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 0.2 }}
           draggable={false}
         />
       </div>
@@ -154,7 +159,10 @@ function ProductCard({
 
   return (
     <motion.div className={`w-48 p-4 h-full flex flex-col items-center hover:border-retro-amber transition-all justify-between gap-2`}
-    // whileHover={{ scale: 1.05 }}
+      // whileHover={{ scale: 1.05 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.6 }}
     >
       <img src={product.productPhoto} alt={product.productName} className="w-full h-32 object-cover rounded-lg" />
       <div className="flex flex-col items-center gap-1">

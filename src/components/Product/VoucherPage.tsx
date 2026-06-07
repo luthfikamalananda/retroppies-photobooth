@@ -1,30 +1,79 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useSessionStore } from '@/store/sessionStore'
 import { useCartStore } from '@/store/cartStore'
-import { validateVoucher } from '@/services/voucherService'
+import { validateVoucher, VoucherResult } from '@/services/voucherService'
+import { useUIStore } from '@/store/uiStore'
+import { btnApply, btnNextBlack, btnSkipBlack, iconVoucher, logoBack, logoVoucher } from '@/assets'
+import { useAuthStore } from '@/store/authStore'
+import { extractErrorMessage } from '@/utils/errorHandling'
+import { formatCurrency } from '@/utils/formatCurrency'
 
 export function VoucherPage() {
-  const { goNext, goBack } = useSessionStore()
-  const { subtotal, voucher, setVoucher, total } = useCartStore()
+  const { goNext, goBack, setTransaction } = useSessionStore()
+  const { user } = useAuthStore()
+  const { productAddOns, productBundle, productPrint, setVoucher } = useCartStore()
+  const [resultVoucher, setResultVoucher] = useState<VoucherResult | null>(null)
+  const setBg = useUIStore((s) => s.setBackgroundVariant)
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const initializedRef = useRef(false) // ← Harus useRef, bukan variable biasa
+
+
+  useEffect(() => {
+    if (initializedRef.current) return
+    initializedRef.current = true
+
+    setVoucher(null) // reset voucher saat masuk halaman ini
+  })
+
   const handleApply = async () => {
-    if (!code.trim()) return
+    // Calculate Price
+    let total = 0
+    if (productBundle) total += productBundle.productPrice
+    if (productPrint.length > 0) total += productPrint.reduce((a, b) => a + b.productPrice, 0)
+    if (productAddOns.length > 0) total += productAddOns.reduce((a, b) => a + b.productPrice, 0)
+
+    if (!code.trim() || !user) {
+      setError('Masukkan kode voucher terlebih dahulu.')
+      setVoucher(null)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
-      const result = await validateVoucher({ code: code.trim(), subtotal })
-      setVoucher(result)
-    } catch {
-      setError('Voucher tidak valid atau sudah kadaluarsa.')
+      const request = {
+        code: code.trim(),
+        amount: total, // dummy, backend akan hitung sendiri
+        tenantId: user.tenantId, // dummy, backend akan ambil dari session
+      }
+      const result = await validateVoucher(request)
+      if (result.success) {
+        setVoucher(code.trim())
+        setError(null)
+        setResultVoucher(result.result)
+      } else {
+        setResultVoucher(result.result) // tetap set result untuk menampilkan pesan sukses walau voucher tidak valid
+        setVoucher(null)
+        setError(result.message || 'Voucher tidak valid atau sudah kadaluarsa.')
+      }
+      // setVoucher(result)
+    } catch (e) {
+      setError(extractErrorMessage(e));
       setVoucher(null)
+      setResultVoucher(null)
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    setTransaction(null) // reset transaksi saat masuk halaman ini
+    setBg('image-white')
+    return () => setBg('video-black') // restore saat halaman ini ditinggalkan
+  }, [])
 
   const handleReset = () => {
     setCode('')
@@ -39,48 +88,120 @@ export function VoucherPage() {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -60 }}
     >
-      <h2 className="font-display text-retro-cream text-5xl">Voucher</h2>
 
-      <div className="flex flex-col items-center gap-6 w-full max-w-md">
-        <div className="flex gap-3 w-full">
-          <input
-            className="touch-target flex-1 bg-black/40 border border-retro-amber/40 rounded-lg px-4 py-3 text-retro-cream font-body text-base outline-none focus:border-retro-amber uppercase"
-            type="text"
-            placeholder="Masukkan kode voucher"
-            value={code}
-            onChange={e => setCode(e.target.value.toUpperCase())}
-          />
-          <button
-            className="touch-target px-6 py-3 bg-retro-amber text-retro-brown font-body font-semibold rounded-lg disabled:opacity-50"
-            onClick={handleApply}
-            disabled={loading || !code.trim()}
-          >
-            {loading ? '...' : 'Pakai'}
-          </button>
-        </div>
+      <div className='flex flex-row w-full justify-between items-center'>
+        <motion.img
+          src={logoBack}
+          alt="How To Use"
+          whileTap={{ scale: 0.95 }}
+          onClick={goBack}
+          className="touch-target w-36 h-max select-none cursor-pointer"
+          initial={{ rotate: -20, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          draggable={false}
+        />
 
-        {error && <p className="font-body text-red-400 text-sm">{error}</p>}
+        <motion.img
+          src={logoVoucher}
+          alt="Voucher"
+          className="w-96 h-28 select-none pointer-events-none"
+          initial={{ rotate: -20, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          draggable={false}
+        />
 
-        {voucher && (
-          <div className="w-full bg-green-900/40 border border-green-500/40 rounded-xl p-4 flex justify-between items-center">
-            <div>
-              <p className="font-body text-green-400 font-semibold">{voucher.code}</p>
-              <p className="font-body text-retro-cream/60 text-sm">Diskon Rp {voucher.discountAmount.toLocaleString('id-ID')}</p>
-            </div>
-            <button className="touch-target text-retro-cream/40 hover:text-red-400 text-lg" onClick={handleReset}>✕</button>
+        <motion.img
+          src={logoBack}
+          alt="How To Use"
+          onClick={goBack}
+          className="w-36 h-max select-none pointer-events-none cursor-pointer invisible"
+          initial={{ rotate: -20, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          draggable={false}
+        />
+      </div>
+
+      <motion.div className="flex flex-col items-start gap-2 w-full max-w-2xl"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+      >
+        <p className="font-bebas text-[#B23E3E] text-3xl text-center">VOUCHER CODE</p>
+        <div className="flex gap-3 w-full items-start">
+          <div className="flex flex-col w-full gap-2">
+            <input
+              className="h-14 touch-target flex-1 bg-[#F8F8F8] border-2 border-[#575757] rounded-full px-4 py-3 text-[#2C2C2C] text-lg font-bebas  outline-none focus:border-retro-amber uppercase"
+              type="text"
+              placeholder="Enter Exclusive Voucher Code Here ..."
+              value={code}
+              onChange={e => {
+                setCode(e.target.value.toUpperCase())
+                setError(null)
+              }}
+            />
+
+            {(resultVoucher && !error) && (
+              <div className="w-full bg-[#1F8A68]  border-2 border-l-[#8CECA7] px-6 py-4 rounded-lg flex justify-between items-center">
+                <div className="flex items-center gap-5">
+                  <img src={iconVoucher} alt="Voucher Icon" className="w-6 h-6" />
+                  <div className="flex flex-col gap-1">
+                    <p className="font-bebas text-green-400 font-semibold tracking-wide">Voucher Successfully Applied  🎉</p>
+                    <p className="font-bebas text-[#FFF9F3] text-sm tracking-wide font-thin">Congratulations, You received a discount of <span className="font-extrabold text-sm text-[#FFF9F3]">{formatCurrency(resultVoucher.discount)}</span> for this transaction.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {(error && code) && (
+              <div className="w-full bg-[#BA371E] border-2 border-l-[#E1BEB7] px-6 py-4 rounded-lg flex justify-between items-center">
+                <div className="flex items-center gap-5">
+                  <img src={iconVoucher} alt="Voucher Icon" className="w-6 h-6" />
+                  <div className="flex flex-col gap-1">
+                    <p className="font-bebas text-red-400 font-semibold tracking-wide">Voucher Unavailable!</p>
+                    <p className="font-bebas text-[#FFF9F3] text-sm tracking-wide font-thin">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-
-        <div className="w-full border-t border-retro-amber/20 pt-4 flex justify-between font-body text-retro-cream">
-          <span>Total</span>
-          <span className="font-semibold text-retro-amber text-xl">Rp {total.toLocaleString('id-ID')}</span>
+          <motion.img
+            src={btnApply}
+            alt={'APPLY'}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleApply}
+            className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+            initial={{ rotate: 0, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            draggable={false}
+            aria-disabled={loading || !code.trim()}
+          />
         </div>
-      </div>
 
-      <div className="flex gap-4 justify-center">
-        <button className="touch-target px-10 py-4 border border-retro-amber/50 text-retro-cream font-body rounded-full" onClick={goBack}>← Kembali</button>
-        <button className="touch-target px-10 py-4 bg-retro-amber text-retro-brown font-body font-semibold rounded-full" onClick={goNext}>Lanjut ke Pembayaran →</button>
+        {(error && !code) && <p className="font-bebas text-[#BA371E] text-xl tracking-wider">{error}</p>}
+
+        {/* <div className={`w-full ${resultVoucher ? 'border-t border-retro-amber/20 pt-4' : ''} flex justify-between font-body text-retro-cream`}>
+          <span>Total</span>
+          <span className="font-semibold text-retro-amber text-xl">Rp {resultVoucher && resultVoucher?.finalPrice}</span>
+        </div> */}
+      </motion.div>
+
+      <div className="flex flex-row w-full justify-end items-center ">
+        <motion.img
+          key={resultVoucher ? 'next' : 'skip'}  // ← ini trigger-nya
+          src={resultVoucher ? btnNextBlack : btnSkipBlack}
+          alt={resultVoucher ? 'NEXT' : 'SKIP'}
+          whileTap={{ scale: 0.95 }}
+          onClick={goNext}
+          className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+          initial={{ rotate: 0, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          draggable={false}
+        />
       </div>
-    </motion.div>
+    </motion.div >
   )
 }

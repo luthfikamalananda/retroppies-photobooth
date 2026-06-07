@@ -1,20 +1,22 @@
-import { apiClient } from './apiClient'
-import { USE_MOCK } from '@/mocks/mockFlag'
-import { mockValidateVoucher } from '@/mocks/data/vouchers.mock'
-import type { VoucherResult } from '@/store/cartStore'
+import { apiClient, BaseResponse } from './apiClient'
 
 interface ValidateRequest {
   code: string
-  subtotal: number
+  amount: number
+  tenantId: number
 }
 
-export async function validateVoucher(req: ValidateRequest): Promise<VoucherResult> {
-  if (USE_MOCK) return mockValidateVoucher(req)
-  const res = await apiClient.post<VoucherResult & { valid: boolean }>('/vouchers/validate', req)
-  return {
-    code: req.code,
-    discountType: res.data.discountType,
-    discountValue: res.data.discountValue,
-    discountAmount: res.data.discountAmount,
+export interface VoucherResult {
+  discount: number
+  finalPrice: number
+}
+
+export async function validateVoucher(req: ValidateRequest): Promise<BaseResponse<VoucherResult>> {
+  // if (USE_MOCK) return mockValidateVoucher(req)
+  const res = await apiClient.post<BaseResponse<VoucherResult>>('/voucher/apply-v2', req)
+  try {
+    return res.data
+  } catch (error) {
+    throw error
   }
 }

@@ -17,7 +17,7 @@ import logoMark from './logo-mark.svg'
 import logoRetroppies from './retroppies-logo.svg'
 
 // Background alternatif (SVG) — dipakai saat backgroundVariant === 'image'
-import secondaryBg from './secondary-background.svg'
+import iconVoucher from './icon-voucher.svg'
 
 import logoChooseProduct from './logo-choose-product.svg'
 import logoHowToUse from './logo-how-to-use.svg'
@@ -27,12 +27,20 @@ import logoBack from './btn-back.svg'
 import logoSkip from './btn-skip.svg'
 import logoExtraPrint from './logo-extra-print.svg'
 import logoAddOns from './logo-adds-on.svg'
+import logoVoucher from './logo-voucher.svg'
+import logoWindowControl from './logo-window-control.svg'
 
 import btnIncrement from './btn-increment.svg'
 import btnDecrement from './btn-decrement.svg'
 import btnChoose from './btn-choose.svg'
 import btnNextBlack from './btn-next-black.svg'
 import btnSkipBlack from './btn-skip-black.svg'
+import btnApply from './btn-apply.svg'
+import btnBackGold from './btn-back-gold.svg'
 
 
-export { logoFull, logoMark, secondaryBg, logoChooseProduct, logoHowToUse, logoRec, logoBattery, logoBack, logoSkip, logoExtraPrint, logoAddOns, logoRetroppies, btnChoose, btnIncrement, btnDecrement, btnNextBlack, btnSkipBlack }
+export {
+    iconVoucher,
+    logoFull, logoMark, logoChooseProduct, logoHowToUse, logoRec, logoBattery, logoBack, logoSkip, logoExtraPrint, logoAddOns, logoVoucher, logoRetroppies, logoWindowControl,
+    btnChoose, btnIncrement, btnDecrement, btnNextBlack, btnSkipBlack, btnApply, btnBackGold,
+}

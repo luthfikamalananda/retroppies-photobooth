@@ -8,20 +8,25 @@ import { btnChoose, logoBack, logoChooseProduct } from '@/assets'
 import { useAuthStore } from '@/store/authStore'
 
 export function ProductPage() {
-  const { goNext, goBack } = useSessionStore()
-  const { productBundle, setProductBundle } = useCartStore()
+  const { goNext, goBack, setTransaction } = useSessionStore()
+  const { setProductBundle } = useCartStore()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const setBg = useUIStore((s) => s.setBackgroundVariant)
   const { user } = useAuthStore()
 
+  let isInitialized = false; // flag untuk memastikan init hanya sekali
+
   useEffect(() => {
-    setBg('image')
-    return () => setBg('video') // restore saat halaman ini ditinggalkan
+    setTransaction(null) // reset transaksi saat masuk halaman ini
+    setBg('image-white')
+    return () => setBg('video-black') // restore saat halaman ini ditinggalkan
   }, [])
 
   useEffect(() => {
+    if (isInitialized) return
+    isInitialized = true
     if (!user) {
       setError('User tidak ditemukan. Silakan login ulang.')
       setLoading(false)
@@ -39,7 +44,8 @@ export function ProductPage() {
         console.error(e)
         setError('Gagal memuat produk. Coba lagi.')
       })
-      .finally(() => setLoading(false))
+      .finally(() => { setLoading(false) })
+
   }, [])
 
   return (
@@ -59,7 +65,7 @@ export function ProductPage() {
           className="touch-target w-36 h-max select-none cursor-pointer"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 0.2 }}
           draggable={false}
         />
 
@@ -69,7 +75,7 @@ export function ProductPage() {
           className="w-96 h-28 select-none pointer-events-none"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 0.2 }}
           draggable={false}
         />
 
@@ -80,7 +86,7 @@ export function ProductPage() {
           className="w-36 h-max select-none pointer-events-none cursor-pointer invisible"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 0.2 }}
           draggable={false}
         />
       </div>
@@ -123,7 +129,10 @@ function ProductCard({
 }) {
   return (
     <motion.div className={`w-48 p-4 h-full flex flex-col items-center hover:border-retro-amber transition-all justify-between gap-2`}
-    // whileHover={{ scale: 1.05 }}
+      // whileHover={{ scale: 1.05 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.6 }}
     >
       <img src={product.productPhoto} alt={product.productName} className="w-full h-32 object-cover rounded-lg" />
       <div className="flex flex-col items-center gap-1">

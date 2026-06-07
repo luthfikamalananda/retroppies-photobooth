@@ -10,8 +10,9 @@ import howToUse4 from '@/assets/how-to-use-4.svg'
 import howToUse5 from '@/assets/how-to-use-5.svg'
 import howToUse6 from '@/assets/how-to-use-6.svg'
 import howToUse7 from '@/assets/how-to-use-7.svg'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { logoSkip } from '@/assets'
+import { useUIStore } from '@/store/uiStore'
 
 const STEPS = [
   { title: 'Choose Product', img: howToUse1 },
@@ -24,8 +25,20 @@ const STEPS = [
 ]
 
 export function HowToUsePage() {
-  const { goNext, goBack } = useSessionStore()
+  const { goNext, goBack, setTransaction } = useSessionStore()
   const [isTitleVisible, setTitleVisible] = useState(false)
+  const setBg = useUIStore((s) => s.setBackgroundVariant)
+
+
+  useEffect(() => {
+    setTransaction(null) // reset transaksi saat masuk halaman ini
+    setBg('image-black')
+    return () => setBg('video-black') // restore saat halaman ini ditinggalkan
+  }, [])
+
+  useEffect(() => {
+    setTransaction(null) // reset transaksi saat masuk halaman ini
+  }, [])
 
   return (
     <motion.div
@@ -70,7 +83,7 @@ export function HowToUsePage() {
           <motion.div
             key={i}
             // className="bg-black/50 border border-retro-amber/30 rounded-xl p-6 flex flex-col items-center gap-3 text-center"
-            className="bg-black/50 rounded-xl p-4 flex flex-col items-center gap-2 text-center min-h-0"
+            className="rounded-xl p-4 flex flex-col items-center gap-2 text-center min-h-0"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 * i }}

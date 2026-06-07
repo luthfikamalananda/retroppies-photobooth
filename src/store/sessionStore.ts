@@ -1,9 +1,10 @@
+import { TransactionResult } from '@/services/paymentService'
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
 interface SessionState {
   currentHalaman: number
-  transactionId: string | null
+  transaction: TransactionResult | null
   timerSeconds: number
   timerRunning: boolean
   consentGiven: boolean
@@ -11,7 +12,7 @@ interface SessionState {
   goTo: (halaman: number) => void
   goNext: () => void
   goBack: () => void
-  setTransactionId: (id: string) => void
+  setTransaction: (transaction: TransactionResult | null) => void
   setConsent: (value: boolean) => void
   startTimer: (durationSec: number) => void
   tickTimer: () => void
@@ -23,7 +24,7 @@ export const useSessionStore = create<SessionState>()(
   persist(
     (set, get) => ({
       currentHalaman: 0,
-      transactionId: null,
+      transaction: null,
       timerSeconds: 0,
       timerRunning: false,
       consentGiven: false,
@@ -31,7 +32,7 @@ export const useSessionStore = create<SessionState>()(
       goTo: (halaman) => set({ currentHalaman: halaman }),
       goNext: () => set((s) => ({ currentHalaman: Math.min(s.currentHalaman + 1, 14) })),
       goBack: () => set((s) => ({ currentHalaman: Math.max(s.currentHalaman - 1, 1) })),
-      setTransactionId: (id) => set({ transactionId: id }),
+      setTransaction: (transaction) => set({ transaction }),
       setConsent: (value) => set({ consentGiven: value }),
       startTimer: (durationSec) => set({ timerSeconds: durationSec, timerRunning: true }),
       tickTimer: () => {
@@ -46,7 +47,7 @@ export const useSessionStore = create<SessionState>()(
       resetSession: () =>
         set({
           currentHalaman: 1,
-          transactionId: null,
+          transaction: null,
           timerSeconds: 0,
           timerRunning: false,
           consentGiven: false,
@@ -59,7 +60,7 @@ export const useSessionStore = create<SessionState>()(
       // after a page reload would be incorrect (the tick interval is gone).
       partialize: (s) => ({
         currentHalaman: s.currentHalaman,
-        transactionId: s.transactionId,
+        transaction: s.transaction,
         timerSeconds: s.timerSeconds,
         timerRunning: false,
         consentGiven: s.consentGiven,

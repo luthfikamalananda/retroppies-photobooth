@@ -6,7 +6,7 @@ export interface Toast {
   type: 'success' | 'error' | 'info'
 }
 
-export type BackgroundVariant = 'video' | 'image'
+export type BackgroundVariant = 'video-black' | 'image-black' | 'image-white'
 
 interface UIState {
   loading: Record<string, boolean>
@@ -32,7 +32,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   modalOpen: false,
   modalContent: null,
   toasts: [],
-  backgroundVariant: 'video',
+  backgroundVariant: 'video-black',
 
   setLoading: (key, value) =>
     set((s) => ({ loading: { ...s.loading, [key]: value } })),
@@ -55,5 +55,5 @@ export const useUIStore = create<UIState>((set, get) => ({
   setBackgroundVariant: (variant) => set({ backgroundVariant: variant }),
 
   toggleBackground: () =>
-    set({ backgroundVariant: get().backgroundVariant === 'video' ? 'image' : 'video' }),
+    set({ backgroundVariant: get().backgroundVariant === 'video-black' ? 'image-black' : 'video-black' }),
 }))

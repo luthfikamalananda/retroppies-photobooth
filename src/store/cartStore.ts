@@ -1,4 +1,5 @@
 import { Product } from '@/services/productService'
+import { VoucherResult } from '@/services/voucherService'
 import { create } from 'zustand'
 
 export interface CartProduct {
@@ -8,12 +9,6 @@ export interface CartProduct {
   qty: number
 }
 
-export interface VoucherResult {
-  code: string
-  discountType: 'percent' | 'flat'
-  discountValue: number
-  discountAmount: number
-}
 
 interface CartState {
   productBundle: Product | null
@@ -25,8 +20,8 @@ interface CartState {
   productAddOns: Product[]
   setProductAddOns: (products: Product[]) => void
 
-  voucher: VoucherResult | null
-  setVoucher: (voucher: VoucherResult | null) => void
+  voucher: string | null
+  setVoucher: (voucher: string | null) => void
 
   clearCart: () => void
 }

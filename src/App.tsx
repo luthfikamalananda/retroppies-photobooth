@@ -50,17 +50,27 @@ const TIMER_VISIBLE_HALAMAN = [9, 10, 11, 12, 13, 14]
 // Protected halaman that require authentication
 const PROTECTED_HALAMAN = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 
+const MUSTHAVE_PRODUCTS = [4, 5, 6] // ProductPage and ExtraPrintPage require a valid productBundle to be selected
+
 export default function App() {
   const currentHalaman = useSessionStore(s => s.currentHalaman)
   const goTo = useSessionStore(s => s.goTo)
   const user = useAuthStore(s => s.user)
 
-  const { productAddOns, productBundle, productPrint, voucher } = useCartStore() // for cart persistence across halaman, if needed in the future
-  console.log('Current Cart State:', { productBundle, productPrint, productAddOns, voucher }) // Debug log for cart state
+  const { productBundle } = useCartStore() // for cart persistence across halaman, if needed in the future
 
   // Check if current halaman is protected and user is not authenticated
   const isProtectedPage = PROTECTED_HALAMAN.includes(currentHalaman)
   const needsAuth = isProtectedPage && !user
+
+  // Check if current halaman requires a product bundle but it's not selected
+  const isMustHaveProductPage = MUSTHAVE_PRODUCTS.includes(currentHalaman)
+  const needsProductBundle = isMustHaveProductPage && !productBundle
+
+  // If must-have product page but no product bundle, redirect to ProductPage
+  if (needsProductBundle) {
+    goTo(3) // ProductPage
+  }
 
   // If protected page but no auth, redirect to login
   if (needsAuth) {

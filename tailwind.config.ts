@@ -4,6 +4,9 @@ export default {
   theme: {
     extend: {
       colors: {
+        bebas: {
+          base: "#B23E3E"
+        },
         retro: {
           cream: '#F5E6C8',
           brown: '#4A2C17',
