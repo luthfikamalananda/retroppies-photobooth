@@ -22,13 +22,17 @@ import iconVoucher from './icon-voucher.svg'
 import logoChooseProduct from './logo-choose-product.svg'
 import logoHowToUse from './logo-how-to-use.svg'
 import logoRec from './logo-rec.svg'
+import logoRecAlt from './logo-rec-alt.svg'
 import logoBattery from './logo-battery.svg'
+import logoBatteryAlt from './logo-battery-alt.svg'
 import logoBack from './btn-back.svg'
 import logoSkip from './btn-skip.svg'
 import logoExtraPrint from './logo-extra-print.svg'
 import logoAddOns from './logo-adds-on.svg'
 import logoVoucher from './logo-voucher.svg'
 import logoWindowControl from './logo-window-control.svg'
+import logoSuccess from './logo-success.svg'
+import logoFailed from './logo-failed.svg'
 
 import btnIncrement from './btn-increment.svg'
 import btnDecrement from './btn-decrement.svg'
@@ -41,6 +45,6 @@ import btnBackGold from './btn-back-gold.svg'
 
 export {
     iconVoucher,
-    logoFull, logoMark, logoChooseProduct, logoHowToUse, logoRec, logoBattery, logoBack, logoSkip, logoExtraPrint, logoAddOns, logoVoucher, logoRetroppies, logoWindowControl,
+    logoFull, logoMark, logoChooseProduct, logoHowToUse, logoRec, logoRecAlt, logoBattery, logoBatteryAlt, logoBack, logoSkip, logoExtraPrint, logoAddOns, logoVoucher, logoRetroppies, logoWindowControl, logoSuccess, logoFailed,
     btnChoose, btnIncrement, btnDecrement, btnNextBlack, btnSkipBlack, btnApply, btnBackGold,
 }

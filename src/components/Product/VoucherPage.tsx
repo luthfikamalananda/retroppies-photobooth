@@ -14,12 +14,19 @@ export function VoucherPage() {
   const { user } = useAuthStore()
   const { productAddOns, productBundle, productPrint, setVoucher } = useCartStore()
   const [resultVoucher, setResultVoucher] = useState<VoucherResult | null>(null)
-  const setBg = useUIStore((s) => s.setBackgroundVariant)
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const initializedRef = useRef(false) // ← Harus useRef, bukan variable biasa
+
+  const setBg = useUIStore((s) => s.setBackgroundVariant)
+
+  useEffect(() => {
+    setTransaction(null) // reset transaksi saat masuk halaman ini
+    setBg('image-white')
+    return () => setBg('video-black') // restore saat halaman ini ditinggalkan
+  }, [])
 
 
   useEffect(() => {
@@ -69,11 +76,6 @@ export function VoucherPage() {
     }
   }
 
-  useEffect(() => {
-    setTransaction(null) // reset transaksi saat masuk halaman ini
-    setBg('image-white')
-    return () => setBg('video-black') // restore saat halaman ini ditinggalkan
-  }, [])
 
   const handleReset = () => {
     setCode('')

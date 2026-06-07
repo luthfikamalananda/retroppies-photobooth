@@ -1,5 +1,5 @@
 import { btnBackGold, logoWindowControl } from '@/assets'
-import { createTransactionv2, getTransactionStatus } from '@/services/paymentService'
+import { createTransactionv2, getTransactionStatus, TransactionResult } from '@/services/paymentService'
 import { useCartStore } from '@/store/cartStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useUIStore } from '@/store/uiStore'
@@ -39,11 +39,6 @@ function VoucherLimitModal({ isOpen, errorText, onContinueWithoutVoucher, onBack
             <div className="bg-[#F7CC40] px-5 py-4 flex items-center justify-between">
               <h2 className="font-gaming text-[#2C2C2C] text-2xl">VOUCHER LIMIT</h2>
               <img src={logoWindowControl} alt="Window-Control" className="select-none pointer-events-none h-auto" />
-              {/* <div className="flex gap-2">
-                <div className="w-8 h-8 border-2 border-[#2C2C2C] rounded cursor-pointer hover:bg-[#F0B800]" />
-                <div className="w-8 h-8 border-2 border-[#2C2C2C] rounded cursor-pointer hover:bg-[#F0B800]" />
-                <div className="w-8 h-8 border-2 border-[#2C2C2C] rounded cursor-pointer hover:bg-[#F0B800]" onClick={onBackToVoucher} />
-              </div> */}
             </div>
 
             {/* Content */}
@@ -176,7 +171,7 @@ function PaymentTimer({ expiredAt }: { expiredAt: string }) {
 }
 
 export function PaymentPage() {
-  const { goTo, goBack, transaction, setTransaction } = useSessionStore()
+  const { goTo, goBack, transaction, setTransaction, setTransactionStatus } = useSessionStore()
 
   const { productBundle, productPrint, productAddOns, voucher, setVoucher } = useCartStore() // nanti akan dipakai untuk kirim detail transaksi ke backend
 
@@ -190,83 +185,6 @@ export function PaymentPage() {
     setBg('image-black')
     return () => setBg('video-black') // restore saat halaman ini ditinggalkan
   }, [])
-
-  // const initializedRef = useRef(false) // ← Harus useRef, bukan variable biasa
-  // const abortControllerRef = useRef<AbortController | null>(null) // ← Tambah ini
-
-  // useEffect(() => {
-  //   // Buat AbortController baru dan simpan ke ref
-  //   abortControllerRef.current = new AbortController()
-  //   const { signal } = abortControllerRef.current
-
-  //   if (initializedRef.current) return
-  //   initializedRef.current = true
-
-  //   const startPolling = async (id: string) => {
-  //     if (signal.aborted) return
-  //     try {
-  //       const status = await getTransactionStatus({ invoiceNumber: id })
-  //       if (signal.aborted) return
-
-  //       if (status.result.status === 'SUCCESS') {
-  //         goTo(8)
-  //       } else if (status.result.status === 'PENDING') {
-  //         if (!signal.aborted) {
-  //           setTimeout(() => startPolling(id), 2000)
-  //         }
-  //       } else if (status.result.status === 'EXPIRED' || status.result.status === 'FAILED') {
-  //         setError('Pembayaran gagal atau kadaluarsa.')
-  //       }
-  //     } catch {
-  //       if (!signal.aborted) {
-  //         setTimeout(() => startPolling(id), 2000)
-  //       }
-  //     }
-  //   }
-
-  //   if (!productBundle && !transaction) {
-  //     goTo(3)
-  //     return
-  //   }
-
-  //   if (transaction !== null) {
-  //     startPolling(transaction.invoiceNumber)
-  //   }
-
-  //   if (productBundle) {
-  //     setLoading(true)
-  //     createTransactionv2({
-  //       items: [...[productBundle], ...productPrint, ...productAddOns],
-  //       voucherCode: voucher ?? '',
-  //     })
-  //       .then(res => {
-  //         if (res.success) {
-  //           setTransaction(res.result)
-  //           startPolling(res.result.invoiceNumber)
-  //         } else {
-
-  //           setError('Gagal membuat transaksi. Coba lagi.')
-  //         }
-  //       })
-  //       .catch((e) => {
-  //         if (axios.isAxiosError(e)) {
-  //           if (e.response?.data?.statusCode === "203") {
-  //             setShowVoucherLimitModal(true)
-  //             setError(extractErrorMessage(e))
-  //             return
-  //           }
-  //         }
-  //         setError(extractErrorMessage(e) || 'Gagal membuat transaksi. Coba lagi.')
-  //       })
-  //       .finally(() => {
-  //         setLoading(false)
-  //       })
-  //   }
-
-  //   return () => {
-  //     abortControllerRef.current?.abort() // ← Abort via ref, bukan closure
-  //   }
-  // }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const initializedRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -293,11 +211,13 @@ export function PaymentPage() {
         if (signal.aborted) return
 
         if (status.result.status === 'SUCCESS') {
+          setTransactionStatus('SUCCESS')
           goTo(8)
         } else if (status.result.status === 'PENDING') {
           setTimeout(() => startPolling(id), 2000)
         } else if (status.result.status === 'EXPIRED' || status.result.status === 'FAILED') {
-          setError('Pembayaran gagal atau kadaluarsa.')
+          setTransactionStatus('FAILED')
+          goTo(8)
         }
       } catch {
         if (!signal.aborted) {
@@ -424,7 +344,67 @@ export function PaymentPage() {
             </div>
           </div>
         </motion.div>
+
+        {/* button skip to succes page */}
+        {/* <div className="flex flex-row items-center gap-8 justify-center w-full">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              setTransaction({
+                "invoiceNumber": "INV-1-20260608023358-6310",
+                "items": [
+                  {
+                    "productCode": "PKG-1-INSTANT",
+                    "productName": "Paket Serebuan",
+                    "productType": "bundling",
+                    "price": 1100,
+                    "qty": 1,
+                    "subtotal": 1100
+                  }
+                ],
+                "totalAmount": 1100,
+                "finalAmount": 1100,
+                "qrContent": "00020101021226540012COM.DOKU.WWW01189360089900000924290205924290303UKE51440014ID.CO.QRIS.WWW0215ID20265194304690303UKE52047221530336054071100.005802ID5910Retroppies6008SEMARANG61051219062390706RTP0015025INV-1-20260608023358-63106304BC36",
+                "expiredAt": "2026-06-08T03:03:58+07:00",
+                "status": "SUCCESS"
+              })
+              goTo(8)
+            }}
+            className="bg-green-500 hover:bg-green-600 text-white font-gaming text-lg py-3 px-5 rounded-lg z-50"
+          >
+            Skip to Success
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              setTransaction({
+                "invoiceNumber": "INV-1-20260608023358-6310",
+                "items": [
+                  {
+                    "productCode": "PKG-1-INSTANT",
+                    "productName": "Paket Serebuan",
+                    "productType": "bundling",
+                    "price": 1100,
+                    "qty": 1,
+                    "subtotal": 1100
+                  }
+                ],
+                "totalAmount": 1100,
+                "finalAmount": 1100,
+                "qrContent": "00020101021226540012COM.DOKU.WWW01189360089900000924290205924290303UKE51440014ID.CO.QRIS.WWW0215ID20265194304690303UKE52047221530336054071100.005802ID5910Retroppies6008SEMARANG61051219062390706RTP0015025INV-1-20260608023358-63106304BC36",
+                "expiredAt": "2026-06-08T03:03:58+07:00",
+                "status": "FAILED"
+              })
+              goTo(8)
+            }}
+            className="bg-red-500 hover:bg-red-600 text-white font-gaming text-lg py-3 px-5 rounded-lg z-50"
+          >
+            Skip to Failed
+          </motion.button>
+        </div> */}
       </motion.div >
+
+
 
       {/* Voucher Limit Modal */}
       <VoucherLimitModal

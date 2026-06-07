@@ -32,7 +32,7 @@ export interface TransactionResult {
   finalAmount: number
   qrContent: string
   expiredAt: string
-  status: string
+  status: "PENDING" | "SUCCESS" | "EXPIRED" | "FAILED"
 }
 
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'EXPIRED' | 'FAILED'

@@ -62,6 +62,13 @@ export function StartPhotoPage() {
 
       <button
         className="touch-target w-72 bg-retro-amber text-retro-brown font-body font-semibold text-2xl rounded-full py-5 disabled:opacity-40"
+        onClick={() => goTo(7)}
+      >
+        BACK
+      </button>
+
+      <button
+        className="touch-target w-72 bg-retro-amber text-retro-brown font-body font-semibold text-2xl rounded-full py-5 disabled:opacity-40"
         disabled={!agreed}
         onClick={handleStart}
       >
