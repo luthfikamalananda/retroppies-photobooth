@@ -15,7 +15,8 @@ interface SessionState {
   setTransaction: (transaction: TransactionResult | null) => void
   setTransactionStatus: (status: TransactionResult['status']) => void
   setConsent: (value: boolean) => void
-  startTimer: (durationSec: number) => void
+  setTimer: (durationSec: number) => void
+  startTimer: () => void
   tickTimer: () => void
   stopTimer: () => void
   resetSession: () => void
@@ -39,7 +40,8 @@ export const useSessionStore = create<SessionState>()(
           transaction: s.transaction ? { ...s.transaction, status } : null,
         })),
       setConsent: (value) => set({ consentGiven: value }),
-      startTimer: (durationSec) => set({ timerSeconds: durationSec, timerRunning: true }),
+      setTimer: (durationSec) => set({ timerSeconds: durationSec, timerRunning: false }),
+      startTimer: () => set({ timerRunning: true }),
       tickTimer: () => {
         const { timerSeconds } = get()
         if (timerSeconds <= 0) {

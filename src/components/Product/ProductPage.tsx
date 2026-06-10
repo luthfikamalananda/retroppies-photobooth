@@ -129,7 +129,6 @@ function ProductCard({
 }) {
   return (
     <motion.div className={`w-48 p-4 h-full flex flex-col items-center hover:border-retro-amber transition-all justify-between gap-2`}
-      // whileHover={{ scale: 1.05 }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.6 }}

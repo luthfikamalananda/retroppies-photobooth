@@ -346,62 +346,29 @@ export function PaymentPage() {
         </motion.div>
 
         {/* button skip to succes page */}
-        {/* <div className="flex flex-row items-center gap-8 justify-center w-full">
+        <div className="flex flex-row items-center gap-8 justify-center w-full">
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              setTransaction({
-                "invoiceNumber": "INV-1-20260608023358-6310",
-                "items": [
-                  {
-                    "productCode": "PKG-1-INSTANT",
-                    "productName": "Paket Serebuan",
-                    "productType": "bundling",
-                    "price": 1100,
-                    "qty": 1,
-                    "subtotal": 1100
-                  }
-                ],
-                "totalAmount": 1100,
-                "finalAmount": 1100,
-                "qrContent": "00020101021226540012COM.DOKU.WWW01189360089900000924290205924290303UKE51440014ID.CO.QRIS.WWW0215ID20265194304690303UKE52047221530336054071100.005802ID5910Retroppies6008SEMARANG61051219062390706RTP0015025INV-1-20260608023358-63106304BC36",
-                "expiredAt": "2026-06-08T03:03:58+07:00",
-                "status": "SUCCESS"
-              })
+              setTransactionStatus('SUCCESS')
               goTo(8)
             }}
             className="bg-green-500 hover:bg-green-600 text-white font-gaming text-lg py-3 px-5 rounded-lg z-50"
           >
             Skip to Success
           </motion.button>
+          {/* button skip to failed page */}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              setTransaction({
-                "invoiceNumber": "INV-1-20260608023358-6310",
-                "items": [
-                  {
-                    "productCode": "PKG-1-INSTANT",
-                    "productName": "Paket Serebuan",
-                    "productType": "bundling",
-                    "price": 1100,
-                    "qty": 1,
-                    "subtotal": 1100
-                  }
-                ],
-                "totalAmount": 1100,
-                "finalAmount": 1100,
-                "qrContent": "00020101021226540012COM.DOKU.WWW01189360089900000924290205924290303UKE51440014ID.CO.QRIS.WWW0215ID20265194304690303UKE52047221530336054071100.005802ID5910Retroppies6008SEMARANG61051219062390706RTP0015025INV-1-20260608023358-63106304BC36",
-                "expiredAt": "2026-06-08T03:03:58+07:00",
-                "status": "FAILED"
-              })
+              setTransactionStatus('FAILED')
               goTo(8)
             }}
             className="bg-red-500 hover:bg-red-600 text-white font-gaming text-lg py-3 px-5 rounded-lg z-50"
           >
             Skip to Failed
           </motion.button>
-        </div> */}
+        </div>
       </motion.div >
 
 

@@ -52,16 +52,24 @@ const PROTECTED_HALAMAN = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 
 const MUSTHAVE_PRODUCTS = [4, 5, 6] // ProductPage and ExtraPrintPage require a valid productBundle to be selected
 
+const MUSHAVE_TRANSACTION_DATA = [8, 9, 10, 11, 12, 13, 14] // Pages that require transaction data to be present (i.e. after payment success)
+
 export default function App() {
   const currentHalaman = useSessionStore(s => s.currentHalaman)
   const goTo = useSessionStore(s => s.goTo)
   const user = useAuthStore(s => s.user)
+  const transaction = useSessionStore(s => s.transaction)
 
   const { productBundle } = useCartStore() // for cart persistence across halaman, if needed in the future
 
   // Check if current halaman is protected and user is not authenticated
   const isProtectedPage = PROTECTED_HALAMAN.includes(currentHalaman)
   const needsAuth = isProtectedPage && !user
+
+  // If protected page but no auth, redirect to login
+  if (needsAuth) {
+    goTo(0)
+  }
 
   // Check if current halaman requires a product bundle but it's not selected
   const isMustHaveProductPage = MUSTHAVE_PRODUCTS.includes(currentHalaman)
@@ -72,9 +80,13 @@ export default function App() {
     goTo(3) // ProductPage
   }
 
-  // If protected page but no auth, redirect to login
-  if (needsAuth) {
-    goTo(0)
+  // Check if current halaman requires transaction data but it's not present
+  const isMustHaveTransactionDataPage = MUSHAVE_TRANSACTION_DATA.includes(currentHalaman)
+  const needsTransactionData = isMustHaveTransactionDataPage && (transaction === null)
+
+  // If must-have transaction data page but no transaction data, redirect to PaymentPage
+  if (needsTransactionData) {
+    goTo(1) // Landing Page
   }
 
   const PageComponent = PAGE_COMPONENTS[currentHalaman] ?? LandingPage
@@ -83,7 +95,7 @@ export default function App() {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black">
       <BackgroundVideo />
-      {showTimer && <TopTimerBar />}
+      {/* {showTimer && <TopTimerBar />} */}
 
       <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-retro-cream font-display text-4xl">Loading...</div>}>
         <AnimatePresence mode="wait">
