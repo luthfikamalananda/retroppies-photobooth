@@ -9,7 +9,7 @@ import { getTimerTransaction } from '@/services/duringPhotoService'
 export function StartPhotoPage() {
   const { goTo } = useSessionStore()
   const { user } = useAuthStore()
-  const { timerSeconds, startTimer, setTimer } = useSessionStore()
+  const { timerSeconds, goToAndStartTimer, startTimer, setTimer } = useSessionStore()
 
   const [loading, setLoading] = useState(false)
 
@@ -76,8 +76,7 @@ export function StartPhotoPage() {
   const handleStart = async () => {
     try {
       await navigator.mediaDevices.getUserMedia({ video: true })
-      startTimer()
-      goTo(10)
+      goToAndStartTimer(10)
     } catch (e) {
       console.log('Camera access error:', e)
       if (e instanceof DOMException && e.name === 'NotAllowedError') {

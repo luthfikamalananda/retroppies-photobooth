@@ -20,6 +20,7 @@ import logoRetroppies from './retroppies-logo.svg'
 import iconVoucher from './icon-voucher.svg'
 import iconTimerWhite from './icon-timer-white.svg'
 import iconTimerBlack from './icon-timer-black.svg'
+import iconTimerRed from './icon-timer-red.svg'
 import iconPhoto from './icon-photo.svg'
 import iconNoImage from './icon-no-image.svg'
 
@@ -50,7 +51,7 @@ import btnBackGold from './btn-back-gold.svg'
 
 
 export {
-    iconVoucher, iconTimerWhite, iconTimerBlack, iconPhoto, iconNoImage,
+    iconVoucher, iconTimerWhite, iconTimerBlack, iconPhoto, iconNoImage, iconTimerRed,
     logoFull, logoMark, logoChooseProduct, logoHowToUse, logoRec, logoRecAlt, logoBattery, logoBatteryAlt, logoBack, logoSkip, logoExtraPrint, logoAddOns, logoVoucher, logoRetroppies, logoWindowControl, logoSuccess, logoFailed, logoTimeLimit,
     btnChoose, btnIncrement, btnDecrement, btnNextBlack, btnSkipBlack, btnApply, btnBackGold, btnNextWhite
 }

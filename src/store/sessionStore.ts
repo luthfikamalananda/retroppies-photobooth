@@ -12,6 +12,7 @@ interface SessionState {
   goTo: (halaman: number) => void
   goNext: () => void
   goBack: () => void
+  goToAndStartTimer: (halaman: number) => void
   setTransaction: (transaction: TransactionResult | null) => void
   setTransactionStatus: (status: TransactionResult['status']) => void
   setConsent: (value: boolean) => void
@@ -34,6 +35,7 @@ export const useSessionStore = create<SessionState>()(
       goTo: (halaman) => set({ currentHalaman: halaman }),
       goNext: () => set((s) => ({ currentHalaman: Math.min(s.currentHalaman + 1, 14) })),
       goBack: () => set((s) => ({ currentHalaman: Math.max(s.currentHalaman - 1, 1) })),
+      goToAndStartTimer: (halaman) => set({ currentHalaman: halaman, timerRunning: true }),
       setTransaction: (transaction) => set({ transaction }),
       setTransactionStatus: (status) =>
         set((s) => ({
@@ -69,7 +71,7 @@ export const useSessionStore = create<SessionState>()(
         currentHalaman: s.currentHalaman,
         transaction: s.transaction,
         timerSeconds: s.timerSeconds,
-        timerRunning: false,
+        timerRunning: s.timerRunning,
         consentGiven: s.consentGiven,
       }),
     }

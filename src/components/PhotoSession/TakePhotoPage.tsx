@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useSessionStore } from '@/store/sessionStore'
 import { usePhotoStore } from '@/store/photoStore'
 import { useUIStore } from '@/store/uiStore'
-import { btnNextBlack, btnNextWhite, iconNoImage, iconPhoto } from '@/assets'
+import { btnBackGold, btnNextBlack, btnNextWhite, iconNoImage, iconPhoto, logoBack } from '@/assets'
 import { VideoPreviewModal } from './VideoPreviewModal'
 
 const TOTAL_SLOTS = 4
@@ -18,10 +18,6 @@ export function TakePhotoPage() {
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
-  const capturedRef = useRef(false) // Flag to prevent multiple captures
-
-  console.log('Current captures:', captures) // Debug log untuk melihat state captures
-  console.log('Current videos:', capturesVideo) // Debug log untuk melihat state videos
 
   const setBg = useUIStore((s) => s.setBackgroundVariant)
 
@@ -69,28 +65,57 @@ export function TakePhotoPage() {
     }
 
     // Capture photo and stop recording when countdown reaches 0
+    // if (countdown === 0) {
+    //   // Only capture once per countdown cycle
+    //   // if (capturedRef.current) return
+    //   // capturedRef.current = true
+
+    //   // Stop recording and capture photo
+    //   if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    //     mediaRecorderRef.current.onstop = () => {
+    //       const videoBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' })
+    //       addVideoCapture({ slotIndex: nextSlot, videoBlob, recordedAt: Date.now() })
+    //     }
+    //     mediaRecorderRef.current.stop()
+    //   }
+
+    //   // Capture photo
+    //   const dataUrl = webcamRef.current?.getScreenshot()
+    //   if (dataUrl) {
+    //     addCapture({ slotIndex: nextSlot, dataUrl, capturedAt: Date.now() })
+    //   }
+    //   setCountdown(null)
+    //   return
+    // }
+
+    // =====================================
+    // Capture photo and stop recording when countdown reaches 0
     if (countdown === 0) {
-      // Only capture once per countdown cycle
-      // if (capturedRef.current) return
-      // capturedRef.current = true
-
-      // Stop recording and capture photo
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.onstop = () => {
-          const videoBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' })
-          addVideoCapture({ slotIndex: nextSlot, videoBlob, recordedAt: Date.now() })
-        }
-        mediaRecorderRef.current.stop()
-      }
-
-      // Capture photo
+      // Capture photo dulu sebelum stop recording
       const dataUrl = webcamRef.current?.getScreenshot()
       if (dataUrl) {
         addCapture({ slotIndex: nextSlot, dataUrl, capturedAt: Date.now() })
       }
+
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        // ← Assign onstop SEBELUM stop() dipanggil
+        mediaRecorderRef.current.onstop = () => {
+          const videoBlob = new Blob(recordedChunksRef.current, {
+            type: mediaRecorderRef.current?.mimeType || 'video/webm'
+          })
+          addVideoCapture({ slotIndex: nextSlot, videoBlob, recordedAt: Date.now() })
+          recordedChunksRef.current = []
+        }
+
+        // ← Request flush chunk terakhir sebelum stop
+        mediaRecorderRef.current.requestData()
+        mediaRecorderRef.current.stop()
+      }
+
       setCountdown(null)
       return
     }
+    // =====================================
 
     countdownIntervalRef.current = setInterval(() => {
       setCountdown((prev) => (prev !== null ? prev - 1 : null))
@@ -110,27 +135,26 @@ export function TakePhotoPage() {
 
   return (
     <motion.div
-      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-6 px-10"
+      className="relative z-10 flex flex-col items-center justify-between w-full h-full p-6 px-10"
       initial={{ opacity: 0, x: 60 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -60 }}
     >
 
-      <div className='flex flex-row w-full justify-between items-center'>
-
-        {/* <motion.img
+      {/* <div className='flex flex-row w-full justify-between items-center'>
+        <motion.img
           src={logoBack}
           alt="How To Use"
           onClick={goBack}
-          className="w-36 h-max select-none pointer-events-none cursor-pointer invisible"
+          className="w-36 h-max select-none pointer-events-none cursor-pointer hidden"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
           draggable={false}
-        /> */}
-      </div>
+        />
+      </div> */}
 
-      <div className="flex w-full h-full justify-center items-center gap-12 py-16 px-40">
+      <div className="flex w-full h-full justify-center items-center gap-12 pt-20 pb-4 px-40">
         {/* Webcam Preview */}
         <div className="flex w-[50%] h-full justify-center items-center">
           <div className="w-full h-full relative rounded-2xl overflow-hidden border-2 border-[#B23E3E]">
@@ -209,9 +233,24 @@ export function TakePhotoPage() {
 
       <div className="flex flex-row w-full justify-end items-center">
         <motion.img
+          key={'BACK'}  // ← ini trigger-nya
+          src={btnBackGold}
+          alt="BACK"
+          whileTap={{ scale: 0.95 }}
+          onClick={() => {
+            goBack()
+          }}
+          className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+          initial={{ rotate: 0, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          draggable={false}
+        />
+
+        <motion.img
           key={'NEXT'}  // ← ini trigger-nya
           src={captures.length === TOTAL_SLOTS ? btnNextBlack : btnNextWhite}
-          alt="How To Use"
+          alt="NEXT"
           whileTap={{ scale: 0.95 }}
           onClick={() => {
             if (captures.length === TOTAL_SLOTS) {

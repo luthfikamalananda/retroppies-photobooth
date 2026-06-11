@@ -45,7 +45,7 @@ const PAGE_COMPONENTS: Record<number, React.ComponentType> = {
   14: FinishedPhotoPage,
 }
 
-const TIMER_VISIBLE_HALAMAN = [9, 10, 11, 12, 13, 14]
+const TIMER_VISIBLE_HALAMAN = [10, 11, 12, 13, 14]
 
 // Protected halaman that require authentication
 const PROTECTED_HALAMAN = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
@@ -95,7 +95,7 @@ export default function App() {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black">
       <BackgroundVideo />
-      {/* {showTimer && <TopTimerBar />} */}
+      {showTimer && <TopTimerBar />}
 
       <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-retro-cream font-display text-4xl">Loading...</div>}>
         <AnimatePresence mode="wait">
