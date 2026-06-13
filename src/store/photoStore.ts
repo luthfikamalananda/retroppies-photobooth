@@ -1,62 +1,152 @@
-import { create } from 'zustand'
+import { Template } from "@/services/templateService";
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 export interface CapturedPhoto {
-  slotIndex: number
-  dataUrl: string
-  capturedAt: number
+  slotIndex: number;
+  dataUrl: string;
+  capturedAt: number;
 }
 
 export interface CapturedVideo {
-  slotIndex: number
-  videoBlob: Blob
-  recordedAt: number
+  slotIndex: number;
+  videoBlob: Blob;
+  recordedAt: number;
 }
 
 interface PhotoState {
-  captures: CapturedPhoto[]
-  capturesVideo: CapturedVideo[]
-  totalSlots: number
+  captures: CapturedPhoto[];
+  capturesVideo: CapturedVideo[];
+  template: Template | null;
+  totalSlots: number;
 
-  addCapture: (photo: CapturedPhoto) => void
-  addVideoCapture: (video: CapturedVideo) => void
-  retakeSlot: (slotIndex: number) => void
-  retakeVideoSlot: (slotIndex: number) => void
-  setTotalSlots: (count: number) => void
-  clearPhotos: () => void
-  isComplete: () => boolean
+  addCapture: (photo: CapturedPhoto) => void;
+  addVideoCapture: (video: CapturedVideo) => void;
+  setTemplate: (template: Template) => void;
+  retakeSlot: (slotIndex: number) => void;
+  retakeVideoSlot: (slotIndex: number) => void;
+  setTotalSlots: (count: number) => void;
+  clearPhotos: () => void;
+  isComplete: () => boolean;
 }
+export const usePhotoStore = create<PhotoState>()(
+  persist(
+    (set, get) => ({
+      captures: [],
+      capturesVideo: [],
+      template: null,
+      totalSlots: 4,
 
-export const usePhotoStore = create<PhotoState>((set, get) => ({
-  captures: [],
-  capturesVideo: [],
-  totalSlots: 4,
+      addCapture: (photo) => {
+        set((s) => ({ captures: [...s.captures, photo] }));
+      },
 
-  addCapture: (photo) => {
-    const { captures } = get()
-    const updated = captures.filter(c => c.slotIndex !== photo.slotIndex)
-    set({ captures: [...updated, photo] })
-  },
+      addVideoCapture: (video) => {
+        set((s) => ({ capturesVideo: [...s.capturesVideo, video] }));
+      },
 
-  addVideoCapture: (video) => {
-    const { capturesVideo } = get()
-    const updated = capturesVideo.filter(v => v.slotIndex !== video.slotIndex)
-    set({ capturesVideo: [...updated, video] })
-  },
+      setTemplate: (template) => {
+        set({ template });
+      },
 
-  retakeSlot: (slotIndex) => {
-    set((s) => ({ captures: s.captures.filter(c => c.slotIndex !== slotIndex) }))
-  },
+      retakeSlot: (slotIndex) => {
+        set((s) => ({
+          captures: s.captures.filter((c) => c.slotIndex !== slotIndex),
+        }));
+      },
 
-  retakeVideoSlot: (slotIndex) => {
-    set((s) => ({ capturesVideo: s.capturesVideo.filter(v => v.slotIndex !== slotIndex) }))
-  },
+      retakeVideoSlot: (slotIndex) => {
+        set((s) => ({
+          capturesVideo: s.capturesVideo.filter(
+            (v) => v.slotIndex !== slotIndex,
+          ),
+        }));
+      },
 
-  setTotalSlots: (count) => set({ totalSlots: count }),
+      setTotalSlots: (count) => {
+        set({ totalSlots: count });
+      },
 
-  clearPhotos: () => set({ captures: [], capturesVideo: [] }),
+      clearPhotos: () => {
+        set({ captures: [], capturesVideo: [] });
+      },
 
-  isComplete: () => {
-    const { captures, totalSlots } = get()
-    return captures.length >= totalSlots
-  },
-}))
+      isComplete: () => {
+        const { captures, totalSlots } = get();
+        return captures.length >= totalSlots;
+      },
+    }),
+    {
+      name: "retroppies-captures",
+      storage: createJSONStorage(() => sessionStorage),
+      partialize: (s) => ({
+        captures: s.captures,
+        capturesVideo: s.capturesVideo,
+        template: s.template,
+        totalSlots: s.totalSlots,
+      }),
+    },
+  ),
+);
+
+// export const usePhotoStore = create<PhotoState>(
+//   persist(
+//     (set, get) => ({
+//       captures: [],
+//       capturesVideo: [],
+//       template: null,
+//       totalSlots: 4,
+
+//       addCapture: (photo) => {
+//         const { captures } = get();
+//         const updated = captures.filter((c) => c.slotIndex !== photo.slotIndex);
+//         set({ captures: [...updated, photo] });
+//       },
+
+//       setTemplate: (template) => {
+//         set({ template });
+//       },
+
+//       addVideoCapture: (video) => {
+//         const { capturesVideo } = get();
+//         const updated = capturesVideo.filter(
+//           (v) => v.slotIndex !== video.slotIndex,
+//         );
+//         set({ capturesVideo: [...updated, video] });
+//       },
+
+//       retakeSlot: (slotIndex) => {
+//         set((s) => ({
+//           captures: s.captures.filter((c) => c.slotIndex !== slotIndex),
+//         }));
+//       },
+
+//       retakeVideoSlot: (slotIndex) => {
+//         set((s) => ({
+//           capturesVideo: s.capturesVideo.filter(
+//             (v) => v.slotIndex !== slotIndex,
+//           ),
+//         }));
+//       },
+
+//       setTotalSlots: (count) => set({ totalSlots: count }),
+
+//       clearPhotos: () => set({ captures: [], capturesVideo: [] }),
+
+//       isComplete: () => {
+//         const { captures, totalSlots } = get();
+//         return captures.length >= totalSlots;
+//       }
+//     }),
+//     {
+//       name: "retroppies-captures",
+//       storage: createJSONStorage(() => sessionStorage),
+//       partialize: (s) => ({
+//         captures: s.captures,
+//         capturesVideo: s.capturesVideo,
+//         template: s.template,
+//         totalSlots: s.totalSlots,
+//       }),
+//     },
+//   ),
+// );

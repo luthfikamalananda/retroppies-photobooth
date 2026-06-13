@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎞️ Retroppies – Slot Mapper Tool</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #1a1a1a;
+      --surface2: #252525;
+      --border: #333;
+      --amber: #D4A017;
+      --amber-dim: rgba(212,160,23,0.3);
+      --cream: #f5f0e8;
+      --red: #c0392b;
+      --green: #27ae60;
+      --text: #e0e0e0;
+      --text-dim: #888;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ─── SIDEBAR ─── */
+    #sidebar {
+      width: 320px;
+      min-width: 320px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+    }
+
+    .sidebar-header {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-header h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--amber);
+      letter-spacing: 0.5px;
+    }
+    .sidebar-header p {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    /* File input */
+    #dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    #dropzone:hover, #dropzone.drag-over {
+      border-color: var(--amber);
+      background: var(--amber-dim);
+      color: var(--cream);
+    }
+    #dropzone input { display: none; }
+    #dropzone .icon { font-size: 28px; margin-bottom: 6px; }
+
+    /* Layout ID */
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; color: var(--text-dim); }
+    .field input, .field select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus, .field select:focus { border-color: var(--amber); }
+
+    /* Presets */
+    .preset-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .preset-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px 4px;
+      font-size: 11px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      line-height: 1.3;
+    }
+    .preset-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+    /* Slot list */
+    #slot-list { display: flex; flex-direction: column; gap: 6px; }
+    .slot-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    .slot-item .slot-label { font-weight: 600; color: var(--amber); }
+    .slot-item .slot-coords { color: var(--text-dim); font-family: monospace; font-size: 11px; }
+    .slot-item .del-btn {
+      background: none;
+      border: none;
+      color: var(--red);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0 4px;
+      opacity: 0.7;
+      transition: opacity 0.15s;
+    }
+    .slot-item .del-btn:hover { opacity: 1; }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 12px;
+      padding: 16px;
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 9px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      width: 100%;
+    }
+    .btn-primary { background: var(--amber); color: #0d0d0d; }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
+    .btn-danger:hover { background: var(--red); color: white; }
+    .btn-row { display: flex; gap: 8px; }
+    .btn-row .btn { flex: 1; }
+
+    /* Output */
+    #output-box {
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #7ec8a0;
+      white-space: pre;
+      overflow-x: auto;
+      max-height: 220px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+
+    /* Instructions */
+    .instruction { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+    .instruction b { color: var(--cream); }
+    kbd {
+      display: inline-block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 11px;
+      font-family: monospace;
+    }
+
+    /* ─── CANVAS AREA ─── */
+    #canvas-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #111;
+    }
+
+    #canvas-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    #canvas-toolbar .tool-info { color: var(--text-dim); }
+    #canvas-toolbar .zoom-controls { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    #canvas-toolbar button {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 4px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    #canvas-toolbar button:hover { border-color: var(--amber); color: var(--amber); }
+    #zoom-label { color: var(--text-dim); font-size: 12px; min-width: 44px; text-align: center; }
+
+    #canvas-wrapper {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 24px;
+    }
+
+    #canvas-container {
+      position: relative;
+      display: inline-block;
+      cursor: crosshair;
+      user-select: none;
+      transform-origin: top left;
+    }
+
+    #template-img {
+      display: block;
+      max-width: none; /* controlled by zoom */
+      image-rendering: pixelated;
+    }
+
+    #draw-canvas {
+      position: absolute;
+      top: 0; left: 0;
+      pointer-events: none;
+    }
+
+    #interaction-layer {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .slot-overlay {
+      position: absolute;
+      border: 2px solid var(--amber);
+      background: rgba(212,160,23,0.15);
+      pointer-events: none;
+    }
+    .slot-overlay .slot-num {
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--amber);
+      background: rgba(0,0,0,0.7);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    .slot-overlay.drawing {
+      border-color: #fff;
+      background: rgba(255,255,255,0.12);
+    }
+
+    #status-bar {
+      padding: 6px 16px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      gap: 20px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .badge-green { background: rgba(39,174,96,0.2); color: #2ecc71; }
+    .badge-amber { background: var(--amber-dim); color: var(--amber); }
+
+    /* Checkerboard bg for transparency */
+    #canvas-wrapper {
+      background-image:
+        linear-gradient(45deg, #222 25%, transparent 25%),
+        linear-gradient(-45deg, #222 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #222 75%),
+        linear-gradient(-45deg, transparent 75%, #222 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+
+    .copied-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--green);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 1000;
+    }
+    .copied-toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside id="sidebar">
+  <div class="sidebar-header">
+    <h1>🎞️ Retroppies Slot Mapper</h1>
+    <p>Tandai area foto (slot) pada template PNG secara visual, lalu export koordinat JSON.</p>
+  </div>
+
+  <!-- Load template -->
+  <div class="section">
+    <div class="section-title">1. Load Template PNG</div>
+    <div id="dropzone">
+      <input type="file" id="file-input" accept="image/png" />
+      <div class="icon">🖼️</div>
+      <div>Drop PNG di sini atau <b>klik untuk pilih</b></div>
+      <div style="font-size:11px;margin-top:4px;">Pastikan PNG punya area transparan</div>
+    </div>
+  </div>
+
+  <!-- Metadata -->
+  <div class="section">
+    <div class="section-title">2. Metadata Layout</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="field">
+        <label>Layout ID</label>
+        <input type="number" id="layout-id" value="1" min="1" />
+      </div>
+      <div class="field">
+        <label>Layout Name</label>
+        <input type="text" id="layout-name" placeholder="e.g. Single Center" />
+      </div>
+      <div class="field">
+        <label>Aspect Ratio Template</label>
+        <select id="aspect-ratio">
+          <option value="">— auto detect —</option>
+          <option value="0.707">A4 Portrait (1:√2 ≈ 0.707)</option>
+          <option value="1.414">A4 Landscape (√2:1)</option>
+          <option value="0.707">A6 Portrait (same as A4)</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Presets -->
+  <div class="section">
+    <div class="section-title">3. Preset Auto-Slot (opsional)</div>
+    <div class="preset-grid">
+      <button class="preset-btn" onclick="applyPreset(1)">📸<br>Layout 1<br>1 Foto Tengah</button>
+      <button class="preset-btn" onclick="applyPreset(2)">⊞<br>Layout 2<br>2×2 Grid</button>
+      <button class="preset-btn" onclick="applyPreset(3)">║<br>Layout 3<br>Strip Vertikal</button>
+    </div>
+    <p style="font-size:11px;color:var(--text-dim);margin-top:8px;">
+      Preset hanya sebagai titik awal estimasi. Sesuaikan dengan template PNG asli.
+    </p>
+  </div>
+
+  <!-- Slots -->
+  <div class="section">
+    <div class="section-title">4. Slot yang Ditandai <span id="slot-count-badge" class="badge badge-amber">0 slot</span></div>
+    <div id="slot-list">
+      <div class="empty-state">Belum ada slot. Gambar persegi di kanvas template.</div>
+    </div>
+    <div style="margin-top:10px;" class="btn-row">
+      <button class="btn btn-danger" onclick="clearSlots()">🗑 Hapus Semua</button>
+    </div>
+  </div>
+
+  <!-- Export -->
+  <div class="section">
+    <div class="section-title">5. Export JSON</div>
+    <pre id="output-box">// Koordinat akan muncul di sini</pre>
+    <div style="margin-top:10px;" class="btn-row">
+      <button class="btn btn-primary" onclick="copyOutput()">📋 Copy JSON</button>
+      <button class="btn btn-primary" onclick="downloadOutput()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);">⬇ Download</button>
+    </div>
+  </div>
+
+  <!-- Help -->
+  <div class="section">
+    <div class="section-title">Cara Pakai</div>
+    <div class="instruction">
+      <b>1.</b> Load template PNG<br>
+      <b>2.</b> Klik + drag di area transparan untuk buat slot<br>
+      <b>3.</b> Slot otomatis terdaftar dengan koordinat % relatif<br>
+      <b>4.</b> Copy / download JSON untuk dipakai di kode<br><br>
+      <kbd>Scroll</kbd> untuk zoom · <kbd>Del</kbd> hapus slot terakhir
+    </div>
+  </div>
+</aside>
+
+<!-- ── CANVAS AREA ── -->
+<main id="canvas-area">
+  <div id="canvas-toolbar">
+    <span class="tool-info" id="tool-status">✏️ Mode: <b>Draw Slot</b> — load template PNG terlebih dahulu</span>
+    <div class="zoom-controls">
+      <button onclick="setZoom(zoom - 0.1)">−</button>
+      <span id="zoom-label">100%</span>
+      <button onclick="setZoom(zoom + 0.1)">+</button>
+      <button onclick="fitToView()">Fit</button>
+      <button onclick="setZoom(1)">1:1</button>
+    </div>
+  </div>
+
+  <div id="canvas-wrapper">
+    <div id="canvas-container">
+      <img id="template-img" src="" alt="" style="display:none;" />
+      <canvas id="draw-canvas"></canvas>
+      <div id="interaction-layer"></div>
+    </div>
+  </div>
+
+  <div id="status-bar">
+    <span id="img-size">Belum ada gambar</span>
+    <span id="cursor-pos">X: — Y: —</span>
+    <span id="drawing-size"></span>
+  </div>
+</main>
+
+<div class="copied-toast" id="copied-toast">✅ JSON disalin!</div>
+
+<script>
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let imgNaturalW = 0, imgNaturalH = 0;
+let zoom = 1;
+let slots = []; // { x, y, w, h } in % (0..1)
+let isDrawing = false;
+let startX = 0, startY = 0;
+let currentRect = null; // overlay div while drawing
+
+// ══════════════════════════════════════════
+// FILE LOAD
+// ══════════════════════════════════════════
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+const templateImg = document.getElementById('template-img');
+const container = document.getElementById('canvas-container');
+const drawCanvas = document.getElementById('draw-canvas');
+const interactionLayer = document.getElementById('interaction-layer');
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'image/png') loadFile(file);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) loadFile(fileInput.files[0]);
+});
+
+function loadFile(file) {
+  const url = URL.createObjectURL(file);
+  templateImg.onload = () => {
+    imgNaturalW = templateImg.naturalWidth;
+    imgNaturalH = templateImg.naturalHeight;
+    templateImg.style.display = 'block';
+    drawCanvas.width = imgNaturalW;
+    drawCanvas.height = imgNaturalH;
+    slots = [];
+    fitToView();
+    renderSlots();
+    updateOutput();
+    document.getElementById('img-size').textContent = `Template: ${imgNaturalW} × ${imgNaturalH} px`;
+    document.getElementById('tool-status').innerHTML = `✏️ Mode: <b>Draw Slot</b> — klik + drag untuk tandai area foto`;
+    
+    // Set layout name from filename if empty
+    const nameInput = document.getElementById('layout-name');
+    if (!nameInput.value) nameInput.value = file.name.replace(/\.[^.]+$/, '');
+  };
+  templateImg.src = url;
+}
+
+// ══════════════════════════════════════════
+// ZOOM
+// ══════════════════════════════════════════
+function setZoom(z) {
+  zoom = Math.max(0.1, Math.min(4, z));
+  zoom = Math.round(zoom * 100) / 100;
+  container.style.transform = `scale(${zoom})`;
+  document.getElementById('zoom-label').textContent = Math.round(zoom * 100) + '%';
+}
+
+function fitToView() {
+  if (!imgNaturalW) return;
+  const wrapper = document.getElementById('canvas-wrapper');
+  const wrapW = wrapper.clientWidth - 48;
+  const wrapH = wrapper.clientHeight - 48;
+  const zx = wrapW / imgNaturalW;
+  const zy = wrapH / imgNaturalH;
+  setZoom(Math.min(zx, zy, 1));
+}
+
+document.getElementById('canvas-wrapper').addEventListener('wheel', e => {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    setZoom(zoom + (e.deltaY < 0 ? 0.1 : -0.1));
+  }
+}, { passive: false });
+
+// ══════════════════════════════════════════
+// DRAWING INTERACTION
+// ══════════════════════════════════════════
+interactionLayer.addEventListener('mousedown', onMouseDown);
+interactionLayer.addEventListener('mousemove', onMouseMove);
+interactionLayer.addEventListener('mouseup', onMouseUp);
+interactionLayer.addEventListener('mouseleave', onMouseLeave);
+
+// Touch support
+interactionLayer.addEventListener('touchstart', e => {
+  e.preventDefault();
+  onMouseDown(touchToMouse(e));
+}, { passive: false });
+interactionLayer.addEventListener('touchmove', e => {
+  e.preventDefault();
+  onMouseMove(touchToMouse(e));
+}, { passive: false });
+interactionLayer.addEventListener('touchend', e => {
+  e.preventDefault();
+  onMouseUp(touchToMouse(e, true));
+}, { passive: false });
+
+function touchToMouse(e, isEnd = false) {
+  const t = isEnd ? e.changedTouches[0] : e.touches[0];
+  return { clientX: t.clientX, clientY: t.clientY, preventDefault: () => {} };
+}
+
+function getRelativePos(e) {
+  const rect = interactionLayer.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / zoom,
+    y: (e.clientY - rect.top) / zoom,
+  };
+}
+
+function onMouseDown(e) {
+  if (!imgNaturalW) return;
+  const pos = getRelativePos(e);
+  // clamp
+  startX = Math.max(0, Math.min(pos.x, imgNaturalW));
+  startY = Math.max(0, Math.min(pos.y, imgNaturalH));
+  isDrawing = true;
+
+  // Create preview overlay
+  currentRect = document.createElement('div');
+  currentRect.classList.add('slot-overlay', 'drawing');
+  currentRect.style.left = startX + 'px';
+  currentRect.style.top = startY + 'px';
+  currentRect.style.width = '0px';
+  currentRect.style.height = '0px';
+  interactionLayer.appendChild(currentRect);
+}
+
+function onMouseMove(e) {
+  const pos = getRelativePos(e);
+  const cx = Math.max(0, Math.min(pos.x, imgNaturalW));
+  const cy = Math.max(0, Math.min(pos.y, imgNaturalH));
+
+  document.getElementById('cursor-pos').textContent =
+    `X: ${Math.round(cx)} Y: ${Math.round(cy)} (${toPercent(cx, imgNaturalW)}% × ${toPercent(cy, imgNaturalH)}%)`;
+
+  if (!isDrawing || !currentRect) return;
+
+  const x = Math.min(startX, cx);
+  const y = Math.min(startY, cy);
+  const w = Math.abs(cx - startX);
+  const h = Math.abs(cy - startY);
+
+  currentRect.style.left = x + 'px';
+  currentRect.style.top = y + 'px';
+  currentRect.style.width = w + 'px';
+  currentRect.style.height = h + 'px';
+
+  document.getElementById('drawing-size').textContent =
+    `Drawing: ${Math.round(w)}×${Math.round(h)}px (${toPercent(w, imgNaturalW)}%×${toPercent(h, imgNaturalH)}%)`;
+}
+
+function onMouseUp(e) {
+  if (!isDrawing || !currentRect) return;
+  isDrawing = false;
+
+  const pos = getRelativePos(e);
+  const cx = Math.max(0, Math.min(pos.x, imgNaturalW));
+  const cy = Math.max(0, Math.min(pos.y, imgNaturalH));
+
+  const x = Math.min(startX, cx);
+  const y = Math.min(startY, cy);
+  const w = Math.abs(cx - startX);
+  const h = Math.abs(cy - startY);
+
+  // Remove preview
+  currentRect.remove();
+  currentRect = null;
+  document.getElementById('drawing-size').textContent = '';
+
+  // Min size = 10px
+  if (w < 10 || h < 10) return;
+
+  slots.push({
+    x: parseFloat((x / imgNaturalW).toFixed(4)),
+    y: parseFloat((y / imgNaturalH).toFixed(4)),
+    w: parseFloat((w / imgNaturalW).toFixed(4)),
+    h: parseFloat((h / imgNaturalH).toFixed(4)),
+  });
+
+  renderSlots();
+  updateOutput();
+}
+
+function onMouseLeave(e) {
+  if (isDrawing) onMouseUp(e);
+}
+
+// ══════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════
+function renderSlots() {
+  // Clear existing slot overlays
+  interactionLayer.querySelectorAll('.slot-overlay').forEach(el => el.remove());
+
+  slots.forEach((s, i) => {
+    const el = document.createElement('div');
+    el.classList.add('slot-overlay');
+    el.style.left = (s.x * imgNaturalW) + 'px';
+    el.style.top = (s.y * imgNaturalH) + 'px';
+    el.style.width = (s.w * imgNaturalW) + 'px';
+    el.style.height = (s.h * imgNaturalH) + 'px';
+    el.innerHTML = `<span class="slot-num">Slot ${i + 1}</span>`;
+    interactionLayer.appendChild(el);
+  });
+
+  // Update sidebar list
+  const listEl = document.getElementById('slot-list');
+  const badge = document.getElementById('slot-count-badge');
+  badge.textContent = `${slots.length} slot`;
+
+  if (slots.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">Belum ada slot. Gambar persegi di kanvas template.</div>';
+    return;
+  }
+
+  listEl.innerHTML = '';
+  slots.forEach((s, i) => {
+    const el = document.createElement('div');
+    el.classList.add('slot-item');
+    el.innerHTML = `
+      <div>
+        <div class="slot-label">Slot ${i + 1}</div>
+        <div class="slot-coords">x:${s.x} y:${s.y}<br>w:${s.w} h:${s.h}</div>
+      </div>
+      <button class="del-btn" onclick="deleteSlot(${i})" title="Hapus slot ini">✕</button>
+    `;
+    listEl.appendChild(el);
+  });
+}
+
+function deleteSlot(i) {
+  slots.splice(i, 1);
+  renderSlots();
+  updateOutput();
+}
+
+function clearSlots() {
+  slots = [];
+  renderSlots();
+  updateOutput();
+}
+
+// ══════════════════════════════════════════
+// PRESETS
+// ══════════════════════════════════════════
+function applyPreset(layoutId) {
+  if (!imgNaturalW) { alert('Load template PNG terlebih dahulu!'); return; }
+
+  // These are approximate — user should fine-tune by looking at the template
+  const presets = {
+    1: [
+      // Layout 1: 1 foto besar tengah (estimasi ~70% width, 50% height, centered)
+      { x: 0.08, y: 0.22, w: 0.84, h: 0.52 }
+    ],
+    2: [
+      // Layout 2: 2x2 grid (estimasi)
+      { x: 0.06, y: 0.10, w: 0.42, h: 0.36 },
+      { x: 0.52, y: 0.10, w: 0.42, h: 0.36 },
+      { x: 0.06, y: 0.52, w: 0.42, h: 0.36 },
+      { x: 0.52, y: 0.52, w: 0.42, h: 0.36 },
+    ],
+    3: [
+      // Layout 3: vertical strip (estimasi)
+      { x: 0.35, y: 0.05, w: 0.30, h: 0.20 },
+      { x: 0.35, y: 0.28, w: 0.30, h: 0.20 },
+      { x: 0.35, y: 0.51, w: 0.30, h: 0.20 },
+      { x: 0.35, y: 0.74, w: 0.30, h: 0.20 },
+    ],
+  };
+
+  slots = presets[layoutId] || [];
+  document.getElementById('layout-id').value = layoutId;
+  document.getElementById('layout-name').value = ['', 'Single Center', '2×2 Grid', 'Vertical Strip'][layoutId];
+  renderSlots();
+  updateOutput();
+}
+
+// ══════════════════════════════════════════
+// OUTPUT
+// ══════════════════════════════════════════
+function updateOutput() {
+  const layoutId = parseInt(document.getElementById('layout-id').value) || 1;
+  const layoutName = document.getElementById('layout-name').value || 'Unnamed';
+
+  const output = {
+    layoutId,
+    name: layoutName,
+    slotCount: slots.length,
+    templateSize: imgNaturalW ? { w: imgNaturalW, h: imgNaturalH } : null,
+    slots: slots.map((s, i) => ({
+      index: i,
+      // % relative coords (0..1)
+      x: s.x,
+      y: s.y,
+      w: s.w,
+      h: s.h,
+      // Convenience: px at original resolution
+      _pxHint: imgNaturalW ? {
+        x: Math.round(s.x * imgNaturalW),
+        y: Math.round(s.y * imgNaturalH),
+        w: Math.round(s.w * imgNaturalW),
+        h: Math.round(s.h * imgNaturalH),
+      } : undefined,
+    })),
+  };
+
+  document.getElementById('output-box').textContent = JSON.stringify(output, null, 2);
+}
+
+document.getElementById('layout-id').addEventListener('input', updateOutput);
+document.getElementById('layout-name').addEventListener('input', updateOutput);
+
+function copyOutput() {
+  const text = document.getElementById('output-box').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const t = document.getElementById('copied-toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  });
+}
+
+function downloadOutput() {
+  const text = document.getElementById('output-box').textContent;
+  const layoutName = document.getElementById('layout-name').value || 'layout';
+  const safeName = layoutName.toLowerCase().replace(/\s+/g, '-');
+  const blob = new Blob([text], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `layout-${safeName}-slots.json`;
+  a.click();
+}
+
+// ══════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════
+function toPercent(val, total) {
+  return total ? (val / total * 100).toFixed(1) : '—';
+}
+
+// Keyboard shortcut
+document.addEventListener('keydown', e => {
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (document.activeElement.tagName !== 'INPUT') {
+      slots.pop();
+      renderSlots();
+      updateOutput();
+    }
+  }
+});
+
+// Init
+updateOutput();
+</script>
+</body>
+</html>
