@@ -40,6 +40,8 @@ import logoWindowControl from "./logo-window-control.svg";
 import logoSuccess from "./logo-success.svg";
 import logoFailed from "./logo-failed.svg";
 import logoTimeLimit from "./logo-time-limit.svg";
+import logoDragAndDrop from "./logo-drag-and-drop.svg"
+import logoChooseFilter from "./logo-choose-filter.svg"
 
 import btnIncrement from "./btn-increment.svg";
 import btnDecrement from "./btn-decrement.svg";
@@ -77,6 +79,8 @@ export {
   logoFailed,
   logoTimeLimit,
   logoChooseFrame,
+  logoDragAndDrop,
+  logoChooseFilter,
   btnChoose,
   btnIncrement,
   btnDecrement,

@@ -2,14 +2,21 @@ import { btnBackGold, btnNextGold, logoBack, logoChooseFrame } from "@/assets";
 import { getTemplates, Template } from "@/services/templateService";
 import { useAuthStore } from "@/store/authStore";
 import { useSessionStore } from "@/store/sessionStore";
-import { usePhotoStore } from "@/store/photoStore";
+import { CapturedPhoto, usePhotoStore } from "@/store/photoStore";
 import { useUIStore } from "@/store/uiStore";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { SlotDef } from "@/types/layout";
+import { getLayoutDef } from "@/config/layouts.config";
+
+interface SlotState {
+  slotDef: SlotDef;
+  photo: CapturedPhoto | null;
+}
 
 export function TemplatePage() {
   const { goNext, goBack } = useSessionStore();
-  const setTemplateInStore = usePhotoStore((s) => s.setTemplate);
+  const { captures, setTemplate } = usePhotoStore();
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
     null,
   );
@@ -54,6 +61,34 @@ export function TemplatePage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+
+  // slotMap: { [slotIndex]: dataUrl }
+  const [slotMap, setSlotMap] = useState<Record<number, string>>({});
+
+  // ── Derive layout from template.layoutId ──────────────────────────────────
+  const layoutDef = selectedTemplate ? getLayoutDef(selectedTemplate.layoutId) : null;
+
+  if (captures.length === 0) {
+    return (
+      <motion.div
+        className="relative z-10 flex flex-col items-center justify-center w-full h-full gap-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <p className="font-body text-white text-3xl">
+          Foto Tidak Ditemukan
+        </p>
+        <button
+          onClick={goBack}
+          className="font-body text-white underline text-xl"
+        >
+          ← Kembali ambil foto
+        </button>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -118,57 +153,120 @@ export function TemplatePage() {
                 msOverflowStyle: "none",
               }}
             >
-              {templates.map((t, indx) => {
-                const isSelected = selectedTemplate?.id === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => setSelectedTemplate(t)}
-                    style={{ scrollSnapAlign: "center", flexShrink: 0 }}
-                    className={[
-                      "relative flex flex-col items-center rounded-2xl transition-all duration-300 select-none cursor-pointer focus:outline-none",
-                      "w-max h-max",
-                      "border-4",
-                      isSelected
-                        ? "border-retro-amber shadow-[0_0_28px_6px_rgba(212,160,23,0.55)] scale-125 z-10"
-                        : "border-transparent hover:border-retro-amber/40 hover:scale-105",
-                    ].join(" ")}
-                  >
-                    {/* Card image / placeholder */}
-                    {t.displayUrl ? (
-                      <img
-                        src={t.displayUrl}
-                        alt={`Template-${indx}`}
-                        draggable={false}
-                        className="h-80 w-auto max-w-[220px] object-cover rounded-xl pointer-events-none"
-                      />
-                    ) : (
-                      <div className="h-80 w-44 bg-retro-cream/10 rounded-xl flex flex-col items-center justify-center gap-2">
-                        <span className="text-retro-cream/30 font-body text-4xl">
-                          ⬜
-                        </span>
-                        <span className="text-retro-cream/40 font-body text-sm">
-                          {/* {t.slotCount} Slot */}
-                          slot
-                        </span>
-                      </div>
-                    )}
-                    {/* Name label */}
-                    {/* <p
-                      className={[
-                        "mt-3 font-body text-sm transition-colors duration-300",
-                        isSelected ? "text-retro-amber" : "text-retro-cream/70",
-                      ].join(" ")}
-                    >
-                      {`Template-${indx}`}
-                    </p> */}
-                    {/* Selected indicator dot */}
-                    {isSelected && (
-                      <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-retro-amber shadow-[0_0_6px_2px_rgba(212,160,23,0.7)]" />
-                    )}
-                  </button>
-                );
-              })}
+              {true &&
+                (
+                  // <></>
+                  (
+                    templates.map((t, indx) => {
+                      const isSelected = selectedTemplate?.id === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => setSelectedTemplate(t)}
+                          style={{ scrollSnapAlign: "center", flexShrink: 0 }}
+                          className={[
+                            "relative flex flex-col items-center rounded-2xl transition-all duration-300 select-none cursor-pointer focus:outline-none",
+                            "w-max h-max",
+                            "border-4",
+                            isSelected
+                              ? "border-retro-amber shadow-[0_0_28px_6px_rgba(212,160,23,0.55)] scale-125 z-10"
+                              : "border-transparent hover:border-retro-amber/40 hover:scale-105",
+                          ].join(" ")}
+                        >
+                          {t.displayUrl ? (
+                            // ── Template dengan slot placeholder overlay ──
+                            (() => {
+                              const tLayoutDef = getLayoutDef(t.layoutId)
+                              return (
+                                <div className="relative h-80 w-auto" style={{ aspectRatio: tLayoutDef?.templateSize ? `${tLayoutDef.templateSize.w} / ${tLayoutDef.templateSize.h}` : '1 / 1.414' }}>
+
+                                  {/* Layer 1: Slot placeholder — di bawah template PNG */}
+                                  {tLayoutDef?.slots.map((slot, index) => (
+                                    <div
+                                      key={slot.index}
+                                      style={{
+                                        position: 'absolute',
+                                        backgroundColor: "#DBDBDB",
+                                        left: `${slot.x * 100}%`,
+                                        top: `${slot.y * 100}%`,
+                                        width: `${slot.w * 100}%`,
+                                        height: `${slot.h * 100}%`,
+                                      }}
+                                      className="flex flex-col items-center justify-center bg-retro-cream/10 border border-dashed border-retro-cream/30"
+                                    >
+                                      <span className=" text-xl leading-none font-gaming bg-white text-black py-2 px-3 rounded-full">{index + 1}</span>
+                                    </div>
+                                  ))}
+
+                                  {/* Layer 2: Template PNG overlay di atas placeholder */}
+                                  <img
+                                    src={t.displayUrl}
+                                    alt={`Template-${indx}`}
+                                    draggable={false}
+                                    className="absolute inset-0 h-full w-full pointer-events-none rounded-xl"
+                                    style={{ objectFit: 'fill' }}
+                                  />
+                                </div>
+                              )
+                            })()
+                          ) : (
+                            <div className="h-80 w-44 bg-retro-cream/10 rounded-xl flex flex-col items-center justify-center gap-2">
+                              <span className="text-retro-cream/30 font-body text-4xl">⬜</span>
+                            </div>
+                          )}
+
+                          {isSelected && (
+                            <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-retro-amber shadow-[0_0_6px_2px_rgba(212,160,23,0.7)]" />
+                          )}
+                        </button>
+                      );
+                    })
+                  )
+                )
+              }
+              {
+                true && (
+                  <></>
+                  //     <div className="relative w-full h-full select-none">
+                  //   {/* ── Layer 1: photo fills per slot ── */}
+                  //   {slots.map(({ slotDef, photo }) => (
+                  //     <div
+                  //       key={slotDef.index}
+                  //       data-slot-index={slotDef.index}
+                  //       // onClick={() => onSlotClick(slotDef.index)}
+                  //       style={{
+                  //         position: "absolute",
+                  //         left: `${slotDef.x * 100}%`,
+                  //         top: `${slotDef.y * 100}%`,
+                  //         width: `${slotDef.w * 100}%`,
+                  //         height: `${slotDef.h * 100}%`,
+                  //         overflow: "hidden",
+                  //         cursor: "pointer",
+                  //       }}
+                  //       className="group relative"
+                  //     >
+                  //       {/* Empty slot placeholder — visible through the transparent hole  */}
+                  //       <div className="w-full h-full flex flex-col items-center justify-center bg-black/30 group-hover:bg-retro-amber/10 transition-colors duration-200">
+                  //         <span className="font-gaming text-3xl mb-1">＋</span>
+                  //         <span className="font-gaming text-sm">
+                  //           Slot {slotDef.index + 1}
+                  //         </span>
+                  //       </div>
+                  //     </div>
+                  //   ))}
+
+                  //   {/* ── Layer 2: template PNG overlay (transparent holes reveal photos) ── */}
+                  //   {/* <img
+                  //     src={templateUrl}
+                  //     alt="Template overlay"
+                  //     draggable={false}
+                  //     className="absolute inset-0 w-full h-full pointer-events-none"
+                  //     style={{ objectFit: "fill" }}
+                  //   /> */}
+                  // </div>
+                )
+              }
+
             </div>
           </div>
         )}
@@ -181,7 +279,7 @@ export function TemplatePage() {
           whileTap={{ scale: 0.95 }}
           onClick={() => {
             if (selectedTemplate) {
-              setTemplateInStore(selectedTemplate);
+              setTemplate(selectedTemplate);
             }
             goNext();
           }}
@@ -192,6 +290,6 @@ export function TemplatePage() {
           draggable={false}
         />
       </div>
-    </motion.div>
+    </motion.div >
   );
 }

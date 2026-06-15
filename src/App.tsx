@@ -24,7 +24,6 @@ const StartPhotoPage = lazy(() => import('@/components/Payment/StartPhotoPage').
 const TakePhotoPage = lazy(() => import('@/components/PhotoSession/TakePhotoPage').then(m => ({ default: m.TakePhotoPage })))
 const TemplatePage = lazy(() => import('@/components/PhotoSession/TemplatePage').then(m => ({ default: m.TemplatePage })))
 const DragDropPage = lazy(() => import('@/components/PhotoSession/DragDropPage').then(m => ({ default: m.DragDropPage })))
-const FilterPage = lazy(() => import('@/components/PhotoSession/FilterPage').then(m => ({ default: m.FilterPage })))
 const FinishedPhotoPage = lazy(() => import('@/components/PhotoSession/FinishedPhotoPage').then(m => ({ default: m.FinishedPhotoPage })))
 
 const PAGE_COMPONENTS: Record<number, React.ComponentType> = {
@@ -41,18 +40,17 @@ const PAGE_COMPONENTS: Record<number, React.ComponentType> = {
   10: TakePhotoPage,
   11: TemplatePage,
   12: DragDropPage,
-  13: FilterPage,
-  14: FinishedPhotoPage,
+  13: FinishedPhotoPage,
 }
 
-const TIMER_VISIBLE_HALAMAN = [10, 11, 12, 13, 14]
+const TIMER_VISIBLE_HALAMAN = [10, 11, 12, 13]
 
 // Protected halaman that require authentication
-const PROTECTED_HALAMAN = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+const PROTECTED_HALAMAN = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
 const MUSTHAVE_PRODUCTS = [4, 5, 6] // ProductPage and ExtraPrintPage require a valid productBundle to be selected
 
-const MUSHAVE_TRANSACTION_DATA = [8, 9, 10, 11, 12, 13, 14] // Pages that require transaction data to be present (i.e. after payment success)
+const MUSHAVE_TRANSACTION_DATA = [8, 9, 10, 11, 12, 13] // Pages that require transaction data to be present (i.e. after payment success)
 
 export default function App() {
   const currentHalaman = useSessionStore(s => s.currentHalaman)

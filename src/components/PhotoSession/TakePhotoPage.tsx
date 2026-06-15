@@ -27,6 +27,7 @@ export function TakePhotoPage() {
     addVideoCapture,
     retakeSlot,
     retakeVideoSlot,
+    clearPhotos
   } = usePhotoStore();
   const webcamRef = useRef<Webcam>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -167,27 +168,31 @@ export function TakePhotoPage() {
   console.log('capture video', capturesVideo)
   return (
     <motion.div
-      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-6  px-10"
+      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-8 px-10 gap-4"
       initial={{ opacity: 0, x: 60 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -60 }}
     >
-      {/* <div className='flex flex-row w-full justify-between items-center'>
+
+      {/* ── Header row ── */}
+      <div className="flex flex-row w-full justify-between items-center flex-shrink-0 invisible pb-4">
         <motion.img
           src={logoBack}
-          alt="How To Use"
+          alt="Back"
+          whileTap={{ scale: 0.95 }}
           onClick={goBack}
-          className="w-36 h-max select-none pointer-events-none cursor-pointer hidden"
-          initial={{ rotate: -20, opacity: 0 }}
-          animate={{ rotate: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
+          className="touch-target w-28 h-max select-none cursor-pointer"
           draggable={false}
         />
-      </div> */}
+        <div className="w-28" />
+      </div>
 
-      <div className="flex w-full h-full justify-center items-center gap-12 pt-20 pb-4 px-40">
+      {/* <div className="flex w-full h-full justify-center items-center gap-12 pt-20 pb-4 px-"> */}
+      {/* ── CONTENT ── */}
+      <div className="flex-1 flex flex-row items-center justify-center w-full min-h-0 gap-20 px-20">
+
         {/* Webcam Preview */}
-        <div className="flex w-[50%] h-full justify-center items-center">
+        <div className="flex w-full h-full justify-center items-center">
           <div className="w-full h-full relative rounded-2xl overflow-hidden border-2 border-[#B23E3E]">
             <Webcam
               ref={webcamRef}
@@ -226,7 +231,7 @@ export function TakePhotoPage() {
         </div>
 
         {/* Right Panel */}
-        <div className="flex flex-col gap-6 w-[50%] h-full justify-center items-center">
+        <div className="flex flex-col gap-6 w-full h-full justify-center items-center">
           {/* Thumbnail Grid */}
           <div className="grid grid-cols-2 gap-8 w-full h-full">
             {Array.from({ length: TOTAL_SLOTS }, (_, i) => {
@@ -270,44 +275,48 @@ export function TakePhotoPage() {
         </div>
       </div>
 
-      <div className="flex flex-row w-full justify-end items-center">
-        <motion.img
-          key={"BACK"} // ← ini trigger-nya
-          src={btnBackGold}
-          alt="BACK"
-          whileTap={{ scale: 0.95 }}
-          onClick={() => {
-            goBack();
-          }}
-          className="touch-target w-36 h-max select-none cursor-pointer transition-all"
-          initial={{ rotate: 0, opacity: 0 }}
-          animate={{ rotate: 0, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          draggable={false}
-        />
+      <div className="flex flex-row w-full justify-end items-center flex-shrink-0">
+        {/* <motion.img
+              key={"BACK"} // ← ini trigger-nya
+              src={btnBackGold}
+              alt="BACK"
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                goBack();
+              }}
+              className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+              initial={{ rotate: 0, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              draggable={false}
+            /> */}
+        <AnimatePresence>
+          {captures.length === TOTAL_SLOTS && (
 
-        <motion.img
-          key={"NEXT"} // ← ini trigger-nya
-          src={captures.length === TOTAL_SLOTS ? btnNextBlack : btnNextWhite}
-          alt="NEXT"
-          whileTap={{ scale: 0.95 }}
-          onClick={() => {
-            if (captures.length === TOTAL_SLOTS) {
-              goNext();
-            } else {
-              // alert('Please take photos for all slots before proceeding.')
-            }
-          }}
-          className="touch-target w-36 h-max select-none cursor-pointer transition-all"
-          initial={{ rotate: 0, opacity: 0 }}
-          animate={{ rotate: 0, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          draggable={false}
-        />
+            < motion.img
+              key={"NEXT"} // ← ini trigger-nya
+              src={captures.length === TOTAL_SLOTS ? btnNextBlack : btnNextWhite}
+              alt="NEXT"
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                if (captures.length === TOTAL_SLOTS) {
+                  goNext();
+                } else {
+                  // alert('Please take photos for all slots before proceeding.')
+                }
+              }}
+              className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+              initial={{ rotate: 0, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              draggable={false}
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       {/* DEV: Video Preview Modal */}
-      {/* <VideoPreviewModal /> */}
+      <VideoPreviewModal type="capture" />
     </motion.div>
   );
 }
