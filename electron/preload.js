@@ -1,6 +1,21 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld('electronAPI', {
-  checkPrinter: () => ipcRenderer.invoke('check-printer'),
-  printImage: (dataUrl) => ipcRenderer.invoke('print-image', dataUrl),
-})
+contextBridge.exposeInMainWorld("electronAPI", {
+  checkPrinter: () => ipcRenderer.invoke("check-printer"),
+  printPhotoSilent: (base64, paperWidth, paperHeight) => {
+    console.log("aku jalannn di preload");
+    console.log(
+      "ipcRenderer",
+      ipcRenderer.invoke("print-photo-silent", {
+        base64,
+        paperWidth,
+        paperHeight,
+      }),
+    );
+    return ipcRenderer.invoke("print-photo-silent", {
+      base64,
+      paperWidth,
+      paperHeight,
+    });
+  },
+});

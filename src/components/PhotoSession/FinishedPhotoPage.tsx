@@ -1,6 +1,7 @@
 import { btnNextBlack, iconChecklist, logoWindowControl, logoWindowControlWhite } from '@/assets'
 import { sendInvoice } from '@/services/emailService'
 import { getSessionResult, getSesssions, sendEmail } from '@/services/finalizeService'
+import { printPhoto } from '@/services/printService'
 import { usePhotoStore } from '@/store/photoStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useUIStore } from '@/store/uiStore'
@@ -79,7 +80,7 @@ function EmailSentModal({
 
 export function FinishedPhotoPage() {
   const { sessionCode, resetSession } = useSessionStore()
-  const { clearPhotos } = usePhotoStore()
+  const { templateWithPhotoProduction, clearPhotos } = usePhotoStore()
 
   const [sessionValue, setSessionValue] = useState<getSessionResult | null>(null)
 
@@ -169,6 +170,12 @@ export function FinishedPhotoPage() {
           isOpen: true,
           message: result.message
         })
+        try {
+          await printPhoto(templateWithPhotoProduction)
+        } catch (printErr) {
+          console.error('Print gagal:', printErr)
+          // Tetap navigasi meski print gagal
+        }
       }
     } catch (error) {
       console.log('error', error)
@@ -202,9 +209,9 @@ export function FinishedPhotoPage() {
         {/* ── Main content: template preview + photo tray ── */}
         <div className="flex-1 flex flex-row items-center justify-center w-full gap-20 px-28 h-full">
           {/* Left */}
-          <div className='flex flex-col gap-4 items-center w-max h-full'>
-            <img src={sessionValue?.photo1Url} alt="TemplatedPhoto" className='h-full object-contain' />
-            {(openEmailSentModal.isOpen === false && openEmailSentModal.message === '') &&
+          <div className='flex flex-col gap-4 items-center w-max h-full justify-center'>
+            <img src={sessionValue?.photo1Url} alt="TemplatedPhoto" className='h-[75%] object-fill' />
+            {(openEmailSentModal.message === '') &&
               (
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -231,7 +238,7 @@ export function FinishedPhotoPage() {
                     resetSession()
                   }}
                 >
-                  RESET
+                  BACK TO HOME
                 </motion.button>
               )}
           </div>

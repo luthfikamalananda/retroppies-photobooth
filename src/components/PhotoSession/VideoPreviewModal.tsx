@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { usePhotoStore } from '@/store/photoStore'
 
-type PreviewType = 'photo' | 'video' | 'gif'
+type PreviewType = 'photo' | 'photoProduction' | 'video' | 'gif'
 
 interface VideoPreviewModalProps {
     type: 'capture' | 'template'
 }
 
 export function VideoPreviewModal({ type }: VideoPreviewModalProps) {
-    const { capturesVideo, templateWithVideo, templateWithPhoto, capturesToGIF, captures } = usePhotoStore()
+    const { capturesVideo, templateWithVideo, templateWithPhoto, templateWithPhotoProduction, capturesToGIF, captures } = usePhotoStore()
 
     const [isOpen, setIsOpen] = useState(false)
     const [selectedSlot, setSelectedSlot] = useState<number | null>(null)
@@ -52,6 +52,7 @@ export function VideoPreviewModal({ type }: VideoPreviewModalProps) {
 
     const TAB_OPTIONS: { key: PreviewType; label: string; emoji: string; available: boolean }[] = [
         { key: 'photo', label: 'Template Photo', emoji: '🖼️', available: !!templateWithPhoto },
+        { key: 'photoProduction', label: 'Template Photo Production', emoji: '🖼️', available: !!templateWithPhotoProduction },
         { key: 'video', label: 'Template Video', emoji: '🎬', available: !!templateWithVideo },
         { key: 'gif', label: 'GIF', emoji: '✨', available: !!capturesToGIF },
     ]
@@ -116,7 +117,7 @@ export function VideoPreviewModal({ type }: VideoPreviewModalProps) {
                             )}
 
                             {/* Content */}
-                            <div className="flex-1 overflow-y-auto p-6">
+                            <div className="flex-1 overflow-y-auto p-6 ">
 
                                 {/* ── Capture type ── */}
                                 {type === 'capture' && (
@@ -155,6 +156,21 @@ export function VideoPreviewModal({ type }: VideoPreviewModalProps) {
                                                 src={templateWithPhoto}
                                                 alt="Template with photo"
                                                 className="w-full rounded-lg object-contain max-h-[65dvh]"
+                                            />
+                                        )}
+                                    </>
+                                )}
+
+                                {/* ── Template: Photo Production ── */}
+                                {type === 'template' && activePreview === 'photoProduction' && (
+                                    <>
+                                        {!templateWithPhotoProduction ? (
+                                            <p className="text-center text-gray-400 py-8">Belum ada template photo production. Tekan NEXT pada DragDrop page dulu.</p>
+                                        ) : (
+                                            <img
+                                                src={templateWithPhotoProduction}
+                                                alt="Template with photo production"
+                                                className="w-full rounded-lg object-contain max-h-[65dvh] bg-transparent"
                                             />
                                         )}
                                     </>

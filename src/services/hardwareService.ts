@@ -21,7 +21,7 @@ export async function checkHardware(): Promise<HardwareStatus> {
     if (electronAPI?.checkPrinter) {
       printerAvailable = await electronAPI.checkPrinter()
     } else {
-      printerAvailable = true // fallback for browser dev mode
+      printerAvailable = false
     }
   } catch {
     printerAvailable = true

@@ -26,6 +26,15 @@ export function AdminLoginPage() {
         resetSession()
     }, [])
 
+    const func = async () => {
+        const hw = await checkHardware()
+        setHardwareStatus(hw)
+    }
+
+    useEffect(() => {
+        func()
+    }, [])
+
     const handleLogin = async () => {
         if (!username || !password) {
             setError('Username dan password wajib diisi.')

@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { VideoPreviewModal } from "./VideoPreviewModal";
+import { printPhoto } from '@/services/printService'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -518,16 +519,18 @@ export function DragDropPage() {
       // ── 1. Composite foto + filter → satu gambar ─────────────────────────
 
       const photoCanvas = document.createElement('canvas')
-      photoCanvas.width = width
-      photoCanvas.height = height
+      const dispW = layoutDef.templateSize?.w ?? width
+      const dispH = layoutDef.templateSize?.h ?? height
+      photoCanvas.width = dispW
+      photoCanvas.height = dispH
       const photoCtx = photoCanvas.getContext('2d')!
 
       for (const slot of layoutDef.slots) {
         const dataUrl = slotMap[slot.index]
         if (!dataUrl) continue
         const img = await loadImage(dataUrl)
-        const slotX = slot.x * width, slotY = slot.y * height
-        const slotW = slot.w * width, slotH = slot.h * height
+        const slotX = slot.x * dispW, slotY = slot.y * dispH
+        const slotW = slot.w * dispW, slotH = slot.h * dispH
         const { sx, sy, sw, sh } = getCropParams(img.width, img.height, slotW, slotH)
 
         photoCtx.save()
@@ -542,8 +545,8 @@ export function DragDropPage() {
 
       // Template overlay tidak kena filter
       photoCtx.filter = 'none'
-      photoCtx.drawImage(templateImg, 0, 0, width, height)
-      const resultPhotoDataUrl = photoCanvas.toDataURL('image/jpeg', 0.95)
+      photoCtx.drawImage(templateImg, 0, 0, dispW, dispH)
+      const resultPhotoDataUrl = photoCanvas.toDataURL('image/png', 0.95)
 
       // ── 1b. Composite foto + filter → production (pakai productionUrl) ────────
       //
@@ -580,7 +583,7 @@ export function DragDropPage() {
       }
       photoProductionCtx.filter = 'none'
       photoProductionCtx.drawImage(productionTemplateImg, 0, 0, prodW, prodH)
-      const resultPhotoProductionDataUrl = photoProductionCanvas.toDataURL('image/jpeg', 0.95)
+      const resultPhotoProductionDataUrl = photoProductionCanvas.toDataURL('image/png', 0.95)
 
       // ── 2. Composite video + filter → satu video ─────────────────────────
 
@@ -716,17 +719,23 @@ export function DragDropPage() {
 
         // Sort captures by slotIndex untuk konsistensi urutan
         const sortedCaptures = [...captures].sort((a, b) => a.slotIndex - b.slotIndex)
+        // ----- BEGINNING OF LOG ----
         // console.log('templateAndGif', templateAndGif)
         // console.log('resultPhotoDataUrl', resultPhotoDataUrl)
         // console.log('resultPhotoProductionDataUrl', resultPhotoProductionDataUrl)
         // console.log('resultVideoBlob', resultVideoBlob)
         // console.log('resultGifBlob', resultGifBlob)
-        // setTemplateAndGif({
-        //   templateWithPhoto: resultPhotoDataUrl,
-        //   templateWithPhotoProduction: resultPhotoProductionDataUrl,
-        //   templateWithVideo: resultVideoBlob,
-        //   capturesToGIF: resultGifBlob,
-        // })
+        // ----- END OF LOG ----
+
+        setTemplateAndGif({
+          templateWithPhoto: resultPhotoDataUrl,
+          templateWithPhotoProduction: resultPhotoProductionDataUrl,
+          templateWithVideo: resultVideoBlob,
+          capturesToGIF: resultGifBlob,
+        })
+
+
+        // ---------------
         try {
           const result = await createSessions({
             invoiceNumber: transaction?.invoiceNumber,
@@ -742,9 +751,6 @@ export function DragDropPage() {
           })
           if (result.success) {
             // ── 4. Simpan & navigasi ──────────────────────────────────────────────
-            // setTemplateWithPhoto(resultPhotoDataUrl)
-            // setTemplateWithVideo(resultVideoBlob)
-            // setCapturesToGIF(resultGifBlob)
             setTemplateAndGif({
               templateWithPhoto: resultPhotoDataUrl,
               templateWithPhotoProduction: resultPhotoProductionDataUrl,
