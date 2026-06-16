@@ -1,15 +1,14 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
-import { useSessionStore } from "@/store/sessionStore";
-import { CapturedPhoto, usePhotoStore } from "@/store/photoStore";
+import { btnNextBlack, logoBack, logoChooseFilter, logoDragAndDrop, logoWindowControl } from "@/assets";
 import { getLayoutDef } from "@/config/layouts.config";
-import type { SlotDef } from "@/types/layout";
-import { btnBackGold, btnNextBlack, btnNextGold, logoBack, logoChooseFilter, logoDragAndDrop, logoWindowControl } from "@/assets";
+import { createSessions } from "@/services/finalizeService";
+import { CapturedPhoto, usePhotoStore } from "@/store/photoStore";
+import { useSessionStore } from "@/store/sessionStore";
 import { useUIStore } from "@/store/uiStore";
+import type { SlotDef } from "@/types/layout";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { VideoPreviewModal } from "./VideoPreviewModal";
-import { log } from "console";
-import { createSessions } from "@/services/finalizeService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -403,8 +402,8 @@ export function DragDropPage() {
     cssFilter: 'none',
   })
 
-  const { goNext, goBack, transaction } = useSessionStore();
-  const { template, captures, capturesVideo, setTemplateWithPhoto, setTemplateWithVideo, setCapturesToGIF } = usePhotoStore();
+  const { goNext, goBack, setSessionCode, transaction } = useSessionStore();
+  const { template, captures, capturesVideo, setTemplateAndGif } = usePhotoStore();
 
   // slotMap: { [slotIndex]: dataUrl }
   const [slotMap, setSlotMap] = useState<Record<number, string>>({});
@@ -546,6 +545,43 @@ export function DragDropPage() {
       photoCtx.drawImage(templateImg, 0, 0, width, height)
       const resultPhotoDataUrl = photoCanvas.toDataURL('image/jpeg', 0.95)
 
+      // ── 1b. Composite foto + filter → production (pakai productionUrl) ────────
+      //
+      // Logika identik dengan di atas, bedanya template overlay menggunakan
+      // productionUrl yang resolusinya lebih tinggi untuk keperluan print
+
+      const productionTemplateImg = await loadImage(template.productionUrl)
+
+      // Canvas production menggunakan ukuran asli template (bukan ukuran layar)
+      // agar resolusi output setinggi mungkin
+      const prodW = layoutDef.templateSize?.w ?? width
+      const prodH = layoutDef.templateSize?.h ?? height
+
+      const photoProductionCanvas = document.createElement('canvas')
+      photoProductionCanvas.width = prodW
+      photoProductionCanvas.height = prodH
+      const photoProductionCtx = photoProductionCanvas.getContext('2d')!
+
+      for (const slot of layoutDef.slots) {
+        const dataUrl = slotMap[slot.index]
+        if (!dataUrl) continue
+        const img = await loadImage(dataUrl)
+        const slotX = slot.x * prodW, slotY = slot.y * prodH
+        const slotW = slot.w * prodW, slotH = slot.h * prodH
+        const { sx, sy, sw, sh } = getCropParams(img.width, img.height, slotW, slotH)
+        photoProductionCtx.save()
+        photoProductionCtx.beginPath()
+        photoProductionCtx.rect(slotX, slotY, slotW, slotH)
+        photoProductionCtx.clip()
+        photoProductionCtx.filter = cssFilter || 'none'
+        photoProductionCtx.drawImage(img, sx, sy, sw, sh, slotX, slotY, slotW, slotH)
+        photoProductionCtx.filter = 'none'
+        photoProductionCtx.restore()
+      }
+      photoProductionCtx.filter = 'none'
+      photoProductionCtx.drawImage(productionTemplateImg, 0, 0, prodW, prodH)
+      const resultPhotoProductionDataUrl = photoProductionCanvas.toDataURL('image/jpeg', 0.95)
+
       // ── 2. Composite video + filter → satu video ─────────────────────────
 
       const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0] }[] = []
@@ -667,30 +703,61 @@ export function DragDropPage() {
 
 
       if (transaction?.invoiceNumber && captures.length >= 4) {
-        try {
-          const result = await createSessions({
-            invoiceNumber: transaction?.invoiceNumber,
-            tenantId: 1,
-            isPublish: permission,
-            photo1: resultPhotoDataUrl,
-            photo2: captures[0].dataUrl,
-            photo3: captures[1].dataUrl,
-            photo4: captures[2].dataUrl,
-            photo5: captures[3].dataUrl,
-            gif: resultGifBlob,
-            video: resultVideoBlob,
-          })
-          if (result.success) {
-            // ── 4. Simpan & navigasi ──────────────────────────────────────────────
-            setTemplateWithPhoto(resultPhotoDataUrl)
-            setTemplateWithVideo(resultVideoBlob)
-            setCapturesToGIF(resultGifBlob)
-            goNext()
-          }
-          console.log('Session created successfully:', result)
-        } catch (error) {
-          console.error('Error creating session:', error)
+
+        // Helper: konversi dataUrl → File
+        const dataUrlToFile = (dataUrl: string, filename: string): File => {
+          const [meta, data] = dataUrl.split(',')
+          const mimeType = meta.match(/:(.*?);/)?.[1] || 'image/jpeg'
+          const binary = atob(data)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+          return new File([bytes], filename, { type: mimeType })
         }
+
+        // Sort captures by slotIndex untuk konsistensi urutan
+        const sortedCaptures = [...captures].sort((a, b) => a.slotIndex - b.slotIndex)
+        // console.log('templateAndGif', templateAndGif)
+        console.log('resultPhotoDataUrl', resultPhotoDataUrl)
+        console.log('resultPhotoProductionDataUrl', resultPhotoProductionDataUrl)
+        // console.log('resultVideoBlob', resultVideoBlob)
+        // console.log('resultGifBlob', resultGifBlob)
+        setTemplateAndGif({
+          templateWithPhoto: resultPhotoDataUrl,
+          templateWithPhotoProduction: resultPhotoProductionDataUrl,
+          templateWithVideo: resultVideoBlob,
+          capturesToGIF: resultGifBlob,
+        })
+        // try {
+        //   const result = await createSessions({
+        //     invoiceNumber: transaction?.invoiceNumber,
+        //     tenantId: 1,
+        //     isPublish: permission,
+        //     photo1: dataUrlToFile(resultPhotoDataUrl, 'photo1.jpg'),      // ← foto composited
+        //     photo2: dataUrlToFile(sortedCaptures[0].dataUrl, 'photo2.jpg'), // ← foto raw slot 0
+        //     photo3: dataUrlToFile(sortedCaptures[1].dataUrl, 'photo3.jpg'), // ← foto raw slot 1
+        //     photo4: dataUrlToFile(sortedCaptures[2].dataUrl, 'photo4.jpg'), // ← foto raw slot 2
+        //     photo5: dataUrlToFile(sortedCaptures[3].dataUrl, 'photo5.jpg'), // ← foto raw slot 3
+        //     gif: resultGifBlob,
+        //     video: resultVideoBlob,
+        //   })
+        //   if (result.success) {
+        //     // ── 4. Simpan & navigasi ──────────────────────────────────────────────
+        //     // setTemplateWithPhoto(resultPhotoDataUrl)
+        //     // setTemplateWithVideo(resultVideoBlob)
+        //     // setCapturesToGIF(resultGifBlob)
+        //     setTemplateAndGif({
+        //       templateWithPhoto: resultPhotoDataUrl,
+        //       templateWithPhotoProduction: resultPhotoProductionDataUrl,
+        //       templateWithVideo: resultVideoBlob,
+        //       capturesToGIF: resultGifBlob,
+        //     })
+        //     setSessionCode(result.result.sessionCode)
+        //     goNext()
+        //   }
+        //   console.log('Session created successfully:', result)
+        // } catch (error) {
+        //   console.error('Error creating session:', error)
+        // }
       }
     } catch (err) {
       console.error('handleNext error:', err)

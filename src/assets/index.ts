@@ -24,6 +24,7 @@ import iconTimerBlack from "./icon-timer-black.svg";
 import iconTimerRed from "./icon-timer-red.svg";
 import iconPhoto from "./icon-photo.svg";
 import iconNoImage from "./icon-no-image.svg";
+import iconChecklist from "./icon-checklist.svg"
 
 import logoChooseProduct from "./logo-choose-product.svg";
 import logoHowToUse from "./logo-how-to-use.svg";
@@ -37,6 +38,7 @@ import logoExtraPrint from "./logo-extra-print.svg";
 import logoAddOns from "./logo-adds-on.svg";
 import logoVoucher from "./logo-voucher.svg";
 import logoWindowControl from "./logo-window-control.svg";
+import logoWindowControlWhite from "./logo-window-control-white.svg"
 import logoSuccess from "./logo-success.svg";
 import logoFailed from "./logo-failed.svg";
 import logoTimeLimit from "./logo-time-limit.svg";
@@ -60,6 +62,7 @@ export {
   iconPhoto,
   iconNoImage,
   iconTimerRed,
+  iconChecklist,
   logoFull,
   logoMark,
   logoChooseProduct,
@@ -75,6 +78,7 @@ export {
   logoVoucher,
   logoRetroppies,
   logoWindowControl,
+  logoWindowControlWhite,
   logoSuccess,
   logoFailed,
   logoTimeLimit,

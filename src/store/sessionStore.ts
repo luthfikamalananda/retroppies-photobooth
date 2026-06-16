@@ -5,6 +5,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 interface SessionState {
   currentHalaman: number
   transaction: TransactionResult | null
+  sessionCode: string | null
   timerSeconds: number
   timerRunning: boolean
 
@@ -15,6 +16,7 @@ interface SessionState {
   setTransaction: (transaction: TransactionResult | null) => void
   setTransactionStatus: (status: TransactionResult['status']) => void
   setTimer: (durationSec: number) => void
+  setSessionCode: (code: string) => void
   startTimer: () => void
   tickTimer: () => void
   stopTimer: () => void
@@ -24,8 +26,9 @@ interface SessionState {
 export const useSessionStore = create<SessionState>()(
   persist(
     (set, get) => ({
-      currentHalaman: 0,
+      currentHalaman: 1,
       transaction: null,
+      sessionCode: null,
       timerSeconds: 0,
       timerRunning: false,
 
@@ -48,11 +51,12 @@ export const useSessionStore = create<SessionState>()(
           set({ timerSeconds: timerSeconds - 1 })
         }
       },
+      setSessionCode: (code: string | null) => set({ sessionCode: code }),
       stopTimer: () => set({ timerRunning: false }),
       resetSession: () =>
         set({
-          currentHalaman: 1,
           transaction: null,
+          sessionCode: null,
           timerSeconds: 0,
           timerRunning: false,
         }),
@@ -65,6 +69,7 @@ export const useSessionStore = create<SessionState>()(
       partialize: (s) => ({
         currentHalaman: s.currentHalaman,
         transaction: s.transaction,
+        sessionCode: s.sessionCode,
         timerSeconds: s.timerSeconds,
         timerRunning: s.timerRunning,
       }),

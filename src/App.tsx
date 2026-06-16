@@ -8,8 +8,9 @@ import { ToastHost } from '@/components/Common/ToastHost'
 import { MockModeBadge } from '@/components/Common/MockModeBadge'
 
 // Halaman components (lazy-loaded for performance)
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { useCartStore } from './store/cartStore'
+import { usePhotoStore } from './store/photoStore'
 
 const AdminLoginPage = lazy(() => import('@/components/Auth/AdminLoginPage').then(m => ({ default: m.AdminLoginPage })))
 const LandingPage = lazy(() => import('@/components/Onboarding/LandingPage').then(m => ({ default: m.LandingPage })))
@@ -52,11 +53,12 @@ const MUSTHAVE_PRODUCTS = [4, 5, 6] // ProductPage and ExtraPrintPage require a 
 
 const MUSHAVE_TRANSACTION_DATA = [8, 9, 10, 11, 12, 13] // Pages that require transaction data to be present (i.e. after payment success)
 
+const RESET_SESSION = [0, 1, 2, 3, 4, 5, 6, 7]
+
 export default function App() {
-  const currentHalaman = useSessionStore(s => s.currentHalaman)
-  const goTo = useSessionStore(s => s.goTo)
+  const { goTo, resetSession, transaction, currentHalaman } = useSessionStore()
   const user = useAuthStore(s => s.user)
-  const transaction = useSessionStore(s => s.transaction)
+  const { clearPhotos } = usePhotoStore()
 
   const { productBundle } = useCartStore() // for cart persistence across halaman, if needed in the future
 
@@ -86,6 +88,29 @@ export default function App() {
   if (needsTransactionData) {
     goTo(1) // Landing Page
   }
+
+  // Check if current halaman requires session reset
+  const isMustResetSession = RESET_SESSION.includes(currentHalaman)
+  // const isInitialized = useRef(false)
+  const clearPhotoTrigger = async () => {
+    await clearPhotos()
+  }
+  useEffect(() => {
+    // if (isInitialized.current) return
+    // isInitialized.current = true
+    if (isMustResetSession) {
+      resetSession()
+      clearPhotoTrigger()
+    }
+  }, [currentHalaman])
+
+  // const isInitialized2 = useRef(false)
+
+  // useEffect(() => {
+  //   if (currentHalaman === 9) {
+  //     clearPhotos()
+  //   }
+  // })
 
   const PageComponent = PAGE_COMPONENTS[currentHalaman] ?? LandingPage
   const showTimer = TIMER_VISIBLE_HALAMAN.includes(currentHalaman)

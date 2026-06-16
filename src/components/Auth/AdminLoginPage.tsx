@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '@/store/authStore'
 import { logoMark, logoRetroppies } from '@/assets'
@@ -15,9 +15,16 @@ export function AdminLoginPage() {
     const [hardwareStatus, setHardwareStatus] = useState<{ cameraAvailable: boolean; printerAvailable: boolean } | null>(null)
 
     const { setUser } = useAuthStore()
-    const goTo = useSessionStore(s => s.goTo)
+    const { goTo, resetSession } = useSessionStore()
     const { setLoading, loading } = useUIStore()
     const isLoading = loading['login'] ?? false
+
+    let isInitialized = useRef(false)
+    useEffect(() => {
+        if (isInitialized.current) return
+        isInitialized.current = true
+        resetSession()
+    }, [])
 
     const handleLogin = async () => {
         if (!username || !password) {

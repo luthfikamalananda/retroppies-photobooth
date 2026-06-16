@@ -277,19 +277,19 @@ export function TakePhotoPage() {
 
       <div className="flex flex-row w-full justify-end items-center flex-shrink-0">
         {/* <motion.img
-              key={"BACK"} // ← ini trigger-nya
-              src={btnBackGold}
-              alt="BACK"
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                goBack();
-              }}
-              className="touch-target w-36 h-max select-none cursor-pointer transition-all"
-              initial={{ rotate: 0, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              transition={{ delay: 0.1 }}
-              draggable={false}
-            /> */}
+          key={"BACK"} // ← ini trigger-nya
+          src={btnBackGold}
+          alt="BACK"
+          whileTap={{ scale: 0.95 }}
+          onClick={() => {
+            goBack();
+          }}
+          className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+          initial={{ rotate: 0, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          draggable={false}
+        /> */}
         <AnimatePresence>
           {captures.length === TOTAL_SLOTS && (
 
