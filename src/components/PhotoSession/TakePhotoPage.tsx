@@ -15,7 +15,7 @@ import {
 import { VideoPreviewModal } from "./VideoPreviewModal";
 
 const TOTAL_SLOTS = 4;
-const COUNTDOWN_DURATION = 3;
+const COUNTDOWN_DURATION = 6;
 
 export function TakePhotoPage() {
   const { goNext, goBack } = useSessionStore();
