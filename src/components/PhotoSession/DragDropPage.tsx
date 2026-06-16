@@ -717,47 +717,47 @@ export function DragDropPage() {
         // Sort captures by slotIndex untuk konsistensi urutan
         const sortedCaptures = [...captures].sort((a, b) => a.slotIndex - b.slotIndex)
         // console.log('templateAndGif', templateAndGif)
-        console.log('resultPhotoDataUrl', resultPhotoDataUrl)
-        console.log('resultPhotoProductionDataUrl', resultPhotoProductionDataUrl)
+        // console.log('resultPhotoDataUrl', resultPhotoDataUrl)
+        // console.log('resultPhotoProductionDataUrl', resultPhotoProductionDataUrl)
         // console.log('resultVideoBlob', resultVideoBlob)
         // console.log('resultGifBlob', resultGifBlob)
-        setTemplateAndGif({
-          templateWithPhoto: resultPhotoDataUrl,
-          templateWithPhotoProduction: resultPhotoProductionDataUrl,
-          templateWithVideo: resultVideoBlob,
-          capturesToGIF: resultGifBlob,
-        })
-        // try {
-        //   const result = await createSessions({
-        //     invoiceNumber: transaction?.invoiceNumber,
-        //     tenantId: 1,
-        //     isPublish: permission,
-        //     photo1: dataUrlToFile(resultPhotoDataUrl, 'photo1.jpg'),      // ← foto composited
-        //     photo2: dataUrlToFile(sortedCaptures[0].dataUrl, 'photo2.jpg'), // ← foto raw slot 0
-        //     photo3: dataUrlToFile(sortedCaptures[1].dataUrl, 'photo3.jpg'), // ← foto raw slot 1
-        //     photo4: dataUrlToFile(sortedCaptures[2].dataUrl, 'photo4.jpg'), // ← foto raw slot 2
-        //     photo5: dataUrlToFile(sortedCaptures[3].dataUrl, 'photo5.jpg'), // ← foto raw slot 3
-        //     gif: resultGifBlob,
-        //     video: resultVideoBlob,
-        //   })
-        //   if (result.success) {
-        //     // ── 4. Simpan & navigasi ──────────────────────────────────────────────
-        //     // setTemplateWithPhoto(resultPhotoDataUrl)
-        //     // setTemplateWithVideo(resultVideoBlob)
-        //     // setCapturesToGIF(resultGifBlob)
-        //     setTemplateAndGif({
-        //       templateWithPhoto: resultPhotoDataUrl,
-        //       templateWithPhotoProduction: resultPhotoProductionDataUrl,
-        //       templateWithVideo: resultVideoBlob,
-        //       capturesToGIF: resultGifBlob,
-        //     })
-        //     setSessionCode(result.result.sessionCode)
-        //     goNext()
-        //   }
-        //   console.log('Session created successfully:', result)
-        // } catch (error) {
-        //   console.error('Error creating session:', error)
-        // }
+        // setTemplateAndGif({
+        //   templateWithPhoto: resultPhotoDataUrl,
+        //   templateWithPhotoProduction: resultPhotoProductionDataUrl,
+        //   templateWithVideo: resultVideoBlob,
+        //   capturesToGIF: resultGifBlob,
+        // })
+        try {
+          const result = await createSessions({
+            invoiceNumber: transaction?.invoiceNumber,
+            tenantId: 1,
+            isPublish: permission,
+            photo1: dataUrlToFile(resultPhotoDataUrl, 'photo1.jpg'),      // ← foto composited
+            photo2: dataUrlToFile(sortedCaptures[0].dataUrl, 'photo2.jpg'), // ← foto raw slot 0
+            photo3: dataUrlToFile(sortedCaptures[1].dataUrl, 'photo3.jpg'), // ← foto raw slot 1
+            photo4: dataUrlToFile(sortedCaptures[2].dataUrl, 'photo4.jpg'), // ← foto raw slot 2
+            photo5: dataUrlToFile(sortedCaptures[3].dataUrl, 'photo5.jpg'), // ← foto raw slot 3
+            gif: resultGifBlob,
+            video: resultVideoBlob,
+          })
+          if (result.success) {
+            // ── 4. Simpan & navigasi ──────────────────────────────────────────────
+            // setTemplateWithPhoto(resultPhotoDataUrl)
+            // setTemplateWithVideo(resultVideoBlob)
+            // setCapturesToGIF(resultGifBlob)
+            setTemplateAndGif({
+              templateWithPhoto: resultPhotoDataUrl,
+              templateWithPhotoProduction: resultPhotoProductionDataUrl,
+              templateWithVideo: resultVideoBlob,
+              capturesToGIF: resultGifBlob,
+            })
+            setSessionCode(result.result.sessionCode)
+            goNext()
+          }
+          console.log('Session created successfully:', result)
+        } catch (error) {
+          console.error('Error creating session:', error)
+        }
       }
     } catch (err) {
       console.error('handleNext error:', err)
