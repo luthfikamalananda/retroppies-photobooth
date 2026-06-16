@@ -7,7 +7,6 @@ interface SessionState {
   transaction: TransactionResult | null
   timerSeconds: number
   timerRunning: boolean
-  consentGiven: boolean
 
   goTo: (halaman: number) => void
   goNext: () => void
@@ -15,7 +14,6 @@ interface SessionState {
   goToAndStartTimer: (halaman: number) => void
   setTransaction: (transaction: TransactionResult | null) => void
   setTransactionStatus: (status: TransactionResult['status']) => void
-  setConsent: (value: boolean) => void
   setTimer: (durationSec: number) => void
   startTimer: () => void
   tickTimer: () => void
@@ -30,7 +28,6 @@ export const useSessionStore = create<SessionState>()(
       transaction: null,
       timerSeconds: 0,
       timerRunning: false,
-      consentGiven: false,
 
       goTo: (halaman) => set({ currentHalaman: halaman }),
       goNext: () => set((s) => ({ currentHalaman: Math.min(s.currentHalaman + 1, 14) })),
@@ -41,7 +38,6 @@ export const useSessionStore = create<SessionState>()(
         set((s) => ({
           transaction: s.transaction ? { ...s.transaction, status } : null,
         })),
-      setConsent: (value) => set({ consentGiven: value }),
       setTimer: (durationSec) => set({ timerSeconds: durationSec, timerRunning: false }),
       startTimer: () => set({ timerRunning: true }),
       tickTimer: () => {
@@ -59,7 +55,6 @@ export const useSessionStore = create<SessionState>()(
           transaction: null,
           timerSeconds: 0,
           timerRunning: false,
-          consentGiven: false,
         }),
     }),
     {
@@ -72,7 +67,6 @@ export const useSessionStore = create<SessionState>()(
         transaction: s.transaction,
         timerSeconds: s.timerSeconds,
         timerRunning: s.timerRunning,
-        consentGiven: s.consentGiven,
       }),
     }
   )

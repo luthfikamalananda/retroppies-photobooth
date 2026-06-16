@@ -1,7 +1,4 @@
 import { apiClient, BaseResponse } from "./apiClient";
-import { USE_MOCK } from "@/mocks/mockFlag";
-import { mockGetTemplates } from "@/mocks/data/templates.mock";
-import type { TemplateInfo } from "@/store/layoutStore";
 
 export interface Template {
   id: number;

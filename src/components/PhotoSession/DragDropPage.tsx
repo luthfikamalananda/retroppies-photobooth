@@ -4,11 +4,12 @@ import { useSessionStore } from "@/store/sessionStore";
 import { CapturedPhoto, usePhotoStore } from "@/store/photoStore";
 import { getLayoutDef } from "@/config/layouts.config";
 import type { SlotDef } from "@/types/layout";
-import { btnBackGold, btnNextBlack, btnNextGold, logoBack, logoChooseFilter, logoDragAndDrop } from "@/assets";
+import { btnBackGold, btnNextBlack, btnNextGold, logoBack, logoChooseFilter, logoDragAndDrop, logoWindowControl } from "@/assets";
 import { useUIStore } from "@/store/uiStore";
 import { createPortal } from "react-dom";
 import { VideoPreviewModal } from "./VideoPreviewModal";
 import { log } from "console";
+import { createSessions } from "@/services/finalizeService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,68 @@ const FILTERS: Array<Filter> = [
       'sepia(0.25) contrast(1.35) brightness(0.95) saturate(0.85)',
   },
 ]
+
+// ─── Modal Ask Permission ───────────────────────────────────────────────────────────
+
+interface AskPermissionModalProps {
+  isOpen: boolean
+  onAccept: () => void
+  onDecline: () => void
+}
+
+function AskPermissionModal({ isOpen, onAccept, onDecline }: AskPermissionModalProps) {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="bg-white rounded-xl border-4 border-[#F7CC40] shadow-2xl overflow-hidden w-[600px]"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="bg-[#F7CC40] px-5 py-4 flex items-center justify-between">
+              <h2 className="font-gaming text-[#2C2C2C] text-2xl">ASK PERMISSION VIDEO</h2>
+              <img src={logoWindowControl} alt="Window-Control" className="select-none pointer-events-none h-auto" />
+            </div>
+
+            {/* Content */}
+            <div className="bg-[#FCF8EF] px-8 py-8 flex flex-col gap-6">
+              <p className="font-gaming text-[#2C2C2C] text-xl text-center">
+                Your photos look amazing! Would you allow us to feature them on @retroppies?
+              </p>
+
+              {/* Buttons */}
+              <div className="flex gap-4 justify-center mt-4">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onDecline}
+                  className="flex-1 bg-[#BA371E] hover:bg-[#9A2C15] text-white font-gaming text-lg py-4 px-6 rounded-lg border-2 border-[#7A1E0A] transition-colors"
+                >
+                  No, Thanks
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onAccept}
+                  className="flex-1 bg-[#4CAF50] hover:bg-[#45a049] text-white font-gaming text-lg py-4 px-6 rounded-lg border-2 border-[#2E7D32] transition-colors"
+                >
+                  Yes, Sure!
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -332,6 +395,7 @@ function SelectFilterTray({
 
 export function DragDropPage() {
   const [pageState, setPageState] = useState<'dragdrop' | 'selectfilter'>('dragdrop')
+  const [openModalPermission, setOpenModalPermission] = useState<boolean>(false)
 
   const [selectedFilter, setSelectedFilter] = useState<Filter>({
     id: 'original',
@@ -339,8 +403,8 @@ export function DragDropPage() {
     cssFilter: 'none',
   })
 
-  const { goNext, goBack } = useSessionStore();
-  const { template, captures, capturesVideo, templateWithPhoto, templateWithVideo, setTemplateWithPhoto, setTemplateWithVideo, setCapturesToGIF } = usePhotoStore();
+  const { goNext, goBack, transaction } = useSessionStore();
+  const { template, captures, capturesVideo, setTemplateWithPhoto, setTemplateWithVideo, setCapturesToGIF } = usePhotoStore();
 
   // slotMap: { [slotIndex]: dataUrl }
   const [slotMap, setSlotMap] = useState<Record<number, string>>({});
@@ -415,7 +479,11 @@ export function DragDropPage() {
 
   const [isProcessing, setIsProcessing] = useState(false)
 
-  const handleNext = async () => {
+  const handleNext = async ({
+    permission = false
+  }: {
+    permission: boolean
+  }) => {
     if (!allSlotsFilled || !layoutDef || !template) return
 
     const containerEl = document.getElementById('template-composite-container')
@@ -597,13 +665,33 @@ export function DragDropPage() {
         return new Blob([encoder.bytes()], { type: 'image/gif' })
       })()
 
-      // ── 4. Simpan & navigasi ──────────────────────────────────────────────
 
-      setTemplateWithPhoto(resultPhotoDataUrl)
-      setTemplateWithVideo(resultVideoBlob)
-      setCapturesToGIF(resultGifBlob)
-      goNext()
-
+      if (transaction?.invoiceNumber && captures.length >= 4) {
+        try {
+          const result = await createSessions({
+            invoiceNumber: transaction?.invoiceNumber,
+            tenantId: 1,
+            isPublish: permission,
+            photo1: resultPhotoDataUrl,
+            photo2: captures[0].dataUrl,
+            photo3: captures[1].dataUrl,
+            photo4: captures[2].dataUrl,
+            photo5: captures[3].dataUrl,
+            gif: resultGifBlob,
+            video: resultVideoBlob,
+          })
+          if (result.success) {
+            // ── 4. Simpan & navigasi ──────────────────────────────────────────────
+            setTemplateWithPhoto(resultPhotoDataUrl)
+            setTemplateWithVideo(resultVideoBlob)
+            setCapturesToGIF(resultGifBlob)
+            goNext()
+          }
+          console.log('Session created successfully:', result)
+        } catch (error) {
+          console.error('Error creating session:', error)
+        }
+      }
     } catch (err) {
       console.error('handleNext error:', err)
     } finally {
@@ -736,7 +824,8 @@ export function DragDropPage() {
                       break;
 
                     case 'selectfilter':
-                      handleNext();
+                      setOpenModalPermission(true)
+                      // handleNext();
                       break;
 
                     default:
@@ -778,6 +867,18 @@ export function DragDropPage() {
       </AnimatePresence>
 
       <VideoPreviewModal type="template" />
+
+      <AskPermissionModal
+        isOpen={openModalPermission}
+        onAccept={() => {
+          setOpenModalPermission(false)
+          handleNext({ permission: true })
+        }}
+        onDecline={() => {
+          setOpenModalPermission(false)
+          handleNext({ permission: false })
+        }}
+      />
     </>
   );
 }
