@@ -18,4 +18,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
       paperHeight,
     });
   },
+  printPhotoBorderless: (params) =>
+    ipcRenderer.invoke("print-photo-borderless", params),
 });

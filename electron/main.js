@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const { execFile } = require("child_process");
 
 let mainWindow;
 
@@ -114,8 +115,89 @@ ipcMain.handle(
   },
 );
 
+// Handler untuk silent print
+ipcMain.handle(
+  "print-photo-borderless",
+  async (_, { base64, printerName, paperName }) => {
+    const tempImagePath = path.join(os.tmpdir(), `print-${Date.now()}.jpg`);
+    fs.writeFileSync(tempImagePath, Buffer.from(base64, "base64"));
+
+    if (process.platform === "win32") {
+      const scriptPath = app.isPackaged
+        ? path.join(process.resourcesPath, "print-borderless.ps1")
+        : path.join(__dirname, "print-borderless.ps1");
+
+      return new Promise((resolve, reject) => {
+        execFile(
+          "powershell.exe",
+          [
+            "-ExecutionPolicy",
+            "Bypass",
+            "-NoProfile",
+            "-File",
+            scriptPath,
+            "-ImagePath",
+            tempImagePath,
+            "-PrinterName",
+            printerName,
+            "-PaperName",
+            paperName || "",
+          ],
+          { windowsHide: true },
+          (error, stdout, stderr) => {
+            try {
+              fs.unlinkSync(tempImagePath);
+            } catch {}
+            if (error) return reject(new Error(stderr || error.message));
+            resolve(true);
+          },
+        );
+      });
+    }
+
+    if (process.platform === "darwin") {
+      return new Promise((resolve, reject) => {
+        execFile(
+          "lp",
+          [
+            "-d",
+            printerName,
+            "-o",
+            `media=${paperName || "A4.NMgn"}`,
+            "-o",
+            "fit-to-page",
+            tempImagePath,
+          ],
+          {},
+          (error, stdout, stderr) => {
+            try {
+              fs.unlinkSync(tempImagePath);
+            } catch {}
+            if (error) return reject(new Error(stderr || error.message));
+            resolve(true);
+          },
+        );
+      });
+    }
+
+    fs.unlinkSync(tempImagePath);
+    throw new Error(`Platform ${process.platform} belum didukung`);
+  },
+);
+
 // IPC: Printer capability check
 ipcMain.handle("check-printer", async () => {
+  const printWindow = new BrowserWindow({
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      webSecurity: false,
+    },
+  });
+
+  const printers = await printWindow.webContents.getPrintersAsync();
+  console.log("test", JSON.stringify(printers, null, 2));
+
   const win = BrowserWindow.getFocusedWindow();
   try {
     // const printers = await mainWindow.webContents.getPrintersAsync();

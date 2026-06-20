@@ -70,3 +70,19 @@ export const printPhoto = async (dataUrl: string): Promise<void> => {
         }
     })
 }
+
+export const printPhotoBorderless = async (dataUrl: string): Promise<void> => {
+    const base64 = dataUrl.split(',')[1]
+
+    console.log('tesss')
+
+    const isMac = navigator.platform.toLowerCase().includes('mac')
+
+    console.log('base64', dataUrl)
+
+    await (window as any).electronAPI.printPhotoBorderless({
+        base64,
+        printerName: isMac ? 'EPSON_L8050_Series' : 'EPSON L8050 Series', // sesuaikan exact name tiap OS
+        paperName: isMac ? 'A4.NMgn' : '', // Windows kosongkan dulu → auto-detect via fallback list di PowerShell
+    })
+}

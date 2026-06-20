@@ -1,7 +1,7 @@
 import { btnNextBlack, iconChecklist, logoWindowControl, logoWindowControlWhite } from '@/assets'
 import { sendInvoice } from '@/services/emailService'
 import { getSessionResult, getSesssions, sendEmail } from '@/services/finalizeService'
-import { printPhoto } from '@/services/printService'
+import { printPhoto, printPhotoBorderless } from '@/services/printService'
 import { usePhotoStore } from '@/store/photoStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useUIStore } from '@/store/uiStore'
@@ -80,7 +80,7 @@ function EmailSentModal({
 
 export function FinishedPhotoPage() {
   const { sessionCode, resetSession } = useSessionStore()
-  const { templateWithPhotoProduction, clearPhotos } = usePhotoStore()
+  const { templateWithPhotoProduction, templateWithPhoto, clearPhotos } = usePhotoStore()
 
   const [sessionValue, setSessionValue] = useState<getSessionResult | null>(null)
 
@@ -158,34 +158,44 @@ export function FinishedPhotoPage() {
     }
   };
 
+  // const handleSendEmail = async () => {
+  //   setIsProcessing(true)
+  //   try {
+  //     const result = await sendEmail({
+  //       customerEmail: email,
+  //       invoiceNumber: sessionValue?.invoiceNumber || '',
+  //     })
+  //     if (result.success) {
+  //       setOpenEmailSentModal({
+  //         isOpen: true,
+  //         message: result.message
+  //       })
+  //       try {
+  //         await printPhoto(templateWithPhotoProduction)
+  //       } catch (printErr) {
+  //         console.error('Print gagal:', printErr)
+  //         // Tetap navigasi meski print gagal
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.log('error', error)
+  //   } finally {
+  //     setIsProcessing(false)
+  //     // HARDCODE
+  //     setOpenEmailSentModal({
+  //       isOpen: true,
+  //       message: `email berhasil dikirim ke ${email}`
+  //     })
+  //   }
+  // }
+
   const handleSendEmail = async () => {
-    setIsProcessing(true)
     try {
-      const result = await sendEmail({
-        customerEmail: email,
-        invoiceNumber: sessionValue?.invoiceNumber || '',
-      })
-      if (result.success) {
-        setOpenEmailSentModal({
-          isOpen: true,
-          message: result.message
-        })
-        try {
-          await printPhoto(templateWithPhotoProduction)
-        } catch (printErr) {
-          console.error('Print gagal:', printErr)
-          // Tetap navigasi meski print gagal
-        }
-      }
-    } catch (error) {
-      console.log('error', error)
-    } finally {
-      setIsProcessing(false)
-      // HARDCODE
-      setOpenEmailSentModal({
-        isOpen: true,
-        message: `email berhasil dikirim ke ${email}`
-      })
+      // await printPhoto(templateWithPhotoProduction)
+      await printPhotoBorderless(templateWithPhotoProduction)
+    } catch (printErr) {
+      console.error('Print gagal:', printErr)
+      // Tetap navigasi meski print gagal
     }
   }
 
@@ -220,7 +230,7 @@ export function FinishedPhotoPage() {
                     emailError.isError || emailError.errorMsg !== '' || email === '' ? 'bg-gray-400' : 'opacity-100'
                   ].join('')}
                   onClick={handleSendEmail}
-                  disabled={email === '' || (emailError.isError && emailError.errorMsg === '')}
+                // disabled={email === '' || (emailError.isError && emailError.errorMsg === '')}
                 >
                   FINISH & PRINT
                 </motion.button>
