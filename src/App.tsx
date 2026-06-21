@@ -51,7 +51,7 @@ const PROTECTED_HALAMAN = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
 const MUSTHAVE_PRODUCTS = [4, 5, 6] // ProductPage and ExtraPrintPage require a valid productBundle to be selected
 
-// const MUSHAVE_TRANSACTION_DATA = [8, 9, 10, 11, 12, 13] // Pages that require transaction data to be present (i.e. after payment success)
+const MUSHAVE_TRANSACTION_DATA = [8, 9, 10, 11, 12, 13] // Pages that require transaction data to be present (i.e. after payment success)
 
 const RESET_SESSION = [0, 1, 2, 3, 4, 5, 6, 7]
 
@@ -81,13 +81,13 @@ export default function App() {
   }
 
   // Check if current halaman requires transaction data but it's not present
-  // const isMustHaveTransactionDataPage = MUSHAVE_TRANSACTION_DATA.includes(currentHalaman)
-  // const needsTransactionData = isMustHaveTransactionDataPage && (transaction === null)
+  const isMustHaveTransactionDataPage = MUSHAVE_TRANSACTION_DATA.includes(currentHalaman)
+  const needsTransactionData = isMustHaveTransactionDataPage && (transaction === null)
 
   // If must-have transaction data page but no transaction data, redirect to PaymentPage
-  // if (needsTransactionData) {
-  //   goTo(1) // Landing Page
-  // }
+  if (needsTransactionData) {
+    goTo(1) // Landing Page
+  }
 
   // Check if current halaman requires session reset
   const isMustResetSession = RESET_SESSION.includes(currentHalaman)

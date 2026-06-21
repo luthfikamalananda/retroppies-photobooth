@@ -9,7 +9,6 @@ import { useEffect } from 'react'
 
 export function LandingPage() {
   const goNext = useSessionStore(s => s.goNext)
-  const goTo = useSessionStore(s => s.goTo)
   const setTransaction = useSessionStore(s => s.setTransaction)
 
   useEffect(() => {
@@ -63,7 +62,7 @@ export function LandingPage() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.6 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => goTo(9)}
+        onClick={goNext}
       />
     </motion.div>
   )

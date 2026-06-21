@@ -96,7 +96,7 @@ export const usePhotoStore = create<PhotoState>()(
       }),
 
       clearPhotos: async () => {
-        set({ captures: [], capturesVideo: [], template: null, totalSlots: 1, templateWithPhoto: null, templateWithVideo: null, capturesToGIF: null })
+        set({ captures: [], capturesVideo: [], template: null, totalSlots: 1, templateWithPhoto: null, templateWithVideo: null, templateWithPhotoProduction: null, capturesToGIF: null })
         await idbDel('retroppies-captures')
       },
       isComplete: () => {

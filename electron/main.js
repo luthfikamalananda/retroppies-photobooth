@@ -38,84 +38,28 @@ app.whenReady().then(() => {
   });
 });
 
-// Handler untuk silent print
-ipcMain.handle(
-  "print-photo-silent",
-  async (_, { base64, paperWidth, paperHeight }) => {
-    // Tulis file di main — full Node.js access, tidak ada masalah
-    const tempPath = path.join(os.tmpdir(), `print-${Date.now()}.jpg`);
-    fs.writeFileSync(tempPath, Buffer.from(base64, "base64"));
+// ─────────────────────────────────────────────────────────────────────────
+// IPC: List semua printer + paper size yang tersedia (untuk debugging)
+// Gunakan ini dulu untuk melihat nama EXACT paper size borderless di driver kamu
+// ─────────────────────────────────────────────────────────────────────────
+ipcMain.handle("list-printers-debug", async () => {
+  const win = BrowserWindow.getFocusedWindow() || mainWindow;
+  const printers = await win.webContents.getPrintersAsync();
 
-    const printWindow = new BrowserWindow({
-      show: false,
-      webPreferences: {
-        contextIsolation: true,
-        webSecurity: false,
-      },
-    });
+  // Print full detail termasuk paper sizes yang didukung tiap printer
+  printers.forEach((p) => {
+    console.log("=== PRINTER:", p.name, "===");
+    console.log(JSON.stringify(p.options, null, 2));
+  });
 
-    const normalizedPath = tempPath.replace(/\\/g, "/");
-    const html = `<!DOCTYPE html>
-<html>
-  <head>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      @page { size: ${paperWidth}mm ${paperHeight}mm; margin: 0; }
-      html, body { width: ${paperWidth}mm; height: ${paperHeight}mm; overflow: hidden; }
-      img { display: block; width: 100%; height: 100%; object-fit: fill; }
-    </style>
-  </head>
-  <body>
-    <img src="file://${normalizedPath}" />
-  </body>
-</html>`;
+  return printers;
+});
 
-    await printWindow.loadURL(
-      `data:text/html;charset=utf-8,${encodeURIComponent(html)}`,
-    );
-
-    await printWindow.webContents.executeJavaScript(`
-    new Promise((resolve, reject) => {
-      const img = document.querySelector('img')
-      if (!img) return reject('no img')
-      if (img.complete && img.naturalWidth > 0) return resolve()
-      img.onload = resolve
-      img.onerror = reject
-    })
-  `);
-
-    const printers = await printWindow.webContents.getPrintersAsync();
-    const defaultPrinter = printers.find((p) => p.isDefault) ?? printers[0];
-
-    return new Promise((resolve, reject) => {
-      printWindow.webContents.print(
-        {
-          silent: true,
-          printBackground: true,
-          deviceName: defaultPrinter?.name ?? "",
-          margins: { marginType: "none" },
-          pageSize: {
-            width: paperWidth * 1000,
-            height: paperHeight * 1000,
-          },
-          copies: 1,
-          color: true,
-          scaleFactor: 100,
-        },
-        (success, failureReason) => {
-          printWindow.close();
-          try {
-            fs.unlinkSync(tempPath);
-          } catch {}
-          if (success) resolve(true);
-          else reject(new Error(failureReason));
-        },
-      );
-    });
-  },
-);
-
-// Handler untuk silent print
+// ─────────────────────────────────────────────────────────────────────────
+// Handler: True borderless print — cross-platform
+// Windows → PowerShell + .NET PrintDocument (paper size dari driver)
+// macOS   → CUPS `lp` command (paper size dari CUPS, misal "A4.NMgn")
+// ─────────────────────────────────────────────────────────────────────────
 ipcMain.handle(
   "print-photo-borderless",
   async (_, { base64, printerName, paperName }) => {
@@ -127,28 +71,39 @@ ipcMain.handle(
         ? path.join(process.resourcesPath, "print-borderless.ps1")
         : path.join(__dirname, "print-borderless.ps1");
 
+      // Pastikan file script benar2 ada sebelum dipanggil — kalau tidak,
+      // error PowerShell soal ekstensi file akan muncul karena path kosong/salah.
+      if (!fs.existsSync(scriptPath)) {
+        fs.unlinkSync(tempImagePath);
+        throw new Error(`Script tidak ditemukan di path: ${scriptPath}`);
+      }
+
+      const args = [
+        "-ExecutionPolicy", "Bypass",
+        "-NoProfile",
+        "-File", scriptPath,
+        "-ImagePath", tempImagePath,
+        "-PrinterName", printerName,
+        "-PaperName", paperName || "",
+      ];
+
+      console.log("Menjalankan PowerShell dengan args:", args);
+
       return new Promise((resolve, reject) => {
         execFile(
           "powershell.exe",
-          [
-            "-ExecutionPolicy",
-            "Bypass",
-            "-NoProfile",
-            "-File",
-            scriptPath,
-            "-ImagePath",
-            tempImagePath,
-            "-PrinterName",
-            printerName,
-            "-PaperName",
-            paperName || "",
-          ],
+          args,
           { windowsHide: true },
           (error, stdout, stderr) => {
             try {
               fs.unlinkSync(tempImagePath);
             } catch {}
-            if (error) return reject(new Error(stderr || error.message));
+            if (error) {
+              console.error("PowerShell print error:", stderr || error.message);
+              reject(new Error(stderr || error.message));
+              return;
+            }
+            console.log("PowerShell print output:", stdout);
             resolve(true);
           },
         );
@@ -160,12 +115,9 @@ ipcMain.handle(
         execFile(
           "lp",
           [
-            "-d",
-            printerName,
-            "-o",
-            `media=${paperName || "A4.NMgn"}`,
-            "-o",
-            "fit-to-page",
+            "-d", printerName,
+            "-o", `media=${paperName || "A4.NMgn"}`,
+            "-o", "fit-to-page",
             tempImagePath,
           ],
           {},
@@ -173,7 +125,12 @@ ipcMain.handle(
             try {
               fs.unlinkSync(tempImagePath);
             } catch {}
-            if (error) return reject(new Error(stderr || error.message));
+            if (error) {
+              console.error("lp print error:", stderr || error.message);
+              reject(new Error(stderr || error.message));
+              return;
+            }
+            console.log("lp print output:", stdout);
             resolve(true);
           },
         );
@@ -181,26 +138,14 @@ ipcMain.handle(
     }
 
     fs.unlinkSync(tempImagePath);
-    throw new Error(`Platform ${process.platform} belum didukung`);
+    throw new Error(`Platform ${process.platform} belum didukung untuk borderless print`);
   },
 );
 
 // IPC: Printer capability check
 ipcMain.handle("check-printer", async () => {
-  const printWindow = new BrowserWindow({
-    show: false,
-    webPreferences: {
-      contextIsolation: true,
-      webSecurity: false,
-    },
-  });
-
-  const printers = await printWindow.webContents.getPrintersAsync();
-  console.log("test", JSON.stringify(printers, null, 2));
-
   const win = BrowserWindow.getFocusedWindow();
   try {
-    // const printers = await mainWindow.webContents.getPrintersAsync();
     const printers = await win.webContents.getPrintersAsync();
     return printers.length > 0;
   } catch {
