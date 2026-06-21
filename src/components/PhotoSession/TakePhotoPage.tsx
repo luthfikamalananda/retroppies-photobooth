@@ -249,7 +249,7 @@ export function TakePhotoPage() {
                         className="w-full h-full object-cover"
                       />
                       <button
-                        className="absolute left-1/2 -translate-x-1/2 bottom-3 w-9 h-9 bg-[#FFFFFF] text-[#000000] rounded-full text-lg flex items-center justify-center"
+                        className="absolute left-1/2 -translate-x-1/2 bottom-3 w-12 h-12 bg-[#FFFFFF] text-[#000000] rounded-full text-3xl flex items-center justify-center"
                         onClick={() => {
                           retakeSlot(i);
                           retakeVideoSlot(i);

@@ -20,11 +20,12 @@ interface SlotState {
 
 type FilterId =
   | 'original'
-  | 'vivid'
-  | 'vividCool'
-  | 'sepia'
-  | 'noir'
-  | 'dramatic'
+  | 'kodakVintage'
+  | 'noirFilm'
+  | 'digicam200s'
+  | '80sRetro'
+  | 'dramaticB&W'
+  | 'dreamyVintage'
 
 interface Filter {
   id: FilterId
@@ -40,39 +41,46 @@ const FILTERS: Array<Filter> = [
   },
 
   {
-    id: 'vivid',
-    label: 'Vivid',
+    id: 'kodakVintage',
+    label: 'Kodak Vintage',
     cssFilter:
-      'saturate(1.6) contrast(1.15) brightness(1.05)',
+      "sepia(0.45) saturate(0.8) contrast(0.95) brightness(1.12) hue-rotate(-12deg)",
   },
 
   {
-    id: 'vividCool',
-    label: 'Vivid Cool',
+    id: 'noirFilm',
+    label: 'Noir Film',
     cssFilter:
-      'saturate(1.5) contrast(1.2) brightness(1.05) hue-rotate(8deg)',
+      "grayscale(1) contrast(1.7) brightness(1.02)"
   },
 
   {
-    id: 'sepia',
-    label: 'Sepia',
+    id: 'digicam200s',
+    label: 'Digicam 2000s',
     cssFilter:
-      'sepia(0.85) saturate(1.15) contrast(1.05)',
+      'saturate(1.6) contrast(1.25) brightness(1.12)',
   },
 
   {
-    id: 'noir',
-    label: 'Noir',
+    id: '80sRetro',
+    label: '80s Retro',
     cssFilter:
-      'grayscale(1) contrast(1.45) brightness(1.05)',
+      'sepia(0.2) saturate(1.25) contrast(1.1) brightness(1.05) hue-rotate(-20deg)',
   },
 
   {
-    id: 'dramatic',
-    label: 'Dramatic',
+    id: 'dramaticB&W',
+    label: 'Dramatic B&W',
     cssFilter:
-      'sepia(0.25) contrast(1.35) brightness(0.95) saturate(0.85)',
+      'grayscale(1) contrast(2) brightness(0.92)',
   },
+
+  {
+    id: 'dreamyVintage',
+    label: 'Dreamy Vintage',
+    cssFilter:
+      'sepia(0.2) saturate(0.85) brightness(1.15) contrast(0.9) saturate(0.9)',
+  }
 ]
 
 // ─── Modal Ask Permission ───────────────────────────────────────────────────────────

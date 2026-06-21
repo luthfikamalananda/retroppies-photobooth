@@ -35,10 +35,13 @@ export function AddOnsPage() {
     getProducts({ tenantId: user.tenantId, keyword: '', page: 1, limit: 999 })
       .then((res) => {
         if (res.result.products?.length === 0) {
-          // setError('Produk tidak tersedia. Hubungi admin.')
-          goNext()
+          setError('Produk tidak tersedia. Hubungi admin.')
         } else {
-          setProducts(() => res.result.products.filter(p => p.productType === 'addon'))
+          if (res.result.products?.some((p: Product) => p.productType === 'addon')) {
+            setProducts(() => res.result.products.filter(p => p.productType === 'addon'))
+          } else {
+            goNext()
+          }
         }
       })
       .catch((e) => {

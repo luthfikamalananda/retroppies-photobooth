@@ -10,7 +10,7 @@ import { extractErrorMessage } from '@/utils/errorHandling'
 import { formatCurrency } from '@/utils/formatCurrency'
 
 export function VoucherPage() {
-  const { goNext, goBack, setTransaction } = useSessionStore()
+  const { goNext, goBack, setTransaction, goTo } = useSessionStore()
   const { user } = useAuthStore()
   const { productAddOns, productBundle, productPrint, setVoucher } = useCartStore()
   const [resultVoucher, setResultVoucher] = useState<VoucherResult | null>(null)
@@ -85,7 +85,7 @@ export function VoucherPage() {
 
   return (
     <motion.div
-      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-10 px-10"
+      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-12 px-14"
       initial={{ opacity: 0, x: 60 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -60 }}
@@ -96,7 +96,7 @@ export function VoucherPage() {
           src={logoBack}
           alt="Back"
           whileTap={{ scale: 0.95 }}
-          onClick={goBack}
+          onClick={() => goTo(3)}
           className="w-48 h-max cursor-pointer flex gap-4 justify-end flex-shrink-0"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}

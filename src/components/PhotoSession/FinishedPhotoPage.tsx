@@ -272,7 +272,7 @@ export function FinishedPhotoPage() {
               <div className="w-full flex flex-col gap-4">
                 <div className='flex flex-row '>
                   <label htmlFor="email" className="font-gaming text-[#575757] text-xl text-center">ENTER EMAIL</label>
-                  <label htmlFor="email" className="font-gaming text-[#B23E3E] text-xl text-center">* (WAJIB DIISI)</label>
+                  <label htmlFor="email" className="font-gaming text-[#B23E3E] text-xl text-center">* (REQUIRED)</label>
                 </div>
                 <div className='flex flex-row gap-2 items-center relative w-full'>
                   <input type="email" id="email" value={email} onChange={handleEmailChange} className="font-body text-[#575757] text-xl text-left border-2 border-[#B23E3E] rounded-lg px-4 py-4 w-full" />

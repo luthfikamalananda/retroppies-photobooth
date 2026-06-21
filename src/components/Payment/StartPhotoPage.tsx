@@ -115,16 +115,16 @@ export function StartPhotoPage() {
         <div className="flex flex-row justify-center items-center p-6 flex-shrink-0 gap-3">
           <img src={iconTimerWhite} alt="Icon Timer" className="w-14 h-14 mx-auto" />
           <div className="flex flex-row justify-center items-center gap-2">
-            <p className="font-gaming text-[#FCF8EF] text-5xl">{timeLeft.minutes}</p>
-            <p className="font-gaming text-[#FCF8EF] text-5xl">:</p>
-            <p className="font-gaming text-[#FCF8EF] text-5xl">{timeLeft.seconds}</p>
+            <p className="font-gaming text-[#FCF8EF] text-7xl">{timeLeft.minutes}</p>
+            <p className="font-gaming text-[#FCF8EF] text-6xl">:</p>
+            <p className="font-gaming text-[#FCF8EF] text-7xl">{timeLeft.seconds}</p>
           </div>
         </div>
 
         <div className="flex flex-col gap-4 justify-center items-start">
-          <p className="font-bebas text-[#FCF8EF] text-4xl text-nowrap tracking-wider font-thin">TIME LIMIT FOR YOUR PHOTO SESSION IS</p>
-          <p className="font-bebas text-[#FCF8EF] text-5xl text-nowrap tracking-wide">{timeLeft.minutes}:{timeLeft.seconds} MINUTES</p>
-          <p className="font-bebas text-[#FCF8EF] text-4xl text-nowrap tracking-wider">PLEASE DON’T EXCEED YOUR TIME LIMIT</p>
+          <p className="font-bebas text-[#FCF8EF] text-6xl text-nowrap tracking-wider font-thin">TIME LIMIT FOR YOUR PHOTO SESSION IS</p>
+          <p className="font-bebas text-[#FCF8EF] text-6xl text-nowrap tracking-wide">{timeLeft.minutes}:{timeLeft.seconds} MINUTES</p>
+          <p className="font-bebas text-[#FCF8EF] text-6xl text-nowrap tracking-wider">PLEASE DON’T EXCEED YOUR TIME LIMIT</p>
         </div>
 
         {/* <label className="flex items-start gap-3 cursor-pointer">
@@ -141,7 +141,7 @@ export function StartPhotoPage() {
       </motion.div>
 
       <motion.button
-        className="touch-target w-72 bg-[#E9C140] text-retro-brown font-gaming font-semibold text-2xl rounded-full py-5 disabled:opacity-40"
+        className="touch-target w-96 bg-[#E9C140] text-retro-brown font-gaming font-semibold text-3xl rounded-full py-8 disabled:opacity-40"
         onClick={handleStart}
       >
         START PHOTO

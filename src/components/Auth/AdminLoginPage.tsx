@@ -73,15 +73,14 @@ export function AdminLoginPage() {
                 </div>
             )}
 
-            <div className="bg-black/60 backdrop-blur-md border border-retro-amber/40 rounded-2xl p-10 w-full max-w-md flex flex-col gap-6">
+            <div className="bg-black/60 backdrop-blur-md border border-retro-amber/40 rounded-2xl p-10 w-full max-w-3xl h-max flex flex-col gap-6">
                 <div className="flex flex-col items-center gap-2">
                     <img
                         src={logoRetroppies}
                         alt="Retroppies"
-                        className="w-48 h-max select-none pointer-events-none"
+                        className="w-[500px] h-max select-none pointer-events-none"
                         draggable={false}
                     />
-                    <h1 className="font-body text-retro-cream text-sm text-center">Admin Login</h1>
                     {/* <p className="font-body text-retro-cream/60 text-center text-sm">Admin Login</p> */}
                 </div>
 
@@ -94,7 +93,7 @@ export function AdminLoginPage() {
                 )}
 
                 <input
-                    className="touch-target w-full bg-black/40 border border-retro-amber/40 rounded-lg px-4 py-3 text-retro-cream font-body text-base outline-none focus:border-retro-amber"
+                    className="touch-target w-full bg-black/40 border border-retro-amber/40 rounded-lg px-4 py-6 text-retro-cream font-body text-xl outline-none focus:border-retro-amber"
                     type="text"
                     placeholder="Username"
                     value={username}
@@ -104,7 +103,7 @@ export function AdminLoginPage() {
                 />
 
                 <input
-                    className="touch-target w-full bg-black/40 border border-retro-amber/40 rounded-lg px-4 py-3 text-retro-cream font-body text-base outline-none focus:border-retro-amber"
+                    className="touch-target w-full bg-black/40 border border-retro-amber/40 rounded-lg px-4 py-6 text-retro-cream font-body text-xl outline-none focus:border-retro-amber"
                     type="password"
                     placeholder="Password"
                     value={password}
@@ -118,11 +117,11 @@ export function AdminLoginPage() {
                 )}
 
                 <button
-                    className="touch-target w-full bg-retro-amber hover:bg-retro-amber/80 text-retro-brown font-body font-semibold text-lg rounded-lg py-3 transition-colors disabled:opacity-50"
+                    className="touch-target w-full bg-retro-amber hover:bg-retro-amber/80 text-retro-brown font-gaming font-semibold text-xl rounded-lg py-6 transition-colors disabled:opacity-50"
                     onClick={handleLogin}
                     disabled={isLoading}
                 >
-                    {isLoading ? 'Masuk...' : 'Masuk'}
+                    {isLoading ? 'Masuk...' : 'MASUK'}
                 </button>
             </div>
         </motion.div>

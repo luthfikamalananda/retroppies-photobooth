@@ -46,7 +46,7 @@ export function LandingPage() {
         <motion.img
           src={logoFull}
           alt="Retroppies Photobooth"
-          className="w-[650px] h-[200px] select-none pointer-events-none"
+          className="w-[750px] h-[200px] select-none pointer-events-none"
           initial={{ y: -30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
