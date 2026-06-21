@@ -49,19 +49,19 @@ export function AddOnsPage() {
 
   return (
     <motion.div
-      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-6 px-10"
+      className="relative z-10 flex flex-col w-full h-full py-12 px-14 gap-10"
       initial={{ opacity: 0, x: 60 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -60 }}
     >
-
-      <div className='flex flex-row w-full justify-between items-center'>
+      {/* HEADER */}
+      <div className="w-full flex justify-between items-center flex-shrink-0">
         <motion.img
           src={logoBack}
-          alt="How To Use"
+          alt="Back"
           whileTap={{ scale: 0.95 }}
           onClick={goBack}
-          className="touch-target w-36 h-max select-none cursor-pointer"
+          className="w-48 h-max cursor-pointer flex gap-4 justify-end flex-shrink-0"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -71,7 +71,7 @@ export function AddOnsPage() {
         <motion.img
           src={logoAddOns}
           alt="Add-Ons"
-          className="w-96 h-28 select-none pointer-events-none"
+          className="w-[650px] h-[200px] select-none pointer-events-none"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -82,7 +82,7 @@ export function AddOnsPage() {
           src={logoBack}
           alt="How To Use"
           onClick={goBack}
-          className="w-36 h-max select-none pointer-events-none cursor-pointer invisible"
+          className="w-48 h-max select-none pointer-events-none cursor-pointer invisible"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -90,7 +90,7 @@ export function AddOnsPage() {
         />
       </div>
 
-
+      {/* CONTENT */}
       <div className="flex-1 flex items-center justify-center w-full">
         {loading && <p className="font-body text-retro-cream/60 text-xl">Memuat...</p>}
         {error && (
@@ -127,14 +127,15 @@ export function AddOnsPage() {
         )}
       </div>
 
-      <div className="flex flex-row w-full justify-end items-center ">
+      {/* FOOTER */}
+      <div className="flex-0 flex items-center justify-end w-full">
         <motion.img
           key={productAddOns.length > 0 ? 'next' : 'skip'}  // ← ini trigger-nya
           src={productAddOns.length > 0 ? btnNextBlack : btnSkipBlack}
           alt="How To Use"
           whileTap={{ scale: 0.95 }}
           onClick={goNext}
-          className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+          className="w-48 h-max cursor-pointer flex gap-4 justify-end flex-shrink-0"
           initial={{ rotate: 0, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
@@ -155,29 +156,33 @@ function ProductCard({
   const { productAddOns } = useCartStore()
 
   return (
-    <motion.div className={`w-48 p-4 h-full flex flex-col items-center hover:border-retro-amber transition-all justify-between gap-2`}
+    <motion.div className={`w-96 p-4 h-max flex flex-col items-center hover:border-retro-amber transition-all justify-between gap-2`}
       // whileHover={{ scale: 1.05 }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.6 }}
     >
-      <img src={product.productPhoto} alt={product.productName} className="w-full h-32 object-cover rounded-lg" />
-      <div className="flex flex-col items-center gap-1">
-        <p className="font-bebas text-[#B23E3E] text-2xl line-clamp-2 text-center text-nowrap">{product.productName}</p>
-        <p className="font-bebas text-[#B23E3E] text-3xl text-center">Rp {product.productPrice.toLocaleString('id-ID')}</p>
+      <img src={product.productPhoto} alt={product.productName} className="w-full h-full object-cover rounded-lg" />
+      <div className="flex flex-col items-center gap-2 pt-4">
+        <p className="font-bebas text-[#B23E3E] text-5xl line-clamp-2 text-center text-nowrap">{product.productName}</p>
+        <p className="font-bebas text-[#B23E3E] text-4xl text-center">Rp {product.productPrice.toLocaleString('id-ID')}</p>
       </div>
-      <div className="gap-4 grid grid-flow-col justify-evenly items-center">
+      <div className="gap-4 grid grid-flow-col justify-evenly items-center pt-2">
         <motion.img
           src={btnDecrement}
           alt="Choose"
-          className={`w-10 transition-all object-cover cursor-pointer`}
+          className={`w-16 transition-all object-cover cursor-pointer ${productAddOns?.filter(prod => prod.id === product.id).length <= 0 ? 'grayscale' : ''}`}
+          whileTap={{ scale: 2 }}
+          whileHover={{ scale: 1.1 }}
           onClick={() => onSelect('decrement')}
         />
-        <p className="font-bebas text-[#B23E3E] text-lg text-center">{productAddOns?.filter(prod => prod.id === product.id).length || 0}</p>
+        <p className="font-bebas text-[#B23E3E] text-3xl text-center">{productAddOns?.filter(prod => prod.id === product.id).length || 0}</p>
         <motion.img
           src={btnIncrement}
           alt="Choose"
-          className={`w-10 transition-all object-cover cursor-pointer`}
+          className={`w-16 transition-all object-cover cursor-pointer`}
+          whileTap={{ scale: 2 }}
+          whileHover={{ scale: 1.1 }}
           onClick={() => onSelect('increment')}
         />
       </div>

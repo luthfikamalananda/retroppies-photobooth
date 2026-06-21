@@ -112,7 +112,7 @@ export function TemplatePage() {
         <motion.img
           src={logoChooseFrame}
           alt="Voucher"
-          className="w-96 h-28 select-none pointer-events-none"
+          className="w-[512px] h-[150px] select-none pointer-events-none"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}

@@ -133,7 +133,7 @@ function PaymentTimer({ expiredAt }: { expiredAt: string }) {
       transition={{ duration: isExpired ? 0.6 : 0, repeat: isExpired ? Infinity : 0 }}
     >
       {/* Label Text */}
-      <h2 className="font-bebas text-[#090C0E] text-2xl tracking-[0.05em]">
+      <h2 className="font-bebas text-[#090C0E] text-3xl tracking-[0.05em]">
         SELESAIKAN PEMBAYARAN SEBELUM
       </h2>
 
@@ -141,7 +141,7 @@ function PaymentTimer({ expiredAt }: { expiredAt: string }) {
       <div className="flex items-center gap-2">
         {/* Hours */}
         <div className="bg-[#090C0E] px-2 py-2 rounded-lg border-2">
-          <span className="font-gaming text-[#FFFFFF] text-md tracking-wider">
+          <span className="font-gaming text-[#FFFFFF] text-lg tracking-wider">
             {timeLeft.hours}
           </span>
         </div>
@@ -151,7 +151,7 @@ function PaymentTimer({ expiredAt }: { expiredAt: string }) {
 
         {/* Minutes */}
         <div className="bg-[#090C0E] px-2 py-2 rounded-lg border-2">
-          <span className="font-gaming text-[#FFFFFF] text-md tracking-wider">
+          <span className="font-gaming text-[#FFFFFF] text-lg tracking-wider">
             {timeLeft.minutes}
           </span>
         </div>
@@ -161,7 +161,7 @@ function PaymentTimer({ expiredAt }: { expiredAt: string }) {
 
         {/* Seconds */}
         <div className="bg-[#090C0E] px-2 py-2 rounded-lg border-2">
-          <span className="font-gaming text-[#FFFFFF] text-md tracking-wider">
+          <span className="font-gaming text-[#FFFFFF] text-lg tracking-wider">
             {timeLeft.seconds}
           </span>
         </div>
@@ -281,56 +281,58 @@ export function PaymentPage() {
   return (
     <>
       <motion.div
-        className="relative z-10 flex flex-col items-center justify-between w-full h-full py-10 px-16"
+        className="relative z-10 flex flex-col w-full h-full py-12 px-14 gap-10"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
-        <div className='flex flex-row w-full justify-between items-center'>
+        {/* HEADER */}
+        <div className="w-full flex justify-between items-center flex-shrink-0">
           <motion.img
             src={btnBackGold}
             alt="Back"
             whileTap={{ scale: 0.95 }}
             onClick={goBack}
-            className="touch-target w-36 h-max select-none cursor-pointer"
+            className="w-48 h-max cursor-pointer flex gap-4 justify-end flex-shrink-0"
             initial={{ rotate: -20, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
             draggable={false}
           />
-
         </div>
 
+        {/* CONTENT */}
         <motion.div
-          className="relative z-10 flex flex-row items-center justify-center w-full h-full pb-10 px-16"
+          className="relative z-10 flex flex-1 flex-row items-center justify-center w-full h-full pb-10 px-16"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="flex flex-col items-center justify-center w-[53%]">
+          <div className="flex flex-col items-center justify-center w-[53%] h-max">
             {/* Header */}
-            <div className="flex flex-row justify-between items-center bg-[#F7CC40] px-6 py-5 w-full rounded-t-xl">
+            <div className="flex flex-row justify-between items-center bg-[#F7CC40] px-6 py-5 w-full rounded-t-xl" >
               <h1 className="font-gaming text-[#2C2C2C] text-2xl">PAY WITH QRIS</h1>
               <img src={logoWindowControl} alt="Window-Control" className="select-none pointer-events-none" />
             </div>
             {/* Content */}
-            <div className="flex flex-col items-center justify-center w-full bg-[#FCF8EF] pt-8 border-8 border-t-0 border-[#F7CC40] rounded-b-xl">
+            <div className="flex flex-col items-center justify-start w-full bg-[#FCF8EF] pt-8 border-8 border-t-0 border-[#F7CC40] rounded-b-xl h-full">
               {/* Timer */}
               <div className="w-full flex flex-col px-6">
                 {transaction?.expiredAt && (
                   <PaymentTimer expiredAt={transaction.expiredAt} />
                 )}
               </div>
-              <div className="flex flex-col items-center justify-center py-8 gap-6 w-full">
+              <div className="flex flex-col items-center justify-center py-8 gap-6 w-full h-full">
                 {loading && <p className="font-gaming text-retro-cream/60 text-xl pb-8">Membuat QR...</p>}
                 {error && <p className="font-gaming text-[#BA371E] text-xl uppercase pb-8 px-4">{error}</p>}
                 {(transaction?.qrContent && !error) && (
                   <div className="flex flex-col items-center gap-1 w-full">
-                    <p className="font-gaming text-[#2C2C2C] text-3xl">RETROPPIES</p>
-                    <div className="p-4 rounded-2xl">
+                    <p className="font-gaming text-[#2C2C2C] text-5xl">RETROPPIES</p>
+                    <div className="p-4 rounded-2xl w-[50%] h-[50%]">
                       <QRCodeSVG
                         value={transaction.qrContent}
-                        size={200}
+                        width={"100%"}
+                        height={"100%"}
                         level="H"
                       />
                     </div>

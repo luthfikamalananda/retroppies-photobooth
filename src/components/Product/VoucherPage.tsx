@@ -90,14 +90,14 @@ export function VoucherPage() {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -60 }}
     >
-
-      <div className='flex flex-row w-full justify-between items-center'>
+      {/* HEADER */}
+      <div className="w-full flex justify-between items-center flex-shrink-0">
         <motion.img
           src={logoBack}
-          alt="How To Use"
+          alt="Back"
           whileTap={{ scale: 0.95 }}
           onClick={goBack}
-          className="touch-target w-36 h-max select-none cursor-pointer"
+          className="w-48 h-max cursor-pointer flex gap-4 justify-end flex-shrink-0"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -107,7 +107,7 @@ export function VoucherPage() {
         <motion.img
           src={logoVoucher}
           alt="Voucher"
-          className="w-96 h-28 select-none pointer-events-none"
+          className="w-[650px] h-[200px] select-none pointer-events-none"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -118,7 +118,7 @@ export function VoucherPage() {
           src={logoBack}
           alt="How To Use"
           onClick={goBack}
-          className="w-36 h-max select-none pointer-events-none cursor-pointer invisible"
+          className="w-48 h-max select-none pointer-events-none cursor-pointer invisible"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -126,16 +126,13 @@ export function VoucherPage() {
         />
       </div>
 
-      <motion.div className="flex flex-col items-start gap-2 w-full max-w-2xl"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-      >
-        <p className="font-bebas text-[#B23E3E] text-3xl text-center">VOUCHER CODE</p>
+      {/* CONTENT */}
+      <div className="flex-1 flex items-start justify-center w-1/2 flex-col gap-4">
+        <p className="font-bebas text-[#B23E3E] text-5xl text-center">VOUCHER CODE</p>
         <div className="flex gap-3 w-full items-start">
           <div className="flex flex-col w-full gap-2">
             <input
-              className="h-14 touch-target flex-1 bg-[#F8F8F8] border-2 border-[#575757] rounded-full px-4 py-3 text-[#2C2C2C] text-lg font-bebas  outline-none focus:border-retro-amber uppercase"
+              className="h-14 touch-target flex-1 bg-[#F8F8F8] border-2 border-[#575757] rounded-full px-6 py-4 text-[#2C2C2C] text-3xl font-bebas  outline-none focus:border-retro-amber uppercase"
               type="text"
               placeholder="Enter Exclusive Voucher Code Here ..."
               value={code}
@@ -173,7 +170,7 @@ export function VoucherPage() {
             alt={'APPLY'}
             whileTap={{ scale: 0.95 }}
             onClick={handleApply}
-            className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+            className="touch-target w-48 h-max select-none cursor-pointer transition-all"
             initial={{ rotate: 0, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
@@ -183,21 +180,17 @@ export function VoucherPage() {
         </div>
 
         {(error && !code) && <p className="font-bebas text-[#BA371E] text-xl tracking-wider">{error}</p>}
+      </div>
 
-        {/* <div className={`w-full ${resultVoucher ? 'border-t border-retro-amber/20 pt-4' : ''} flex justify-between font-body text-retro-cream`}>
-          <span>Total</span>
-          <span className="font-semibold text-retro-amber text-xl">Rp {resultVoucher && resultVoucher?.finalPrice}</span>
-        </div> */}
-      </motion.div>
-
-      <div className="flex flex-row w-full justify-end items-center ">
+      {/* FOOTER */}
+      <div className="flex-0 flex items-center justify-end w-full">
         <motion.img
           key={resultVoucher ? 'next' : 'skip'}  // ← ini trigger-nya
           src={resultVoucher ? btnNextBlack : btnSkipBlack}
           alt={resultVoucher ? 'NEXT' : 'SKIP'}
           whileTap={{ scale: 0.95 }}
           onClick={goNext}
-          className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+          className="touch-target w-48 h-max select-none cursor-pointer transition-all"
           initial={{ rotate: 0, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
