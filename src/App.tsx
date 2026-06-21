@@ -44,7 +44,7 @@ const PAGE_COMPONENTS: Record<number, React.ComponentType> = {
   13: FinishedPhotoPage,
 }
 
-const TIMER_VISIBLE_HALAMAN = [10, 11, 12, 13]
+const TIMER_VISIBLE_HALAMAN = [10, 11, 12]
 
 // Protected halaman that require authentication
 const PROTECTED_HALAMAN = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]

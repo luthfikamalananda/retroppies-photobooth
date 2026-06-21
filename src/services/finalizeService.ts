@@ -36,6 +36,7 @@ export interface getSessionResult {
   isPublish: boolean
   createdAt: string
   qrCodePath: string
+  QrCinta: string
 }
 
 interface sendEmailRequest {

@@ -79,7 +79,7 @@ function EmailSentModal({
 }
 
 export function FinishedPhotoPage() {
-  const { sessionCode, totalPrint, resetSession } = useSessionStore()
+  const { sessionCode, resetSession, autoSubmit, setAutoSubmit } = useSessionStore()
   const { templateWithPhotoProduction, clearPhotos } = usePhotoStore()
 
   const [sessionValue, setSessionValue] = useState<getSessionResult | null>(null)
@@ -110,6 +110,18 @@ export function FinishedPhotoPage() {
     return () => setBg("video-black");
   }, []);
 
+  // // Auto-print immediately if redirected by autoSubmit (timer expired)
+  // useEffect(() => {
+  //   if (autoSubmit && templateWithPhotoProduction) {
+  //     printPhotoBorderless({
+  //       dataUrl: templateWithPhotoProduction,
+  //       totalCopy: totalPrint
+  //     }).catch((err) => {
+  //       console.error('Auto print failed:', err)
+  //     })
+  //     setAutoSubmit(false) // clear the flag so it only runs once
+  //   }
+  // }, [autoSubmit, templateWithPhotoProduction, totalPrint, setAutoSubmit])
 
   let isInitialized = false; // flag untuk memastikan init hanya sekali
 
@@ -170,26 +182,26 @@ export function FinishedPhotoPage() {
           isOpen: true,
           message: result.message
         })
-        try {
-          // await printPhoto(templateWithPhotoProduction)
-          await printPhotoBorderless({
-            dataUrl: templateWithPhotoProduction,
-            totalCopy: totalPrint
-          })
-        } catch (printErr) {
-          console.error('Print gagal:', printErr)
-          // Tetap navigasi meski print gagal
-        }
+        // try {
+        //   // await printPhoto(templateWithPhotoProduction)
+        //   await printPhotoBorderless({
+        //     dataUrl: templateWithPhotoProduction,
+        //     totalCopy: totalPrint
+        //   })
+        // } catch (printErr) {
+        //   console.error('Print gagal:', printErr)
+        //   // Tetap navigasi meski print gagal
+        // }
       }
     } catch (error) {
       console.log('error', error)
     } finally {
       setIsProcessing(false)
       // HARDCODE
-      setOpenEmailSentModal({
-        isOpen: true,
-        message: `email berhasil dikirim ke ${email}`
-      })
+      // setOpenEmailSentModal({
+      //   isOpen: true,
+      //   message: `email berhasil dikirim ke ${email}`
+      // })
     }
   }
 
@@ -262,7 +274,7 @@ export function FinishedPhotoPage() {
               {sessionValue?.qrCodePath && (
                 <div className='flex justify-center items-center h-[50%] w-[50%]'>
                   <QRCodeSVG
-                    value={sessionValue?.qrCodePath}
+                    value={sessionValue?.QrCinta}
                     width={"100%"}
                     height={"100%"}
                     level="H"

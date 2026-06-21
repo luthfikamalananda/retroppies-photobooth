@@ -8,7 +8,7 @@ interface SessionState {
   sessionCode: string | null
   timerSeconds: number
   timerRunning: boolean
-  totalPrint: number
+  autoSubmit: boolean
 
   goTo: (halaman: number) => void
   goNext: () => void
@@ -21,7 +21,7 @@ interface SessionState {
   startTimer: () => void
   tickTimer: () => void
   stopTimer: () => void
-  setTotalPrint: (totalPrint: number) => void
+  setAutoSubmit: (autoSubmit: boolean) => void
   resetSession: () => void
 }
 
@@ -33,7 +33,7 @@ export const useSessionStore = create<SessionState>()(
       sessionCode: null,
       timerSeconds: 0,
       timerRunning: false,
-      totalPrint: 1,
+      autoSubmit: false,
 
       goTo: (halaman) => set({ currentHalaman: halaman }),
       goNext: () => set((s) => ({ currentHalaman: Math.min(s.currentHalaman + 1, 14) })),
@@ -56,14 +56,14 @@ export const useSessionStore = create<SessionState>()(
       },
       setSessionCode: (code: string | null) => set({ sessionCode: code }),
       stopTimer: () => set({ timerRunning: false }),
-      setTotalPrint: (totalPrint: number) => set({ totalPrint }),
+      setAutoSubmit: (autoSubmit) => set({ autoSubmit }),
       resetSession: () =>
         set({
           transaction: null,
           sessionCode: null,
           timerSeconds: 0,
           timerRunning: false,
-          totalPrint: 1,
+          autoSubmit: false,
         }),
     }),
     {
@@ -77,6 +77,7 @@ export const useSessionStore = create<SessionState>()(
         sessionCode: s.sessionCode,
         timerSeconds: s.timerSeconds,
         timerRunning: s.timerRunning,
+        autoSubmit: s.autoSubmit,
       }),
     }
   )

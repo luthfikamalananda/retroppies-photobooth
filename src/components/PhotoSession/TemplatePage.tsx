@@ -72,7 +72,7 @@ export function TemplatePage() {
   if (captures.length === 0) {
     return (
       <motion.div
-        className="relative z-10 flex flex-col items-center justify-center w-full h-full gap-4"
+        className="relative z-10 flex flex-col items-center justify-center w-full h-full gap-4 py-12 px-14"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -92,18 +92,19 @@ export function TemplatePage() {
 
   return (
     <motion.div
-      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-10 px-10"
+      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-12 px-14"
       initial={{ opacity: 0, x: 60 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -60 }}
     >
+      {/* HEADER */}
       <div className="flex flex-row w-full justify-between items-center">
         <motion.img
           src={btnBackGold}
           alt="Back"
           whileTap={{ scale: 0.95 }}
           onClick={goBack}
-          className="touch-target w-36 h-max select-none cursor-pointer"
+          className="touch-target w-48 h-max select-none cursor-pointer"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -112,7 +113,7 @@ export function TemplatePage() {
         <motion.img
           src={logoChooseFrame}
           alt="Voucher"
-          className="w-[512px] h-[150px] select-none pointer-events-none"
+          className="w-[650px] h-[200px] select-none pointer-events-none"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -121,7 +122,7 @@ export function TemplatePage() {
         <motion.img
           src={logoBack}
           alt="How To Use"
-          className="w-36 h-max select-none pointer-events-none cursor-pointer invisible"
+          className="w-48 h-max select-none pointer-events-none cursor-pointer invisible"
           initial={{ rotate: -20, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -283,7 +284,7 @@ export function TemplatePage() {
             }
             goNext();
           }}
-          className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+          className="touch-target w-48 h-max select-none cursor-pointer transition-all"
           initial={{ rotate: 0, opacity: 0 }}
           animate={{ rotate: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}

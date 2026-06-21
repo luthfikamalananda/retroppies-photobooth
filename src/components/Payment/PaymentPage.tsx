@@ -242,6 +242,7 @@ export function PaymentPage() {
       createTransactionv2({
         items: [...[productBundle], ...productPrint, ...productAddOns],
         voucherCode: voucherRef.current ?? '',
+        totalPrint: productPrint.length + 1,
       })
         .then(res => {
           if (signal.aborted) return

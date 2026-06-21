@@ -9,7 +9,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { VideoPreviewModal } from "./VideoPreviewModal";
-import { printPhoto } from '@/services/printService'
+import { printPhoto, printPhotoBorderless } from '@/services/printService'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -411,7 +411,7 @@ export function DragDropPage() {
     cssFilter: 'none',
   })
 
-  const { goNext, goBack, setSessionCode, transaction } = useSessionStore();
+  const { goNext, goBack, setSessionCode, transaction, autoSubmit } = useSessionStore();
   const { template, captures, capturesVideo, setTemplateAndGif } = usePhotoStore();
 
   // slotMap: { [slotIndex]: dataUrl }
@@ -488,15 +488,19 @@ export function DragDropPage() {
   const [isProcessing, setIsProcessing] = useState(false)
 
   const handleNext = async ({
-    permission = false
+    permission = false,
+    overrideSlotMap
   }: {
     permission: boolean
+    overrideSlotMap?: Record<number, string>
   }) => {
-    if (!allSlotsFilled || !layoutDef || !template) return
+    const currentSlotMap = overrideSlotMap || slotMap
+    const isFilled = Object.keys(currentSlotMap).length >= slotCount
+    if (!isFilled || !layoutDef || !template) return
 
     const containerEl = document.getElementById('template-composite-container')
-    if (!containerEl) return
-    const { width, height } = containerEl.getBoundingClientRect()
+    const width = containerEl ? containerEl.getBoundingClientRect().width : 600
+    const height = containerEl ? containerEl.getBoundingClientRect().height : 850
 
     setIsProcessing(true)
 
@@ -534,7 +538,7 @@ export function DragDropPage() {
       const photoCtx = photoCanvas.getContext('2d')!
 
       for (const slot of layoutDef.slots) {
-        const dataUrl = slotMap[slot.index]
+        const dataUrl = currentSlotMap[slot.index]
         if (!dataUrl) continue
         const img = await loadImage(dataUrl)
         const slotX = slot.x * dispW, slotY = slot.y * dispH
@@ -574,7 +578,7 @@ export function DragDropPage() {
       const photoProductionCtx = photoProductionCanvas.getContext('2d')!
 
       for (const slot of layoutDef.slots) {
-        const dataUrl = slotMap[slot.index]
+        const dataUrl = currentSlotMap[slot.index]
         if (!dataUrl) continue
         const img = await loadImage(dataUrl)
         const slotX = slot.x * prodW, slotY = slot.y * prodH
@@ -598,7 +602,7 @@ export function DragDropPage() {
       const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0] }[] = []
 
       for (const slot of layoutDef.slots) {
-        const assignedDataUrl = slotMap[slot.index]
+        const assignedDataUrl = currentSlotMap[slot.index]
         if (!assignedDataUrl) continue
         const matchedCapture = captures.find(c => c.dataUrl === assignedDataUrl)
         if (!matchedCapture) continue
@@ -713,7 +717,7 @@ export function DragDropPage() {
       })()
 
 
-      if (transaction?.invoiceNumber && captures.length >= 4) {
+      if (transaction?.invoiceNumber && captures.length > 0) {
 
         // Helper: konversi dataUrl → File
         const dataUrlToFile = (dataUrl: string, filename: string): File => {
@@ -725,15 +729,12 @@ export function DragDropPage() {
           return new File([bytes], filename, { type: mimeType })
         }
 
-        // Sort captures by slotIndex untuk konsistensi urutan
-        const sortedCaptures = [...captures].sort((a, b) => a.slotIndex - b.slotIndex)
-        // ----- BEGINNING OF LOG ----
-        // console.log('templateAndGif', templateAndGif)
-        // console.log('resultPhotoDataUrl', resultPhotoDataUrl)
-        // console.log('resultPhotoProductionDataUrl', resultPhotoProductionDataUrl)
-        // console.log('resultVideoBlob', resultVideoBlob)
-        // console.log('resultGifBlob', resultGifBlob)
-        // ----- END OF LOG ----
+        // Helper to get raw photo by repeating available captures
+        const getRawPhoto = (index: number) => {
+          const sorted = [...captures].sort((a, b) => a.slotIndex - b.slotIndex)
+          const cap = sorted[index % sorted.length]
+          return cap.dataUrl
+        }
 
         // ---------------
         try {
@@ -742,10 +743,10 @@ export function DragDropPage() {
             tenantId: 1,
             isPublish: permission,
             photo1: dataUrlToFile(resultPhotoDataUrl, 'photo1.jpg'),      // ← foto composited
-            photo2: dataUrlToFile(sortedCaptures[0].dataUrl, 'photo2.jpg'), // ← foto raw slot 0
-            photo3: dataUrlToFile(sortedCaptures[1].dataUrl, 'photo3.jpg'), // ← foto raw slot 1
-            photo4: dataUrlToFile(sortedCaptures[2].dataUrl, 'photo4.jpg'), // ← foto raw slot 2
-            photo5: dataUrlToFile(sortedCaptures[3].dataUrl, 'photo5.jpg'), // ← foto raw slot 3
+            photo2: dataUrlToFile(getRawPhoto(0), 'photo2.jpg'), // ← foto raw slot 0
+            photo3: dataUrlToFile(getRawPhoto(1), 'photo3.jpg'), // ← foto raw slot 1
+            photo4: dataUrlToFile(getRawPhoto(2), 'photo4.jpg'), // ← foto raw slot 2
+            photo5: dataUrlToFile(getRawPhoto(3), 'photo5.jpg'), // ← foto raw slot 3
             gif: resultGifBlob,
             video: resultVideoBlob,
           })
@@ -765,6 +766,17 @@ export function DragDropPage() {
           console.error('Error creating session:', error)
         }
         // ---------------
+
+        // ---------------
+        try {
+          await printPhotoBorderless({
+            dataUrl: resultPhotoProductionDataUrl,
+            totalCopy: transaction.totalPrint
+          })
+        } catch (printErr) {
+          console.error('Print gagal:', printErr)
+        }
+        // ---------------
       }
     } catch (err) {
       console.error('handleNext error:', err)
@@ -772,6 +784,24 @@ export function DragDropPage() {
       setIsProcessing(false)
     }
   }
+
+  useEffect(() => {
+    if (autoSubmit && template && layoutDef) {
+      // 1. Auto fill slotMap
+      const tempSlotMap: Record<number, string> = {};
+      const slotCount = layoutDef.slotCount;
+      if (captures.length > 0) {
+        for (let i = 0; i < slotCount; i++) {
+          const cap = captures[i % captures.length];
+          tempSlotMap[i] = cap.dataUrl;
+        }
+      }
+      setSlotMap(tempSlotMap);
+
+      // 2. Trigger submit with populated slotMap
+      handleNext({ permission: false, overrideSlotMap: tempSlotMap });
+    }
+  }, [autoSubmit, template, layoutDef]);
 
   const setBg = useUIStore((s) => s.setBackgroundVariant);
 

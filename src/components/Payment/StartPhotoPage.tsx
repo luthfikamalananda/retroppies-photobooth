@@ -47,11 +47,14 @@ export function StartPhotoPage() {
       tenantId: user.tenantId || 0,
     })
       .then((res) => {
-        if (res.result.rules.length > 0) {
-          setTimer(res.result.rules[0].value)
-          const minutes = Math.floor(res.result.rules[0].value / 60)
-          const seconds = res.result.rules[0].value % 60
-          setTimeLeft({ minutes: String(minutes).padStart(2, '0'), seconds: String(seconds).padStart(2, '0') })
+        const timer = res.result.rules.find((r) => {
+          return r.rulesType === "PHOTO"
+        })
+        if (timer?.value) {
+          // FIX THIS HARDCODE
+          setTimer(timer.value * 60)
+          const minutes = Math.floor(timer.value)
+          setTimeLeft({ minutes: String(minutes).padStart(2, '0'), seconds: '00' })
         } else {
           setError('Gagal memuat Timer. Coba lagi.')
         }

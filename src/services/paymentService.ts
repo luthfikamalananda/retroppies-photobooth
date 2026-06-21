@@ -11,6 +11,7 @@ export interface CreateTransactionRequest {
 export interface CreateTransactionRequestv2 {
   items: Product[]
   voucherCode: string
+  totalPrint: number
 }
 
 export interface TransactionResponse {
@@ -30,6 +31,7 @@ export interface TransactionResult {
   finalAmount: number
   qrContent: string
   expiredAt: string
+  totalPrint: number
   status: "PENDING" | "SUCCESS" | "EXPIRED" | "FAILED"
 }
 

@@ -8,7 +8,7 @@ import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 
 export function ExtraPrintPage() {
-  const { goNext, goBack, goTo, setTransaction, setTotalPrint } = useSessionStore()
+  const { goNext, goBack, goTo, setTransaction } = useSessionStore()
   const { productBundle, productPrint, setProductPrint } = useCartStore()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -138,9 +138,6 @@ export function ExtraPrintPage() {
           alt="How To Use"
           whileTap={{ scale: 0.95 }}
           onClick={() => {
-            if (productPrint.length > 0) {
-              setTotalPrint(productPrint.length)
-            }
             goNext()
           }}
           // className="touch-target w-36 h-max select-none cursor-pointer transition-all"
