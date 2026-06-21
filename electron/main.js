@@ -62,7 +62,7 @@ ipcMain.handle("list-printers-debug", async () => {
 // ─────────────────────────────────────────────────────────────────────────
 ipcMain.handle(
   "print-photo-borderless",
-  async (_, { base64, printerName, paperName }) => {
+  async (_, { base64, printerName, paperName, totalCopy }) => {
     const tempImagePath = path.join(os.tmpdir(), `print-${Date.now()}.jpg`);
     fs.writeFileSync(tempImagePath, Buffer.from(base64, "base64"));
 
@@ -79,12 +79,19 @@ ipcMain.handle(
       }
 
       const args = [
-        "-ExecutionPolicy", "Bypass",
+        "-ExecutionPolicy",
+        "Bypass",
         "-NoProfile",
-        "-File", scriptPath,
-        "-ImagePath", tempImagePath,
-        "-PrinterName", printerName,
-        "-PaperName", paperName || "",
+        "-File",
+        scriptPath,
+        "-ImagePath",
+        tempImagePath,
+        "-PrinterName",
+        printerName,
+        "-PaperName",
+        paperName || "",
+        "-Copies",
+        String(totalCopy),
       ];
 
       console.log("Menjalankan PowerShell dengan args:", args);
@@ -115,9 +122,14 @@ ipcMain.handle(
         execFile(
           "lp",
           [
-            "-d", printerName,
-            "-o", `media=${paperName || "A4.NMgn"}`,
-            "-o", "fit-to-page",
+            "-d",
+            printerName,
+            "-n",
+            String(totalCopy),
+            "-o",
+            `media=${paperName || "A4.NMgn"}`,
+            "-o",
+            "fit-to-page",
             tempImagePath,
           ],
           {},
@@ -138,7 +150,9 @@ ipcMain.handle(
     }
 
     fs.unlinkSync(tempImagePath);
-    throw new Error(`Platform ${process.platform} belum didukung untuk borderless print`);
+    throw new Error(
+      `Platform ${process.platform} belum didukung untuk borderless print`,
+    );
   },
 );
 

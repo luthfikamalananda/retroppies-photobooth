@@ -79,7 +79,7 @@ function EmailSentModal({
 }
 
 export function FinishedPhotoPage() {
-  const { sessionCode, resetSession } = useSessionStore()
+  const { sessionCode, totalPrint, resetSession } = useSessionStore()
   const { templateWithPhotoProduction, clearPhotos } = usePhotoStore()
 
   const [sessionValue, setSessionValue] = useState<getSessionResult | null>(null)
@@ -172,7 +172,10 @@ export function FinishedPhotoPage() {
         })
         try {
           // await printPhoto(templateWithPhotoProduction)
-          await printPhotoBorderless(templateWithPhotoProduction)
+          await printPhotoBorderless({
+            dataUrl: templateWithPhotoProduction,
+            totalCopy: totalPrint
+          })
         } catch (printErr) {
           console.error('Print gagal:', printErr)
           // Tetap navigasi meski print gagal

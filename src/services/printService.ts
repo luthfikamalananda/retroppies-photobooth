@@ -72,7 +72,7 @@ export const printPhoto = async (dataUrl: string): Promise<void> => {
   });
 };
 
-export const printPhotoBorderless = async (dataUrl: string): Promise<void> => {
+export const printPhotoBorderless = async ({ dataUrl, totalCopy = 1 }: { dataUrl: string, totalCopy: number }): Promise<void> => {
   const base64 = dataUrl.split(",")[1];
 
   console.log("tesss");
@@ -85,5 +85,6 @@ export const printPhotoBorderless = async (dataUrl: string): Promise<void> => {
     base64,
     printerName: isMac ? "EPSON_L8050_Series" : "EPSON L8050 Series", // sesuaikan exact name tiap OS
     paperName: isMac ? "A4.NMgn" : "A4", // Windows kosongkan dulu → auto-detect via fallback list di PowerShell
+    totalCopy: totalCopy
   });
 };
