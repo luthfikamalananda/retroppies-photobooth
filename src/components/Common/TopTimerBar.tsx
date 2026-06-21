@@ -66,7 +66,7 @@ export function TopTimerBar() {
         className="w-8 h-8"
       />
       <span
-        className={`font-gaming text-2xl tracking-widest ${progress * 100 <= 30 ? "text-red-500" : backgroundVariant === "image-white" ? "text-[#303030]" : "text-[#FCF8EF]"}`}
+        className={`font-gaming text-3xl tracking-widest ${progress * 100 <= 30 ? "text-red-500" : backgroundVariant === "image-white" ? "text-[#303030]" : "text-[#FCF8EF]"}`}
         style={{ fontVariantNumeric: "tabular-nums" }}
       >
         {minutes.toString().padStart(2, "0")} :{" "}

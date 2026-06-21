@@ -168,7 +168,7 @@ export function TakePhotoPage() {
   console.log('capture video', capturesVideo)
   return (
     <motion.div
-      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-8 px-10 gap-4"
+      className="relative z-10 flex flex-col items-center justify-between w-full h-full py-12 px-14 gap-4"
       initial={{ opacity: 0, x: 60 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -60 }}
@@ -305,7 +305,7 @@ export function TakePhotoPage() {
                   // alert('Please take photos for all slots before proceeding.')
                 }
               }}
-              className="touch-target w-36 h-max select-none cursor-pointer transition-all"
+              className="touch-target w-48 h-max select-none cursor-pointer transition-all"
               initial={{ rotate: 0, opacity: 0 }}
               animate={{ rotate: 0, opacity: 1 }}
               transition={{ delay: 0.1 }}

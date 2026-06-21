@@ -796,7 +796,7 @@ export function DragDropPage() {
   return (
     <>
       <motion.div
-        className="relative z-10 flex flex-col items-center justify-between w-full h-full py-8 px-10 gap-4"
+        className="relative z-10 flex flex-col items-center justify-between w-full h-full py-12 px-14  gap-4"
         initial={{ opacity: 0, x: 60 }}
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -60 }}
@@ -817,7 +817,7 @@ export function DragDropPage() {
                   break;
               }
             }}
-            className="touch-target w-36 h-max select-none cursor-pointer"
+            className="touch-target w-48 h-max select-none cursor-pointer"
             draggable={false}
           />
           <div className="w-28" />
@@ -899,7 +899,7 @@ export function DragDropPage() {
                   }
 
                 }}
-                className="touch-target w-36 h-max select-none cursor-pointer"
+                className="touch-target w-48 h-max select-none cursor-pointer"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}

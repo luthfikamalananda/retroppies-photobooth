@@ -217,7 +217,7 @@ export function FinishedPhotoPage() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   className={[
-                    'touch-target h-max w-full select-none font-gaming text-[#FDFDFD] px-4 py-2 rounded-full text-nowrap bg-[#1C1B1F] cursor-pointer ',
+                    'touch-target h-max w-full select-none font-gaming text-[#FDFDFD] px-4 py-5 rounded-full text-nowrap bg-[#1C1B1F] cursor-pointer ',
                     emailError.isError || emailError.errorMsg !== '' || email === '' ? 'bg-gray-400' : 'opacity-100'
                   ].join('')}
                   onClick={() => {
@@ -247,7 +247,7 @@ export function FinishedPhotoPage() {
               )}
           </div>
           {/* Right */}
-          <div className='w-1/2 rounded-xl border-4 border-[#B23E3E]'>
+          <div className='w-1/2 rounded-xl border-4 border-[#B23E3E] h-max'>
             {/* Header */}
             <div className="bg-[#B23E3E] px-5 py-4 flex items-center justify-between">
               <h2 className="font-gaming text-[#FCF8EF] text-2xl">DOWNLOAD FILE HERE</h2>
@@ -255,24 +255,27 @@ export function FinishedPhotoPage() {
             </div>
 
             {/* Content */}
-            <div className="bg-[#FCF8EF] px-8 py-8 flex flex-col gap-6 items-center w-full rounded-b-xl ">
+            <div className="bg-[#FCF8EF] px-8 py-8 flex flex-col gap-6 items-center w-full rounded-b-xl h-max">
               {sessionValue?.qrCodePath && (
-                <QRCodeSVG
-                  value={sessionValue?.qrCodePath}
-                  size={200}
-                  level="H"
-                />
+                <div className='flex justify-center items-center h-[50%] w-[50%]'>
+                  <QRCodeSVG
+                    value={sessionValue?.qrCodePath}
+                    width={"100%"}
+                    height={"100%"}
+                    level="H"
+                  />
+                </div>
               )}
 
               <div className='w-full h-1 bg-[#F8E6E6]' />
 
               <div className="w-full flex flex-col gap-4">
                 <div className='flex flex-row '>
-                  <label htmlFor="email" className="font-gaming text-[#575757] text-lg text-center">ENTER EMAIL</label>
-                  <label htmlFor="email" className="font-gaming text-[#B23E3E] text-lg text-center">* (WAJIB DIISI)</label>
+                  <label htmlFor="email" className="font-gaming text-[#575757] text-xl text-center">ENTER EMAIL</label>
+                  <label htmlFor="email" className="font-gaming text-[#B23E3E] text-xl text-center">* (WAJIB DIISI)</label>
                 </div>
                 <div className='flex flex-row gap-2 items-center relative w-full'>
-                  <input type="email" id="email" value={email} onChange={handleEmailChange} className="font-body text-[#575757] text-lg text-left border-2 border-[#B23E3E] rounded-lg px-4 py-2 w-full" />
+                  <input type="email" id="email" value={email} onChange={handleEmailChange} className="font-body text-[#575757] text-xl text-left border-2 border-[#B23E3E] rounded-lg px-4 py-4 w-full" />
                   {!emailError.isError && emailError.errorMsg === '' && (
                     <motion.img
                       src={iconChecklist}
@@ -289,12 +292,12 @@ export function FinishedPhotoPage() {
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   >
                     <div className='flex flex-row gap-2 items-center'>
-                      <p className='font-body text-[#B23E3E] text-lg'>{emailError.errorMsg}</p>
+                      <p className='font-body text-[#B23E3E] text-xl'>{emailError.errorMsg}</p>
                     </div>
                   </motion.div>
                 )}
               </div>
-              <p className="font-gaming text-[#575757] text-lg text-center">YOUR INVOICE & DOWNLOAD LINK WILL BE SENT AUTOMATICALLY ✨</p>
+              <p className="font-gaming text-[#575757] text-xl text-center">YOUR INVOICE & DOWNLOAD LINK WILL BE SENT AUTOMATICALLY ✨</p>
             </div>
           </div>
         </div>
