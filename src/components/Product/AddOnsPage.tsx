@@ -35,7 +35,8 @@ export function AddOnsPage() {
     getProducts({ tenantId: user.tenantId, keyword: '', page: 1, limit: 999 })
       .then((res) => {
         if (res.result.products?.length === 0) {
-          setError('Produk tidak tersedia. Hubungi admin.')
+          // setError('Produk tidak tersedia. Hubungi admin.')
+          goNext()
         } else {
           setProducts(() => res.result.products.filter(p => p.productType === 'addon'))
         }
