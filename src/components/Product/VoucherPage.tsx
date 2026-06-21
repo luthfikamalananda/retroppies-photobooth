@@ -130,7 +130,7 @@ export function VoucherPage() {
       <div className="flex-1 flex items-start justify-center w-1/2 flex-col gap-4">
         <p className="font-bebas text-[#B23E3E] text-5xl text-center">VOUCHER CODE</p>
         <div className="flex gap-3 w-full items-start">
-          <div className="flex flex-col w-full gap-2">
+          <div className="flex flex-col w-full gap-6">
             <input
               className="h-14 touch-target flex-1 bg-[#F8F8F8] border-2 border-[#575757] rounded-full px-6 py-4 text-[#2C2C2C] text-3xl font-bebas  outline-none focus:border-retro-amber uppercase"
               type="text"
@@ -145,10 +145,10 @@ export function VoucherPage() {
             {(resultVoucher && !error) && (
               <div className="w-full bg-[#1F8A68]  border-2 border-l-[#8CECA7] px-6 py-4 rounded-lg flex justify-between items-center">
                 <div className="flex items-center gap-5">
-                  <img src={iconVoucher} alt="Voucher Icon" className="w-6 h-6" />
+                  <img src={iconVoucher} alt="Voucher Icon" className="w-18 h-18" />
                   <div className="flex flex-col gap-1">
-                    <p className="font-bebas text-green-400 font-semibold tracking-wide">Voucher Successfully Applied  🎉</p>
-                    <p className="font-bebas text-[#FFF9F3] text-sm tracking-wide font-thin">Congratulations, You received a discount of <span className="font-extrabold text-sm text-[#FFF9F3]">{formatCurrency(resultVoucher.discount)}</span> for this transaction.</p>
+                    <p className="font-bebas text-green-400 font-semibold tracking-wide text-2xl">Voucher Successfully Applied  🎉</p>
+                    <p className="font-bebas text-[#FFF9F3] text-xl tracking-wide font-thin">Congratulations, You received a discount of <span className="font-extrabold text-xl text-[#FFF9F3]">{formatCurrency(resultVoucher.discount)}</span> for this transaction.</p>
                   </div>
                 </div>
               </div>
@@ -158,8 +158,8 @@ export function VoucherPage() {
                 <div className="flex items-center gap-5">
                   <img src={iconVoucher} alt="Voucher Icon" className="w-6 h-6" />
                   <div className="flex flex-col gap-1">
-                    <p className="font-bebas text-red-400 font-semibold tracking-wide">Voucher Unavailable!</p>
-                    <p className="font-bebas text-[#FFF9F3] text-sm tracking-wide font-thin">{error}</p>
+                    <p className="font-bebas text-red-400 font-semibold tracking-wide text-2xl">Voucher Unavailable!</p>
+                    <p className="font-bebas text-[#FFF9F3] text-xl tracking-wide font-thin">{error}</p>
                   </div>
                 </div>
               </div>
@@ -179,7 +179,7 @@ export function VoucherPage() {
           />
         </div>
 
-        {(error && !code) && <p className="font-bebas text-[#BA371E] text-xl tracking-wider">{error}</p>}
+        {(error && !code) && <p className="font-bebas text-[#BA371E] text-2xl tracking-wider">{error}</p>}
       </div>
 
       {/* FOOTER */}
