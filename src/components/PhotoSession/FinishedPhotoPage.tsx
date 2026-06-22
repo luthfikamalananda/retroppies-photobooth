@@ -227,7 +227,7 @@ export function FinishedPhotoPage() {
           {/* Left */}
           <div className='flex flex-col gap-4 items-center w-max h-full justify-center'>
             <img src={sessionValue?.photo1Url} alt="TemplatedPhoto" className='h-[75%] object-fill' />
-            {(openEmailSentModal.message === '') &&
+            {/* {(openEmailSentModal.message === '') &&
               (
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -243,23 +243,21 @@ export function FinishedPhotoPage() {
                 >
                   FINISH & PRINT
                 </motion.button>
-              )}
-            {(openEmailSentModal.isOpen === false && openEmailSentModal.message !== '') &&
-              (
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  className={[
-                    'touch-target h-max w-full select-none font-gaming text-[#FDFDFD] px-4 py-2 rounded-full text-nowrap bg-[#1C1B1F] cursor-pointer ',
-                    emailError.isError || emailError.errorMsg !== '' || email === '' ? 'bg-gray-400' : 'opacity-100'
-                  ].join('')}
-                  onClick={async () => {
-                    await clearPhotos()
-                    resetSession()
-                  }}
-                >
-                  BACK TO HOME
-                </motion.button>
-              )}
+              )} */}
+            {/* {(openEmailSentModal.isOpen === false && openEmailSentModal.message !== '') && */}
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className={[
+                'touch-target text-xl h-max w-full select-none font-gaming text-[#FDFDFD] px-4 py-2 rounded-full text-nowrap bg-[#1C1B1F] cursor-pointer ',
+                emailError.isError || emailError.errorMsg !== '' || email === '' ? 'bg-gray-400' : 'opacity-100'
+              ].join('')}
+              onClick={async () => {
+                await clearPhotos()
+                resetSession()
+              }}
+            >
+              BACK TO HOME
+            </motion.button>
           </div>
           {/* Right */}
           <div className='w-1/2 rounded-xl border-4 border-[#B23E3E] h-max'>

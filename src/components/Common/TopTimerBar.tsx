@@ -36,6 +36,11 @@ export function TopTimerBar() {
     const handleTimerExpired = async () => {
       stopTimer();
 
+      if (currentHalaman === 13) {
+        goTo(1);
+        return;
+      }
+
       // Condition 1: User has not taken any photos
       if (captures.length === 0) {
         goTo(3); // redirect to product page

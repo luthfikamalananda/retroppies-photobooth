@@ -22,6 +22,7 @@ interface SessionState {
   tickTimer: () => void
   stopTimer: () => void
   setAutoSubmit: (autoSubmit: boolean) => void
+  continueToFinalization: (code: string) => void
   resetSession: () => void
 }
 
@@ -57,6 +58,12 @@ export const useSessionStore = create<SessionState>()(
       setSessionCode: (code: string | null) => set({ sessionCode: code }),
       stopTimer: () => set({ timerRunning: false }),
       setAutoSubmit: (autoSubmit) => set({ autoSubmit }),
+      continueToFinalization: (code) => set({
+        sessionCode: code,
+        currentHalaman: 13,
+        timerSeconds: 60,
+        timerRunning: false,
+      }),
       resetSession: () =>
         set({
           transaction: null,

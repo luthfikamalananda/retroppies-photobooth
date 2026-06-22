@@ -44,7 +44,7 @@ const PAGE_COMPONENTS: Record<number, React.ComponentType> = {
   13: FinishedPhotoPage,
 }
 
-const TIMER_VISIBLE_HALAMAN = [10, 11, 12]
+const TIMER_VISIBLE_HALAMAN = [10, 11, 12, 13]
 
 // Protected halaman that require authentication
 const PROTECTED_HALAMAN = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
@@ -66,28 +66,24 @@ export default function App() {
   const isProtectedPage = PROTECTED_HALAMAN.includes(currentHalaman)
   const needsAuth = isProtectedPage && !user
 
-  // If protected page but no auth, redirect to login
-  if (needsAuth) {
-    goTo(0)
-  }
-
   // Check if current halaman requires a product bundle but it's not selected
   const isMustHaveProductPage = MUSTHAVE_PRODUCTS.includes(currentHalaman)
   const needsProductBundle = isMustHaveProductPage && !productBundle
-
-  // If must-have product page but no product bundle, redirect to ProductPage
-  if (needsProductBundle) {
-    goTo(3) // ProductPage
-  }
 
   // Check if current halaman requires transaction data but it's not present
   const isMustHaveTransactionDataPage = MUSHAVE_TRANSACTION_DATA.includes(currentHalaman)
   const needsTransactionData = isMustHaveTransactionDataPage && (transaction === null)
 
-  // If must-have transaction data page but no transaction data, redirect to PaymentPage
-  if (needsTransactionData) {
-    goTo(1) // Landing Page
-  }
+  // Redirect handling in useEffect to prevent React render-phase updates/freezes
+  useEffect(() => {
+    if (needsAuth) {
+      goTo(0)
+    } else if (needsProductBundle) {
+      goTo(3)
+    } else if (needsTransactionData) {
+      goTo(1)
+    }
+  }, [currentHalaman, needsAuth, needsProductBundle, needsTransactionData, goTo])
 
   // Check if current halaman requires session reset
   const isMustResetSession = RESET_SESSION.includes(currentHalaman)
@@ -101,6 +97,10 @@ export default function App() {
       clearPhotoTrigger()
     }
   }, [currentHalaman])
+
+  if (needsAuth || needsProductBundle || needsTransactionData) {
+    return <div className="w-screen h-screen bg-black" />
+  }
 
   const PageComponent = PAGE_COMPONENTS[currentHalaman] ?? LandingPage
   const showTimer = TIMER_VISIBLE_HALAMAN.includes(currentHalaman)

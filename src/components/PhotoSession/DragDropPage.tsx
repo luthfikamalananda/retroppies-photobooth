@@ -1,6 +1,7 @@
 import { btnNextBlack, logoBack, logoChooseFilter, logoDragAndDrop, logoWindowControl } from "@/assets";
 import { getLayoutDef } from "@/config/layouts.config";
 import { createSessions } from "@/services/finalizeService";
+import { printPhotoBorderless } from '@/services/printService';
 import { CapturedPhoto, usePhotoStore } from "@/store/photoStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { useUIStore } from "@/store/uiStore";
@@ -9,7 +10,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { VideoPreviewModal } from "./VideoPreviewModal";
-import { printPhoto, printPhotoBorderless } from '@/services/printService'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -411,7 +411,7 @@ export function DragDropPage() {
     cssFilter: 'none',
   })
 
-  const { goNext, goBack, setSessionCode, transaction, autoSubmit } = useSessionStore();
+  const { goNext, goBack, continueToFinalization, transaction, autoSubmit } = useSessionStore();
   const { template, captures, capturesVideo, setTemplateAndGif } = usePhotoStore();
 
   // slotMap: { [slotIndex]: dataUrl }
@@ -758,8 +758,7 @@ export function DragDropPage() {
               templateWithVideo: resultVideoBlob,
               capturesToGIF: resultGifBlob,
             })
-            setSessionCode(result.result.sessionCode)
-            goNext()
+            continueToFinalization(result.result.sessionCode)
           }
           console.log('Session created successfully:', result)
         } catch (error) {
