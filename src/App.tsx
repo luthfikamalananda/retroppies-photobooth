@@ -6,6 +6,7 @@ import { TopTimerBar } from '@/components/Common/TopTimerBar'
 import { GlobalModalHost } from '@/components/Common/GlobalModalHost'
 import { ToastHost } from '@/components/Common/ToastHost'
 import { MockModeBadge } from '@/components/Common/MockModeBadge'
+import { FloatingKeyboard } from '@/components/Common/FloatingKeyboard'
 
 // Halaman components (lazy-loaded for performance)
 import { lazy, Suspense, useEffect, useRef } from 'react'
@@ -119,6 +120,7 @@ export default function App() {
       <GlobalModalHost />
       <ToastHost />
       <MockModeBadge />
+      <FloatingKeyboard />
     </div>
   )
 }

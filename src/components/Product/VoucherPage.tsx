@@ -8,6 +8,7 @@ import { btnApply, btnNextBlack, btnSkipBlack, iconVoucher, logoBack, logoVouche
 import { useAuthStore } from '@/store/authStore'
 import { extractErrorMessage } from '@/utils/errorHandling'
 import { formatCurrency } from '@/utils/formatCurrency'
+import { useKeyboardInput } from '../Common/FloatingKeyboard'
 
 export function VoucherPage() {
   const { goNext, goBack, setTransaction, goTo } = useSessionStore()
@@ -18,7 +19,10 @@ export function VoucherPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+
   const initializedRef = useRef(false) // ← Harus useRef, bukan variable biasa
+
+  const kbCode = useKeyboardInput(setCode)
 
   const setBg = useUIStore((s) => s.setBackgroundVariant)
 
@@ -132,14 +136,16 @@ export function VoucherPage() {
         <div className="flex gap-3 w-full items-start">
           <div className="flex flex-col w-full gap-6">
             <input
+              {...kbCode}
               className="h-14 touch-target flex-1 bg-[#F8F8F8] border-2 border-[#575757] rounded-full px-6 py-4 text-[#2C2C2C] text-3xl font-bebas  outline-none focus:border-retro-amber uppercase"
               type="text"
               placeholder="Enter Exclusive Voucher Code Here ..."
               value={code}
               onChange={e => {
-                setCode(e.target.value.toUpperCase())
+                setCode(e.target.value)
                 setError(null)
-              }}
+              }
+              }
             />
 
             {(resultVoucher && !error) && (

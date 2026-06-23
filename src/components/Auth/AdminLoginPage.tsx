@@ -7,6 +7,7 @@ import { useUIStore } from '@/store/uiStore'
 import { login } from '@/services/authService'
 import { checkHardware } from '@/services/hardwareService'
 import { USE_MOCK } from '@/mocks/mockFlag'
+import { useKeyboardInput } from '../Common/FloatingKeyboard'
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -114,8 +115,10 @@ function Badge({ ok, label }: { ok: boolean; label: string }) {
 interface LoginFormContentProps {
     username: string
     setUsername: (v: string) => void
+    kbUsername: ReturnType<typeof useKeyboardInput>
     password: string
     setPassword: (v: string) => void
+    kbPassword: ReturnType<typeof useKeyboardInput>
     error: string | null
     isLoading: boolean
     handleLogin: () => void
@@ -129,7 +132,9 @@ interface LoginFormContentProps {
 
 function LoginFormContent({
     username, setUsername,
+    kbUsername,
     password, setPassword,
+    kbPassword,
     error,
     isLoading,
     handleLogin,
@@ -174,6 +179,7 @@ function LoginFormContent({
             )}
 
             <input
+                {...kbUsername}
                 className={inputCls}
                 type="text"
                 placeholder="Username"
@@ -184,6 +190,7 @@ function LoginFormContent({
             />
 
             <input
+                {...kbPassword}
                 className={inputCls}
                 type="password"
                 placeholder="Password"
@@ -249,6 +256,11 @@ export function AdminLoginPage() {
         paperType, setPaperType,
     } = useAdminLogin({ navigateOnSuccess: true })
 
+    // Hook menerima getter dan setter
+    const kbUsername = useKeyboardInput(setUsername)
+    const kbPassword = useKeyboardInput(setPassword)
+
+
     const isInitialized = useRef(false)
     useEffect(() => {
         if (isInitialized.current) return
@@ -269,7 +281,9 @@ export function AdminLoginPage() {
         >
             <LoginFormContent
                 username={username} setUsername={setUsername}
+                kbUsername={kbUsername}
                 password={password} setPassword={setPassword}
+                kbPassword={kbPassword}
                 error={error}
                 isLoading={isLoading}
                 handleLogin={handleLogin}
@@ -332,6 +346,11 @@ export function AdminLoginModal({ isOpen, onClose, onSuccess }: AdminLoginModalP
         return () => window.removeEventListener('keydown', handler)
     }, [onClose])
 
+    // Hook menerima getter dan setter
+    const kbUsername = useKeyboardInput(setUsername)
+    const kbPassword = useKeyboardInput(setPassword)
+
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -351,7 +370,9 @@ export function AdminLoginModal({ isOpen, onClose, onSuccess }: AdminLoginModalP
                     >
                         <LoginFormContent
                             username={username} setUsername={setUsername}
+                            kbUsername={kbUsername}
                             password={password} setPassword={setPassword}
+                            kbPassword={kbPassword}
                             error={error}
                             isLoading={isLoading}
                             handleLogin={baseHandleLogin}

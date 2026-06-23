@@ -89,7 +89,7 @@ ipcMain.handle(
         "-PrinterName",
         printerName,
         "-PaperName",
-        paperName || "",
+        paperName || "A4 210 x 297 mm",
         "-Copies",
         String(totalCopy),
       ];
