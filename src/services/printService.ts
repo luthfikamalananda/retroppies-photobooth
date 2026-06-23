@@ -72,19 +72,48 @@ export const printPhoto = async (dataUrl: string): Promise<void> => {
   });
 };
 
-export const printPhotoBorderless = async ({ dataUrl, totalCopy = 1 }: { dataUrl: string, totalCopy: number }): Promise<void> => {
+export const printPhotoBorderless = async ({ dataUrl, totalCopy = 1, paperSize }: { dataUrl: string, totalCopy: number, paperSize: PaperSize }): Promise<void> => {
   const base64 = dataUrl.split(",")[1];
-
-  console.log("tesss");
 
   const isMac = navigator.platform.toLowerCase().includes("mac");
 
-  console.log("base64", dataUrl);
+  let paper: string = "A4";
+  if (isMac) {
+    switch (paperSize) {
+      case "A4":
+        paper = "A4.NMgn"; // A4 Mac
+        break;
+      case "A6":
+        paper = "A6.Nmgn"; // A6 Mac
+        break;
+    }
+  } else {
+    switch (paperSize) {
+      case "A4":
+        paper = "A4 210 x 297 mm"; // A4 Windows
+        break;
+      case "A6":
+        paper = "A6 105 x 148 mm"; // A6 Windows
+        break;
+    }
+  }
 
-  await (window as any).electronAPI.printPhotoBorderless({
-    base64,
-    printerName: isMac ? "EPSON_L8050_Series" : "EPSON L8050 Series", // sesuaikan exact name tiap OS
-    paperName: isMac ? "A4.NMgn" : "A4", // Windows kosongkan dulu → auto-detect via fallback list di PowerShell
-    totalCopy: totalCopy
-  });
+  if (isMac) {
+    await (window as any).electronAPI.printPhotoBorderless({
+      base64,
+      printerName: "EPSON L8050 Series",
+      paperName: paper,
+      totalCopy: totalCopy
+    });
+    return;
+  } else {
+    await (window as any).electronAPI.printPhotoBorderless({
+      base64,
+      printerName: "EPSON L8050 Series",
+      paperName: paper,
+      totalCopy: totalCopy
+    });
+  }
+
+
 };

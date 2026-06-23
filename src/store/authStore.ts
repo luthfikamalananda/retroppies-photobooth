@@ -1,10 +1,12 @@
+import { PaperSize } from '@/components/Auth/AdminLoginPage'
 import { ResultLogin } from '@/services/authService'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
+
 interface AuthState {
-  user: ResultLogin | null
-  setUser: (user: ResultLogin | null) => void
+  user: ResultLogin & { paperType: PaperSize } | null
+  setUser: (user: ResultLogin & { paperType: PaperSize } | null) => void
   clearUser: () => void
 }
 

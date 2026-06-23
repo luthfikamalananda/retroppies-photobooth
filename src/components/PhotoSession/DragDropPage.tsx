@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { VideoPreviewModal } from "./VideoPreviewModal";
+import { useAuthStore } from "@/store/authStore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -411,7 +412,8 @@ export function DragDropPage() {
     cssFilter: 'none',
   })
 
-  const { goNext, goBack, continueToFinalization, transaction, autoSubmit } = useSessionStore();
+  const { goBack, continueToFinalization, transaction, autoSubmit } = useSessionStore();
+  const { user } = useAuthStore()
   const { template, captures, capturesVideo, setTemplateAndGif } = usePhotoStore();
 
   // slotMap: { [slotIndex]: dataUrl }
@@ -770,7 +772,8 @@ export function DragDropPage() {
         try {
           await printPhotoBorderless({
             dataUrl: resultPhotoProductionDataUrl,
-            totalCopy: transaction.totalPrint
+            totalCopy: transaction.totalPrint,
+            paperSize: user?.paperType || "A4"
           })
         } catch (printErr) {
           console.error('Print gagal:', printErr)

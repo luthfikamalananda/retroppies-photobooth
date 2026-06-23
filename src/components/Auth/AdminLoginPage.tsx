@@ -12,6 +12,9 @@ import { USE_MOCK } from '@/mocks/mockFlag'
 // Shared types
 // ---------------------------------------------------------------------------
 
+// Ganti jadi type alias sederhana:
+export type PaperSize = 'A4' | 'A6'
+
 type HardwareStatus = { cameraAvailable: boolean; printerAvailable: boolean }
 
 // ---------------------------------------------------------------------------
@@ -23,13 +26,16 @@ function useAdminLogin(options?: {
     onSuccess?: () => void
     /** Whether to navigate to page 1 after login (default: true) */
     navigateOnSuccess?: boolean
+    /** Initial paper type (only relevant for page variant) */
+    initialPaperType?: 'A4' | 'A6'
 }) {
-    const { navigateOnSuccess = true, onSuccess } = options ?? {}
+    const { navigateOnSuccess = true, onSuccess, initialPaperType = 'A4' } = options ?? {}
 
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState<string | null>(null)
     const [hardwareStatus, setHardwareStatus] = useState<HardwareStatus | null>(null)
+    const [selectedPaper, setSelectedPaper] = useState<'A4' | 'A6'>(initialPaperType)
 
     const { setUser } = useAuthStore()
     const { goTo, resetSession } = useSessionStore()
@@ -51,7 +57,8 @@ function useAdminLogin(options?: {
         try {
             const res = await login({ username, password })
             if (res.result && res.success) {
-                setUser(res.result)
+                // selectedPaper sekarang langsung 'A4' | 'A6', tidak perlu .paperType
+                setUser({ ...res.result, paperType: selectedPaper })
                 const hw = await checkHardware()
                 setHardwareStatus(hw)
                 onSuccess?.()
@@ -84,6 +91,7 @@ function useAdminLogin(options?: {
         handleLogin,
         reset,
         resetSession,
+        paperType: selectedPaper, setPaperType: setSelectedPaper,
     }
 }
 
@@ -114,6 +122,9 @@ interface LoginFormContentProps {
     hardwareStatus: HardwareStatus | null
     /** Controls size; 'page' uses large inputs (py-6 text-xl), 'modal' uses compact ones (py-4) */
     variant?: 'page' | 'modal'
+    /** Paper type selection — only rendered when variant === 'page' */
+    paperType?: PaperSize
+    setPaperType?: (v: PaperSize) => void
 }
 
 function LoginFormContent({
@@ -124,6 +135,8 @@ function LoginFormContent({
     handleLogin,
     hardwareStatus,
     variant = 'page',
+    paperType,
+    setPaperType,
 }: LoginFormContentProps) {
     const inputCls = variant === 'page'
         ? 'touch-target w-full bg-black/40 border border-retro-amber/40 rounded-lg px-4 py-6 text-retro-cream font-body text-xl outline-none focus:border-retro-amber'
@@ -180,6 +193,30 @@ function LoginFormContent({
                 autoComplete="current-password"
             />
 
+            {/* Paper type selector — only on login page, not modal */}
+            {variant === 'page' && paperType !== undefined && setPaperType && (
+                <div className="flex flex-col gap-3">
+                    <p className="font-body text-retro-cream/70 text-sm text-center uppercase tracking-widest">Pilih Ukuran Kertas</p>
+                    <div className="flex gap-4">
+                        {(['A4', 'A6'] as const).map((size) => (
+                            <button
+                                key={size}
+                                type="button"
+                                onClick={() => setPaperType(size)}  // ← langsung string, tanpa wrap object
+                                className={[
+                                    'flex-1 py-5 rounded-xl border-2 font-gaming text-lg transition-all duration-150',
+                                    paperType === size  // ← compare langsung, tanpa .paperType
+                                        ? 'border-retro-amber bg-retro-amber text-retro-brown scale-[1.03] shadow-lg'
+                                        : 'border-retro-amber/40 bg-black/30 text-retro-cream/70 hover:border-retro-amber/70',
+                                ].join(' ')}
+                            >
+                                {size}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {error && (
                 <p className="text-red-400 font-body text-sm text-center">{error}</p>
             )}
@@ -209,6 +246,7 @@ export function AdminLoginPage() {
         fetchHardware,
         handleLogin,
         resetSession,
+        paperType, setPaperType,
     } = useAdminLogin({ navigateOnSuccess: true })
 
     const isInitialized = useRef(false)
@@ -237,6 +275,8 @@ export function AdminLoginPage() {
                 handleLogin={handleLogin}
                 hardwareStatus={hardwareStatus}
                 variant="page"
+                paperType={paperType}
+                setPaperType={setPaperType}
             />
         </motion.div>
     )
