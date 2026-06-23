@@ -314,7 +314,7 @@ export function TakePhotoPage() {
       </div>
 
       {/* DEV: Video Preview Modal */}
-      <VideoPreviewModal type="capture" />
+      {/* <VideoPreviewModal type="capture" /> */}
     </motion.div>
   );
 }

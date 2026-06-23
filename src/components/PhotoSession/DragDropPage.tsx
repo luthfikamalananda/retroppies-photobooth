@@ -972,7 +972,8 @@ export function DragDropPage() {
         )}
       </AnimatePresence>
 
-      <VideoPreviewModal type="template" />
+      {/* DEV */}
+      {/* <VideoPreviewModal type="template" /> */}
 
       <AskPermissionModal
         isOpen={openModalPermission}
