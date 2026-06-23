@@ -809,7 +809,6 @@ export function DragDropPage() {
 
   useEffect(() => {
     setBg("image-white");
-    return () => setBg("video-black");
   }, []);
 
   if (!template || !layoutDef) {

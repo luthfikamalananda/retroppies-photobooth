@@ -8,6 +8,7 @@ import { useUIStore } from '@/store/uiStore'
 import { AnimatePresence, motion } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { useEffect, useState } from 'react'
+import { useKeyboardInput } from '../Common/FloatingKeyboard'
 
 function EmailSentModal({
   isOpen,
@@ -90,6 +91,33 @@ export function FinishedPhotoPage() {
   })
 
   const [email, setEmail] = useState('')
+
+  const kbEmail = useKeyboardInput(setEmail)
+
+  useEffect(() => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    if (!email) {
+      console.log('tidak ada value')
+      setEmailError({
+        isError: true,
+        errorMsg: 'Email is required'
+      });
+    } else if (!emailRegex.test(email)) {
+      console.log('tidak valid')
+      setEmailError({
+        isError: true,
+        errorMsg: 'Please enter a valid email address'
+      });
+    } else {
+      console.log('kosong')
+      setEmailError({
+        isError: false,
+        errorMsg: ''
+      });
+    }
+  }, [email])
+
   const [emailError, setEmailError] = useState<{
     isError: boolean,
     errorMsg: string
@@ -109,21 +137,7 @@ export function FinishedPhotoPage() {
 
   useEffect(() => {
     setBg("image-white");
-    return () => setBg("video-black");
   }, []);
-
-  // // Auto-print immediately if redirected by autoSubmit (timer expired)
-  // useEffect(() => {
-  //   if (autoSubmit && templateWithPhotoProduction) {
-  //     printPhotoBorderless({
-  //       dataUrl: templateWithPhotoProduction,
-  //       totalCopy: totalPrint
-  //     }).catch((err) => {
-  //       console.error('Auto print failed:', err)
-  //     })
-  //     setAutoSubmit(false) // clear the flag so it only runs once
-  //   }
-  // }, [autoSubmit, templateWithPhotoProduction, totalPrint, setAutoSubmit])
 
   let isInitialized = false; // flag untuk memastikan init hanya sekali
 
@@ -149,29 +163,6 @@ export function FinishedPhotoPage() {
     }
 
   }, [sessionCode])
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    const value = e.target.value;
-    setEmail(value);
-
-    if (!value) {
-      setEmailError({
-        isError: true,
-        errorMsg: 'Email is required'
-      });
-    } else if (!emailRegex.test(value)) {
-      setEmailError({
-        isError: true,
-        errorMsg: 'Please enter a valid email address'
-      });
-    } else {
-      setEmailError({
-        isError: false,
-        errorMsg: ''
-      });
-    }
-  };
 
   const handleSendEmail = async () => {
     setIsProcessing(true)
@@ -216,24 +207,6 @@ export function FinishedPhotoPage() {
           {/* Left */}
           <div className='flex flex-col gap-4 items-center w-max h-full justify-center'>
             <img src={sessionValue?.photo1Url} alt="TemplatedPhoto" className='h-[75%] object-fill' />
-            {/* {(openEmailSentModal.message === '') &&
-              (
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  className={[
-                    'touch-target h-max w-full select-none font-gaming text-[#FDFDFD] px-4 py-5 rounded-full text-nowrap bg-[#1C1B1F] cursor-pointer ',
-                    emailError.isError || emailError.errorMsg !== '' || email === '' ? 'bg-gray-400' : 'opacity-100'
-                  ].join('')}
-                  onClick={() => {
-                    if (email === '' || (emailError.isError && emailError.errorMsg === '')) return
-                    handleSendEmail()
-                  }}
-                  disabled={email === '' || (emailError.isError && emailError.errorMsg === '')}
-                >
-                  FINISH & PRINT
-                </motion.button>
-              )} */}
-            {/* {(openEmailSentModal.isOpen === false && openEmailSentModal.message !== '') && */}
             <motion.button
               whileTap={{ scale: 0.95 }}
               className={[
@@ -277,7 +250,7 @@ export function FinishedPhotoPage() {
                 </div>
                 <div className='flex flex-row gap-2 items-center  w-full'>
                   <div className="relative w-full">
-                    <input type="email" id="email" value={email} onChange={handleEmailChange} className="font-body text-[#575757] text-xl text-left border-2 border-[#B23E3E] rounded-lg px-4 py-4 w-full" />
+                    <input {...kbEmail} type="email" id="email" value={email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} className="font-body text-[#575757] text-xl text-left border-2 border-[#B23E3E] rounded-lg px-4 py-4 w-full" />
                     {!emailError.isError && emailError.errorMsg === '' && (
                       <motion.img
                         src={iconChecklist}

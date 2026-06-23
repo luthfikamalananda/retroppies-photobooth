@@ -46,7 +46,6 @@ export function TakePhotoPage() {
 
   useEffect(() => {
     setBg("image-white");
-    return () => setBg("video-black"); // restore saat halaman ini ditinggalkan
   }, []);
 
   // Countdown timer effect with video recording

@@ -14,7 +14,6 @@ export function PaymentSuccessPage() {
 
     useEffect(() => {
         setBg('image-white')
-        return () => setBg('video-black') // restore saat halaman ini ditinggalkan
     }, [])
 
     useEffect(() => {

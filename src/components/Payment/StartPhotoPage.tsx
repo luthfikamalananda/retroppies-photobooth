@@ -68,7 +68,6 @@ export function StartPhotoPage() {
 
   useEffect(() => {
     setBg('image-black')
-    return () => setBg('video-black') // restore saat halaman ini ditinggalkan
   }, [])
 
   useEffect(() => {

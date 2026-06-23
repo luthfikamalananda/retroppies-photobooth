@@ -30,7 +30,6 @@ export function TemplatePage() {
 
   useEffect(() => {
     setBg("image-black");
-    return () => setBg("video-black");
   }, []);
 
   useEffect(() => {

@@ -188,7 +188,6 @@ export function PaymentPage() {
 
   useEffect(() => {
     setBg('image-black')
-    return () => setBg('video-black') // restore saat halaman ini ditinggalkan
   }, [])
 
   const initializedRef = useRef(false)

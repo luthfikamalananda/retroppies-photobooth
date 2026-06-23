@@ -33,7 +33,6 @@ export function HowToUsePage() {
   useEffect(() => {
     setTransaction(null) // reset transaksi saat masuk halaman ini
     setBg('image-black')
-    return () => setBg('video-black') // restore saat halaman ini ditinggalkan
   }, [])
 
   useEffect(() => {

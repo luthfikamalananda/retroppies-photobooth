@@ -29,7 +29,6 @@ export function VoucherPage() {
   useEffect(() => {
     setTransaction(null) // reset transaksi saat masuk halaman ini
     setBg('image-white')
-    return () => setBg('video-black') // restore saat halaman ini ditinggalkan
   }, [])
 
 
