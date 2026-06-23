@@ -22,7 +22,20 @@ function createWindow() {
     frame: true,
   });
 
+  // TEMPORARY DEBUG — log error loading ke console main process juga
   mainWindow.webContents.openDevTools({ mode: "detach" });
+
+  // TEMPORARY DEBUG — log error loading ke console main process juga
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (event, errorCode, errorDescription, validatedURL) => {
+      console.error("=== FAILED TO LOAD ===");
+      console.error("errorCode:", errorCode);
+      console.error("errorDescription:", errorDescription);
+      console.error("validatedURL:", validatedURL);
+    },
+  );
+
   const isDev = !app.isPackaged;
   if (isDev) {
     mainWindow.loadURL("http://localhost:5173");
