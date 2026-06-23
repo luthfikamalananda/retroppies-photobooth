@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useAuthStore } from '@/store/authStore'
 import { logoRetroppies } from '@/assets'
-import { useSessionStore } from '@/store/sessionStore'
-import { useUIStore } from '@/store/uiStore'
 import { login } from '@/services/authService'
 import { checkHardware } from '@/services/hardwareService'
-import { USE_MOCK } from '@/mocks/mockFlag'
+import { useAuthStore } from '@/store/authStore'
+import { useSessionStore } from '@/store/sessionStore'
+import { useUIStore } from '@/store/uiStore'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
 import { useKeyboardInput } from '../Common/FloatingKeyboard'
 
 // ---------------------------------------------------------------------------
@@ -169,14 +168,6 @@ function LoginFormContent({
                     draggable={false}
                 />
             </div>
-
-            {/* Mock mode credential hint */}
-            {USE_MOCK && (
-                <div className="bg-yellow-400/10 border border-yellow-400/40 rounded-lg px-4 py-2 text-center">
-                    <p className="font-body text-yellow-300 text-xs font-semibold mb-0.5">🟡 MOCK MODE — Gunakan kredensial berikut:</p>
-                    <p className="font-body text-yellow-200 text-xs">admin / admin123 &nbsp;|&nbsp; operator / pass1234</p>
-                </div>
-            )}
 
             <input
                 {...kbUsername}

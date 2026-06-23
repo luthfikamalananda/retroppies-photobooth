@@ -1,6 +1,4 @@
-import { apiClient, BaseResponse } from './apiClient'
-import { USE_MOCK } from '@/mocks/mockFlag'
-import { mockFinalizeTransaction } from '@/mocks/data/finalize.mock'
+import { apiClient, BaseResponse } from './apiClient';
 
 // formdata
 interface createSessionRequest {

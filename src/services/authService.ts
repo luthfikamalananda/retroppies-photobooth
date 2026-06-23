@@ -1,8 +1,6 @@
-import { apiClient, BaseResponse } from './apiClient'
-import { USE_MOCK } from '@/mocks/mockFlag'
-import { mockLogin } from '@/mocks/data/auth.mock'
 
-import { AxiosRequestConfig } from 'axios'
+import { apiClient, BaseResponse } from './apiClient'
+
 
 interface LoginRequest {
   username: string
@@ -20,7 +18,6 @@ export interface ResultLogin {
 }
 
 export async function login(credentials: LoginRequest): Promise<BaseResponse<ResultLogin>> {
-  if (USE_MOCK) return mockLogin(credentials)
   const res = await apiClient.post<BaseResponse<ResultLogin>>('/users/login', credentials, {
     headers: {
       'Content-Type': 'application/json',
