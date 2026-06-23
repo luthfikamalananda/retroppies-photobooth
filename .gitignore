@@ -1,2 +1,5 @@
 node_modules
 dist
+# Ignore auto-generated type declarations dari build tool
+dist/**/*.d.ts
+build/**/*.d.ts
