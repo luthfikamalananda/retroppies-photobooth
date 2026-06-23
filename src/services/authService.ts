@@ -2,6 +2,8 @@ import { apiClient, BaseResponse } from './apiClient'
 import { USE_MOCK } from '@/mocks/mockFlag'
 import { mockLogin } from '@/mocks/data/auth.mock'
 
+import { AxiosRequestConfig } from 'axios'
+
 interface LoginRequest {
   username: string
   password: string
@@ -24,6 +26,7 @@ export async function login(credentials: LoginRequest): Promise<BaseResponse<Res
       'Content-Type': 'application/json',
       Authorization: 'Basic ' + btoa(`photobox:PhotoBox123@`)
     },
+    skipInterceptor: true
   })
   return res.data
 }

@@ -52,7 +52,12 @@ export function TemplatePage() {
       .then((res) => {
         if (res.result.total > 0) {
           setTemplates(res.result.templates);
-          setSelectedTemplate(res.result.templates[0]);
+          const defaultTemplate = res.result.templates.find((t) => t.isDefault === true)
+          if (defaultTemplate) {
+            setSelectedTemplate(defaultTemplate);
+          } else {
+            setSelectedTemplate(res.result.templates[0]);
+          }
         }
       })
       .catch((error) => {

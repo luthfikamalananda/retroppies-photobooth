@@ -164,8 +164,6 @@ export function TakePhotoPage() {
   }, [nextSlot, countdown]);
 
 
-  console.log('capture photo', captures)
-  console.log('capture video', capturesVideo)
   return (
     <motion.div
       className="relative z-10 flex flex-col items-center justify-between w-full h-full py-12 px-14 gap-4"

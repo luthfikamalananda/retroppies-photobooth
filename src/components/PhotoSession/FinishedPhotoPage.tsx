@@ -79,7 +79,7 @@ function EmailSentModal({
 }
 
 export function FinishedPhotoPage() {
-  const { sessionCode, resetSession, autoSubmit, setAutoSubmit } = useSessionStore()
+  const { sessionCode, resetSession, startTimer, autoSubmit, setAutoSubmit } = useSessionStore()
   const { templateWithPhotoProduction, clearPhotos } = usePhotoStore()
 
   const [sessionValue, setSessionValue] = useState<getSessionResult | null>(null)
@@ -130,6 +130,7 @@ export function FinishedPhotoPage() {
     isInitialized = true
 
     if (sessionCode) {
+      startTimer()
       getSesssions(sessionCode)
         .then((res) => {
           if (res.result) {

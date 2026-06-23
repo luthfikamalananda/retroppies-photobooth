@@ -60,7 +60,12 @@ export function TopTimerBar() {
             limit: 10,
           });
           if (res.result && res.result.templates && res.result.templates.length > 0) {
-            currentTemplate = res.result.templates[0];
+            const defaultTemplate = res.result.templates.find((t) => t.isDefault === true)
+            if (defaultTemplate) {
+              currentTemplate = defaultTemplate;
+            } else {
+              currentTemplate = res.result.templates[0];
+            }
             setTemplate(currentTemplate);
           }
         }

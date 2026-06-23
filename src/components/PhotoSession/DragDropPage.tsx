@@ -102,7 +102,7 @@ function AskPermissionModal({ isOpen, onAccept, onDecline }: AskPermissionModalP
           exit={{ opacity: 0 }}
         >
           <motion.div
-            className="bg-white rounded-xl border-4 border-[#F7CC40] shadow-2xl overflow-hidden w-[600px]"
+            className="bg-white rounded-xl border-4 border-[#F7CC40] shadow-2xl overflow-hidden w-[650px]"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
@@ -110,13 +110,13 @@ function AskPermissionModal({ isOpen, onAccept, onDecline }: AskPermissionModalP
           >
             {/* Header */}
             <div className="bg-[#F7CC40] px-5 py-4 flex items-center justify-between">
-              <h2 className="font-gaming text-[#2C2C2C] text-2xl">ASK PERMISSION VIDEO</h2>
+              <h2 className="font-gaming text-[#2C2C2C] text-3xl">ASK FOR PERMISSION</h2>
               <img src={logoWindowControl} alt="Window-Control" className="select-none pointer-events-none h-auto" />
             </div>
 
             {/* Content */}
             <div className="bg-[#FCF8EF] px-8 py-8 flex flex-col gap-6">
-              <p className="font-gaming text-[#2C2C2C] text-xl text-center">
+              <p className="font-gaming text-[#2C2C2C] text-2xl py-2 text-center">
                 Your photos look amazing! Would you allow us to feature them on @retroppies?
               </p>
 
@@ -125,14 +125,14 @@ function AskPermissionModal({ isOpen, onAccept, onDecline }: AskPermissionModalP
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={onDecline}
-                  className="flex-1 bg-[#BA371E] hover:bg-[#9A2C15] text-white font-gaming text-lg py-4 px-6 rounded-lg border-2 border-[#7A1E0A] transition-colors"
+                  className="flex-1 bg-[#BA371E] hover:bg-[#9A2C15] text-white font-gaming text-xl py-5 px-6 rounded-lg border-2 border-[#7A1E0A] transition-colors"
                 >
-                  No, Thanks
+                  No, Thanks!
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={onAccept}
-                  className="flex-1 bg-[#4CAF50] hover:bg-[#45a049] text-white font-gaming text-lg py-4 px-6 rounded-lg border-2 border-[#2E7D32] transition-colors"
+                  className="flex-1 bg-[#4CAF50] hover:bg-[#45a049] text-white font-gaming text-xl py-5 px-6 rounded-lg border-2 border-[#2E7D32] transition-colors"
                 >
                   Yes, Sure!
                 </motion.button>

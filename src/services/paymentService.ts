@@ -56,6 +56,15 @@ export async function createTransactionv2(req: CreateTransactionRequestv2): Prom
     throw error
   }
 }
+
+export async function createTransactionTunai(req: CreateTransactionRequestv2): Promise<BaseResponse<TransactionResult>> {
+  try {
+    const res = await apiClient.post<BaseResponse<TransactionResult>>('/payments/qris/tunai', req)
+    return res.data
+  } catch (error) {
+    throw error
+  }
+}
 export async function createTransaction(req: CreateTransactionRequest): Promise<TransactionResponse> {
   try {
     const res = await apiClient.post<TransactionResponse>('/transactions/create', req)

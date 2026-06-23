@@ -1,11 +1,74 @@
-import { btnDecrement, btnIncrement, btnNextBlack, btnSkipBlack, logoBack, logoExtraPrint, logoSkip } from '@/assets'
+import { btnDecrement, btnIncrement, btnNextBlack, btnSkipBlack, logoBack, logoExtraPrint, logoSkip, logoWindowControl } from '@/assets'
 import { getProducts, type Product } from '@/services/productService'
 import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useUIStore } from '@/store/uiStore'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
+
+// MODAL TOTAL PRINT
+interface TotalPrintModalProps {
+  isOpen: boolean
+  totalPrint: number
+  handleClose: () => void
+  handleContinue: () => void
+}
+
+function TotalPrintModal({ isOpen, totalPrint, handleClose, handleContinue }: TotalPrintModalProps) {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={handleClose}
+        >
+          <motion.div
+            className="bg-white rounded-xl border-4 border-[#F7CC40] shadow-2xl overflow-hidden w-[650px]"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="bg-[#F7CC40] px-5 py-4 flex items-center justify-between">
+              <h2 className="font-gaming text-[#2C2C2C] text-3xl">TOTAL PRINT OUT</h2>
+              <img src={logoWindowControl} alt="Window-Control" className="select-none pointer-events-none h-auto" />
+            </div>
+
+            {/* Content */}
+            <div className="bg-[#FCF8EF] px-8 py-8 flex flex-col gap-6">
+              <p className="font-gaming text-[#2C2C2C] text-2xl py-2 text-center">
+                You will get {totalPrint} print out{totalPrint > 1 ? 's' : ''}.
+              </p>
+
+              {/* Buttons */}
+              <div className="flex gap-4 justify-center mt-4">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleClose}
+                  className="flex-1 bg-[#BA371E] hover:bg-[#9A2C15] text-white font-gaming text-xl py-5 px-6 rounded-lg border-2 border-[#7A1E0A] transition-colors"
+                >
+                  No, Thanks!
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleContinue}
+                  className="flex-1 bg-[#4CAF50] hover:bg-[#45a049] text-white font-gaming text-xl py-5 px-6 rounded-lg border-2 border-[#2E7D32] transition-colors"
+                >
+                  Yes, Sure!
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
 
 export function ExtraPrintPage() {
   const { goNext, goBack, goTo, setTransaction } = useSessionStore()
@@ -15,6 +78,12 @@ export function ExtraPrintPage() {
   const [error, setError] = useState<string | null>(null)
   const setBg = useUIStore((s) => s.setBackgroundVariant)
   const { user } = useAuthStore()
+
+  // Modal
+  const [openTotalPrintModal, setOpenTotalPrintModal] = useState({
+    isOpen: false,
+    totalPrint: 1
+  })
 
   let isInitialized = false; // flag untuk memastikan init hanya sekali
 
@@ -131,6 +200,7 @@ export function ExtraPrintPage() {
         )}
       </div>
 
+      {/* FOOTER */}
       <div className="flex-0 flex items-center justify-end w-full">
         <motion.img
           key={productPrint.length > 0 ? 'next' : 'skip'}  // ← ini trigger-nya
@@ -138,7 +208,10 @@ export function ExtraPrintPage() {
           alt="How To Use"
           whileTap={{ scale: 0.95 }}
           onClick={() => {
-            goNext()
+            setOpenTotalPrintModal({
+              isOpen: true,
+              totalPrint: productPrint.length + 1
+            })
           }}
           // className="touch-target w-36 h-max select-none cursor-pointer transition-all"
           className="w-48 h-max cursor-pointer flex gap-4 justify-end flex-shrink-0"
@@ -148,6 +221,18 @@ export function ExtraPrintPage() {
           draggable={false}
         />
       </div>
+
+      <TotalPrintModal
+        isOpen={openTotalPrintModal.isOpen}
+        totalPrint={openTotalPrintModal.totalPrint}
+        handleClose={() => setOpenTotalPrintModal({
+          isOpen: false,
+          totalPrint: 1
+        })}
+        handleContinue={() => {
+          goNext()
+        }}
+      />
     </motion.div>
   )
 }

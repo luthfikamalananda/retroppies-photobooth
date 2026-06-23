@@ -1,5 +1,5 @@
 import { btnBackGold, logoWindowControl } from '@/assets'
-import { createTransactionv2, getTransactionStatus, TransactionResult } from '@/services/paymentService'
+import { createTransactionTunai, createTransactionv2, getTransactionStatus, TransactionResult } from '@/services/paymentService'
 import { useCartStore } from '@/store/cartStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useUIStore } from '@/store/uiStore'
@@ -9,6 +9,8 @@ import axios from 'axios'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { useEffect, useRef, useState } from 'react'
+import { AdminLoginModal } from '../Auth/AdminLoginPage'
+import { createSessions } from '@/services/finalizeService'
 
 interface VoucherLimitModalProps {
   isOpen: boolean
@@ -29,7 +31,7 @@ function VoucherLimitModal({ isOpen, errorText, onContinueWithoutVoucher, onBack
           onClick={onBackToVoucher}
         >
           <motion.div
-            className="bg-white rounded-xl border-4 border-[#F7CC40] shadow-2xl overflow-hidden w-[600px]"
+            className="bg-white rounded-xl border-4 border-[#F7CC40] shadow-2xl overflow-hidden w-[650px]"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
@@ -37,13 +39,13 @@ function VoucherLimitModal({ isOpen, errorText, onContinueWithoutVoucher, onBack
           >
             {/* Header */}
             <div className="bg-[#F7CC40] px-5 py-4 flex items-center justify-between">
-              <h2 className="font-gaming text-[#2C2C2C] text-2xl">VOUCHER LIMIT</h2>
+              <h2 className="font-gaming text-[#2C2C2C] text-3xl">VOUCHER LIMIT</h2>
               <img src={logoWindowControl} alt="Window-Control" className="select-none pointer-events-none h-auto" />
             </div>
 
             {/* Content */}
             <div className="bg-[#FCF8EF] px-8 py-8 flex flex-col gap-6">
-              <p className="font-gaming text-[#2C2C2C] text-xl text-center">
+              <p className="font-gaming text-[#2C2C2C] text-2xl py-2  text-center">
                 {errorText}
               </p>
 
@@ -52,14 +54,14 @@ function VoucherLimitModal({ isOpen, errorText, onContinueWithoutVoucher, onBack
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={onBackToVoucher}
-                  className="flex-1 bg-[#BA371E] hover:bg-[#9A2C15] text-white font-gaming text-lg py-4 px-6 rounded-lg border-2 border-[#7A1E0A] transition-colors"
+                  className="flex-1 bg-[#BA371E] hover:bg-[#9A2C15] text-white font-gaming text-xl py-5 px-6 rounded-lg border-2 border-[#7A1E0A] transition-colors"
                 >
                   BACK TO VOUCHER
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={onContinueWithoutVoucher}
-                  className="flex-1 bg-[#4CAF50] hover:bg-[#45a049] text-white font-gaming text-lg py-4 px-6 rounded-lg border-2 border-[#2E7D32] transition-colors"
+                  className="flex-1 bg-[#4CAF50] hover:bg-[#45a049] text-white font-gaming text-xl py-5 px-6 rounded-lg border-2 border-[#2E7D32] transition-colors"
                 >
                   CONTINUE
                 </motion.button>
@@ -117,11 +119,11 @@ function PaymentTimer({ expiredAt }: { expiredAt: string }) {
   useEffect(() => {
     if (isExpired) {
       const timeout = setTimeout(() => {
-        // goTo(8) // atau ke halaman failed payment
-      }, 3000)
+        location.reload(); // Expired
+      }, 1000)
       return () => clearTimeout(timeout)
     }
-  }, [isExpired, goTo])
+  }, [isExpired])
 
   return (
     <motion.div
@@ -177,7 +179,10 @@ export function PaymentPage() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Modal
   const [showVoucherLimitModal, setShowVoucherLimitModal] = useState(false)
+  const [showAskForHelpModal, setShowAskForHelpModal] = useState(false)
 
   const setBg = useUIStore((s) => s.setBackgroundVariant)
 
@@ -348,28 +353,49 @@ export function PaymentPage() {
           </div>
         </motion.div>
 
+        {/* development */}
         {/* button skip to succes page */}
-        <div className="flex flex-row items-center gap-8 justify-center w-full">
+        {
+          // true && (
+          //   <div className="flex flex-row items-center gap-8 justify-center w-full">
+          //     <motion.button
+          //       whileTap={{ scale: 0.95 }}
+          //       onClick={() => {
+          //         setTransactionStatus('SUCCESS')
+          //         goTo(8)
+          //       }}
+          //       className="bg-green-500 hover:bg-green-600 text-white font-gaming text-lg py-3 px-5 rounded-lg z-50"
+          //     >
+          //       Skip to Success
+          //     </motion.button>
+          //     {/* button skip to failed page */}
+          //     <motion.button
+          //       whileTap={{ scale: 0.95 }}
+          //       onClick={() => {
+          //         setTransactionStatus('FAILED')
+          //         goTo(8)
+          //       }}
+          //       className="bg-red-500 hover:bg-red-600 text-white font-gaming text-lg py-3 px-5 rounded-lg z-50"
+          //     >
+          //       Skip to Failed
+          //     </motion.button>
+          //   </div>
+          // )
+        }
+        {/* FOOTER */}
+        <div className="flex-0 flex items-center justify-end w-full">
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              setTransactionStatus('SUCCESS')
-              goTo(8)
+              setShowAskForHelpModal(true)
             }}
-            className="bg-green-500 hover:bg-green-600 text-white font-gaming text-lg py-3 px-5 rounded-lg z-50"
+            className="font-gaming w-64 h-max cursor-pointer flex gap-4 justify-center flex-shrink-0 bg-[#E9C140] items-center rounded-full px-2 py-5 font-bold text-xl tracking-widest"
+            initial={{ rotate: 0, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            draggable={false}
           >
-            Skip to Success
-          </motion.button>
-          {/* button skip to failed page */}
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              setTransactionStatus('FAILED')
-              goTo(8)
-            }}
-            className="bg-red-500 hover:bg-red-600 text-white font-gaming text-lg py-3 px-5 rounded-lg z-50"
-          >
-            Skip to Failed
+            ASK TO HELP ?
           </motion.button>
         </div>
       </motion.div >
@@ -389,6 +415,33 @@ export function PaymentPage() {
         onBackToVoucher={() => {
           setShowVoucherLimitModal(false)
           goTo(6) // Kembali ke halaman voucher input
+        }}
+      />
+
+      <AdminLoginModal
+        isOpen={showAskForHelpModal}
+        onClose={() => {
+          setShowAskForHelpModal(false)
+          console.log("Close")
+        }}
+        onSuccess={async () => {
+          if (!productBundle) {
+            alert("Error: No product bundle")
+            return
+          }
+          try {
+            const response = await createTransactionTunai({
+              items: [...[productBundle], ...productPrint, ...productAddOns],
+              voucherCode: voucherRef.current ?? '',
+              totalPrint: productPrint.length + 1,
+            })
+            if (response.success) {
+              setTransaction(response.result)
+              goTo(8)
+            }
+          } catch (error) {
+            console.log("Error", error)
+          }
         }}
       />
     </>
