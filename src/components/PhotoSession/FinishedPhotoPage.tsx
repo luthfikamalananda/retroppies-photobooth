@@ -79,7 +79,7 @@ function EmailSentModal({
 }
 
 export function FinishedPhotoPage() {
-  const { sessionCode, resetSession, startTimer, autoSubmit, setAutoSubmit } = useSessionStore()
+  const { sessionCode, resetSession, startTimer, stopTimer, autoSubmit, setAutoSubmit } = useSessionStore()
   const { templateWithPhotoProduction, clearPhotos } = usePhotoStore()
 
   const [sessionValue, setSessionValue] = useState<getSessionResult | null>(null)
@@ -97,6 +97,8 @@ export function FinishedPhotoPage() {
     isError: true,
     errorMsg: ''
   })
+
+  const [isEmailSent, setIsEmailSent] = useState(false)
 
   const [isProcessing, setIsProcessing] = useState(false)
 
@@ -130,7 +132,8 @@ export function FinishedPhotoPage() {
     isInitialized = true
 
     if (sessionCode) {
-      startTimer()
+      // startTimer()
+      stopTimer()
       getSesssions(sessionCode)
         .then((res) => {
           if (res.result) {
@@ -183,26 +186,12 @@ export function FinishedPhotoPage() {
           isOpen: true,
           message: result.message
         })
-        // try {
-        //   // await printPhoto(templateWithPhotoProduction)
-        //   await printPhotoBorderless({
-        //     dataUrl: templateWithPhotoProduction,
-        //     totalCopy: totalPrint
-        //   })
-        // } catch (printErr) {
-        //   console.error('Print gagal:', printErr)
-        //   // Tetap navigasi meski print gagal
-        // }
+        setIsEmailSent(true)
       }
     } catch (error) {
       console.log('error', error)
     } finally {
       setIsProcessing(false)
-      // HARDCODE
-      // setOpenEmailSentModal({
-      //   isOpen: true,
-      //   message: `email berhasil dikirim ke ${email}`
-      // })
     }
   }
 
@@ -249,8 +238,7 @@ export function FinishedPhotoPage() {
             <motion.button
               whileTap={{ scale: 0.95 }}
               className={[
-                'touch-target text-xl h-max w-full select-none font-gaming text-[#FDFDFD] px-4 py-2 rounded-full text-nowrap bg-[#1C1B1F] cursor-pointer ',
-                emailError.isError || emailError.errorMsg !== '' || email === '' ? 'bg-gray-400' : 'opacity-100'
+                'touch-target text-2xl h-max w-full select-none font-gaming text-[#FDFDFD] px-4 py-4 rounded-full text-nowrap bg-[#1C1B1F] cursor-pointer ',
               ].join('')}
               onClick={async () => {
                 await clearPhotos()
@@ -288,15 +276,30 @@ export function FinishedPhotoPage() {
                   <label htmlFor="email" className="font-gaming text-[#575757] text-xl text-center">ENTER EMAIL</label>
                   <label htmlFor="email" className="font-gaming text-[#B23E3E] text-xl text-center">* (REQUIRED)</label>
                 </div>
-                <div className='flex flex-row gap-2 items-center relative w-full'>
-                  <input type="email" id="email" value={email} onChange={handleEmailChange} className="font-body text-[#575757] text-xl text-left border-2 border-[#B23E3E] rounded-lg px-4 py-4 w-full" />
-                  {!emailError.isError && emailError.errorMsg === '' && (
-                    <motion.img
-                      src={iconChecklist}
-                      alt="checklist"
-                      className='absolute right-4'
-                    />
-                  )}
+                <div className='flex flex-row gap-2 items-center  w-full'>
+                  <div className="relative w-full">
+                    <input type="email" id="email" value={email} onChange={handleEmailChange} className="font-body text-[#575757] text-xl text-left border-2 border-[#B23E3E] rounded-lg px-4 py-4 w-full" />
+                    {!emailError.isError && emailError.errorMsg === '' && (
+                      <motion.img
+                        src={iconChecklist}
+                        alt="checklist"
+                        className='absolute right-4 top-1/2 -translate-y-1/2'
+                      />
+                    )}
+                  </div>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    className={[
+                      'touch-target text-2xl h-max w-1/4 select-none font-gaming text-[#FDFDFD] px-4 py-4 rounded-lg text-nowrap bg-[#B23E3E] cursor-pointer ',
+                      email === '' || (emailError.isError && emailError.errorMsg !== '') || isEmailSent ? 'opacity-50 cursor-not-allowed' : 'opacity-100'
+                    ].join('')}
+                    disabled={email === '' || (emailError.isError && emailError.errorMsg !== '') || isEmailSent}
+                    onClick={async () => {
+                      handleSendEmail()
+                    }}
+                  >
+                    SEND
+                  </motion.button>
                 </div>
                 {(emailError.isError && emailError.errorMsg !== '') && (
                   <motion.div
