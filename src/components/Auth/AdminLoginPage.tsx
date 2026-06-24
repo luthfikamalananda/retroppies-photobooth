@@ -22,6 +22,7 @@ type HardwareStatus = { cameraAvailable: boolean; printerAvailable: boolean }
 // ---------------------------------------------------------------------------
 
 function useAdminLogin(options?: {
+    withoutSetAuth?: boolean
     /** Called right after a successful login, before any navigation */
     onSuccess?: () => void
     /** Whether to navigate to page 1 after login (default: true) */
@@ -29,7 +30,7 @@ function useAdminLogin(options?: {
     /** Initial paper type (only relevant for page variant) */
     initialPaperType?: 'A4' | 'A6'
 }) {
-    const { navigateOnSuccess = true, onSuccess, initialPaperType = 'A4' } = options ?? {}
+    const { navigateOnSuccess = true, onSuccess, initialPaperType = 'A4', withoutSetAuth = false } = options ?? {}
 
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
@@ -57,10 +58,9 @@ function useAdminLogin(options?: {
         try {
             const res = await login({ username, password })
             if (res.result && res.success) {
-                // selectedPaper sekarang langsung 'A4' | 'A6', tidak perlu .paperType
-                setUser({ ...res.result, paperType: selectedPaper })
-                const hw = await checkHardware()
-                setHardwareStatus(hw)
+                if (!withoutSetAuth) {
+                    setUser({ ...res.result, paperType: selectedPaper })
+                }
                 onSuccess?.()
                 if (navigateOnSuccess) {
                     setTimeout(() => goTo(1), 800)
@@ -311,6 +311,7 @@ export function AdminLoginModal({ isOpen, onClose, onSuccess }: AdminLoginModalP
         handleLogin: baseHandleLogin,
         reset,
     } = useAdminLogin({
+        withoutSetAuth: true,
         navigateOnSuccess: false, // modal does NOT redirect automatically
         onSuccess: () => {
             onSuccess?.()

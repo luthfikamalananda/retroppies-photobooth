@@ -762,7 +762,6 @@ export function DragDropPage() {
             })
             continueToFinalization(result.result.sessionCode)
           }
-          console.log('Session created successfully:', result)
         } catch (error) {
           console.error('Error creating session:', error)
         }
@@ -930,7 +929,6 @@ export function DragDropPage() {
 
                     case 'selectfilter':
                       setOpenModalPermission(true)
-                      // handleNext();
                       break;
 
                     default:

@@ -337,7 +337,7 @@ export function TakePhotoPage() {
         </AnimatePresence>
       </div>
 
-      {/* <VideoPreviewModal type="capture" /> */}
+      <VideoPreviewModal type="capture" />
     </motion.div>
   );
 }
