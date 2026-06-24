@@ -116,18 +116,58 @@ export function TakePhotoPage() {
     const stream = videoEl?.srcObject as MediaStream | undefined;
     const track = stream?.getVideoTracks()[0];
 
-    if (!track) {
+    if (!track || !videoEl) {
       return webcamRef.current?.getScreenshot() ?? undefined;
     }
 
+    // Simpan resolusi original video element SEBELUM applyConstraints,
+    // untuk dipakai sebagai pembanding "apakah sudah benar2 berubah".
+    const originalVideoWidth = videoEl.videoWidth;
+    const originalVideoHeight = videoEl.videoHeight;
+
     try {
       await track.applyConstraints(CAPTURE_CONSTRAINTS);
+
+      // ── WAJIB: tunggu videoEl.videoWidth/videoHeight BENAR-BENAR berubah ──
+      // requestAnimationFrame saja TIDAK CUKUP — itu hanya menjamin browser
+      // sudah render 1 frame, BUKAN menjamin webcam hardware sudah selesai
+      // reconfigure ke resolusi baru. Tanpa menunggu ini, screenshot bisa
+      // diambil di tengah transisi resolusi → hasil ter-stretch/distorsi,
+      // kadang disertai 1 frame blackscreen di preview.
+      //
+      // Poll videoWidth/videoHeight sampai benar-benar berubah dari nilai
+      // original, dengan timeout supaya tidak infinite loop kalau webcam
+      // gagal reconfigure (fallback tetap capture di resolusi apapun yang ada).
+      const RESOLUTION_CHANGE_TIMEOUT_MS = 1500;
+      const POLL_INTERVAL_MS = 30;
+      const startTime = Date.now();
+
+      while (
+        videoEl.videoWidth === originalVideoWidth &&
+        videoEl.videoHeight === originalVideoHeight
+      ) {
+        if (Date.now() - startTime > RESOLUTION_CHANGE_TIMEOUT_MS) {
+          console.warn(
+            "Timeout menunggu resolusi video berubah, capture dengan resolusi yang tersedia saat ini."
+          );
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      }
+
+      // Setelah videoWidth/videoHeight berubah, tunggu 2 frame tambahan
+      // untuk memastikan buffer video benar-benar terisi penuh (tidak
+      // cuma "header" resolusi baru tapi pixel data masih kosong/parsial).
+      await new Promise((resolve) => requestAnimationFrame(resolve));
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
-      const settings = track.getSettings();
+      // Gunakan videoEl.videoWidth/videoHeight ASLI (bukan track.getSettings())
+      // sebagai source of truth — ini nilai yang BENAR-BENAR direpresentasikan
+      // di video element saat ini, beda dengan getSettings() yang kadang
+      // melaporkan nilai "target" walau belum sepenuhnya tercapai.
       const dataUrl = webcamRef.current?.getScreenshot({
-        width: settings.width ?? 3840,
-        height: settings.height ?? 2160,
+        width: videoEl.videoWidth || 3840,
+        height: videoEl.videoHeight || 2160,
       });
 
       return dataUrl ?? undefined;
@@ -337,7 +377,7 @@ export function TakePhotoPage() {
         </AnimatePresence>
       </div>
 
-      <VideoPreviewModal type="capture" />
+      {/* <VideoPreviewModal type="capture" /> */}
     </motion.div>
   );
 }
