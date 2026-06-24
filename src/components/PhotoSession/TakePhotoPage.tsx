@@ -25,9 +25,6 @@ const PREVIEW_CONSTRAINTS: MediaTrackConstraints = {
 };
 
 // ─── Resolusi CAPTURE (saat ambil foto) — tinggi untuk hasil tajam ──────────
-// Ini di-apply SEMENTARA ke track yang sama, tepat sebelum getScreenshot(),
-// lalu dikembalikan ke PREVIEW_CONSTRAINTS setelahnya. Browser/webcam modern
-// umumnya support hingga 4K (3840x2160) atau minimal Full HD (1920x1080).
 const CAPTURE_CONSTRAINTS: MediaTrackConstraints = {
   width: { ideal: 3840 },
   height: { ideal: 2160 },
@@ -86,28 +83,48 @@ export function TakePhotoPage() {
     setBg("image-white");
   }, []);
 
+  // ── Helper: stop MediaRecorder dan tunggu sampai benar-benar selesai ──────
+  // Mengembalikan Promise yang resolve setelah onstop event terpanggil,
+  // sehingga kita PASTI tahu kapan stream sudah bebas dari proses recording
+  // sebelum melakukan applyConstraints (yang akan mengganggu stream aktif).
+  const stopRecordingAndWait = useCallback((): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const recorder = mediaRecorderRef.current;
+
+      if (!recorder || recorder.state === "inactive") {
+        resolve(null);
+        return;
+      }
+
+      recorder.onstop = () => {
+        const videoBlob = new Blob(recordedChunksRef.current, {
+          type: recorder.mimeType || "video/webm",
+        });
+        recordedChunksRef.current = [];
+        resolve(videoBlob);
+      };
+
+      recorder.stop();
+    });
+  }, []);
+
   // ── Helper: capture foto di resolusi tinggi, lalu kembalikan ke preview ──
+  // PENTING: hanya dipanggil SETELAH recording benar-benar berhenti,
+  // supaya applyConstraints tidak mengganggu MediaRecorder yang aktif.
   const captureHighRes = useCallback(async (): Promise<string | undefined> => {
     const videoEl = webcamRef.current?.video as HTMLVideoElement | undefined;
     const stream = videoEl?.srcObject as MediaStream | undefined;
     const track = stream?.getVideoTracks()[0];
 
     if (!track) {
-      // Fallback — kalau track tidak ada, capture seperti biasa di resolusi preview
       return webcamRef.current?.getScreenshot() ?? undefined;
     }
 
     try {
-      // Upscale sementara ke resolusi tinggi sebelum capture
       await track.applyConstraints(CAPTURE_CONSTRAINTS);
-
-      // Tunggu 1 frame agar video element benar-benar render di resolusi baru
-      // sebelum getScreenshot() membaca canvas — tanpa ini, screenshot
-      // bisa "race" dengan resolusi lama yang belum sempat ganti.
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
-      const settings = track.getSettings()
-
+      const settings = track.getSettings();
       const dataUrl = webcamRef.current?.getScreenshot({
         width: settings.width ?? 3840,
         height: settings.height ?? 2160,
@@ -118,12 +135,10 @@ export function TakePhotoPage() {
       console.error("Gagal apply high-res constraints, fallback ke preview res:", err);
       return webcamRef.current?.getScreenshot() ?? undefined;
     } finally {
-      // Selalu kembalikan ke resolusi preview yang ringan, apapun hasilnya
       try {
         await track.applyConstraints(PREVIEW_CONSTRAINTS);
       } catch {
-        // Diamkan — beberapa device kadang reject constraint kedua,
-        // tapi ini tidak fatal, stream tetap jalan di resolusi terakhir yang berhasil
+        // Diamkan — tidak fatal
       }
     }
   }, []);
@@ -148,13 +163,18 @@ export function TakePhotoPage() {
             videoBitsPerSecond: 2_500_000,
           });
 
+          // timeslice 1000ms — paksa MediaRecorder flush chunk setiap 1 detik,
+          // bukan menunggu sampai stop(). Ini PENTING untuk konsistensi durasi:
+          // tanpa timeslice, beberapa browser/driver hanya nge-flush data
+          // secara tidak teratur, yang bisa menyebabkan video terpotong
+          // pendek kalau ada gangguan kecil di akhir proses recording.
           mediaRecorderRef.current.ondataavailable = (event) => {
             if (event.data.size > 0) {
               recordedChunksRef.current.push(event.data);
             }
           };
 
-          mediaRecorderRef.current.start();
+          mediaRecorderRef.current.start(1000); // ← timeslice 1000ms
         }
       } catch (error) {
         console.error("Failed to start recording:", error);
@@ -162,24 +182,22 @@ export function TakePhotoPage() {
     }
 
     if (countdown === 0) {
-      // ── Capture foto di resolusi tinggi (async) ──
-      captureHighRes().then((dataUrl) => {
+      // ── Urutan WAJIB berurutan, bukan bersamaan ──────────────────────────
+      // 1. Stop recording DULU dan tunggu sampai benar-benar selesai
+      // 2. SETELAH ITU baru capture foto high-res (applyConstraints aman
+      //    dilakukan karena stream sudah tidak sedang direkam)
+      (async () => {
+        const videoBlob = await stopRecordingAndWait();
+
+        if (videoBlob && videoBlob.size > 0) {
+          addVideoCapture({ slotIndex: nextSlot, videoBlob, recordedAt: Date.now() });
+        }
+
+        const dataUrl = await captureHighRes();
         if (dataUrl) {
           addCapture({ slotIndex: nextSlot, dataUrl, capturedAt: Date.now() });
         }
-      });
-
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        mediaRecorderRef.current.onstop = () => {
-          const videoBlob = new Blob(recordedChunksRef.current, {
-            type: mediaRecorderRef.current?.mimeType || "video/webm",
-          });
-          addVideoCapture({ slotIndex: nextSlot, videoBlob, recordedAt: Date.now() });
-          recordedChunksRef.current = [];
-        };
-        mediaRecorderRef.current.requestData();
-        mediaRecorderRef.current.stop();
-      }
+      })();
 
       setCountdown(null);
       return;
@@ -194,7 +212,7 @@ export function TakePhotoPage() {
         clearInterval(countdownIntervalRef.current);
       }
     };
-  }, [countdown]);
+  }, [countdown, stopRecordingAndWait, captureHighRes, addVideoCapture, addCapture, nextSlot]);
 
   const capture = useCallback(() => {
     if (nextSlot === -1 || countdown !== null) return;
@@ -228,7 +246,7 @@ export function TakePhotoPage() {
             <Webcam
               ref={webcamRef}
               screenshotFormat="image/jpeg"
-              screenshotQuality={0.95} // ← kualitas JPEG dinaikkan (default 0.92), penting untuk hasil tajam
+              screenshotQuality={0.95}
               videoConstraints={PREVIEW_CONSTRAINTS}
               className="w-full h-full object-cover"
               mirrored
