@@ -6,6 +6,7 @@ import { getProducts, type Product } from '@/services/productService'
 import { useUIStore } from '@/store/uiStore'
 import { btnChoose, logoBack, logoChooseProduct } from '@/assets'
 import { useAuthStore } from '@/store/authStore'
+import { timerBeforePayment } from '@/const/timers'
 
 // ─── Animation Variants ───────────────────────────────────────────────────────
 
@@ -84,7 +85,7 @@ const ProductCard = memo(function ProductCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function ProductPage() {
-  const { goNext, goBack, setTransaction } = useSessionStore()
+  const { goNext, goBack, setTransaction, goTo } = useSessionStore()
   const { setProductBundle } = useCartStore()
   const { user } = useAuthStore()
   const setBg = useUIStore((s) => s.setBackgroundVariant)

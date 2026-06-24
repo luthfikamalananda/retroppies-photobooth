@@ -16,7 +16,7 @@
  */
 
 import { motion } from 'framer-motion'
-import { useEffect, memo } from 'react'
+import { useEffect, memo, useState } from 'react'
 import { useSessionStore } from '@/store/sessionStore'
 import { useUIStore } from '@/store/uiStore'
 
@@ -114,13 +114,12 @@ const StepCard = memo(function StepCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function HowToUsePage() {
-  const { goNext, setTransaction } = useSessionStore()
+  const { goNext, setTransaction, goTo } = useSessionStore()
   const setBg = useUIStore((s) => s.setBackgroundVariant)
 
   useEffect(() => {
     setTransaction(null)
     setBg('image-black')
-    // cleanup tidak perlu — halaman lain set bg mereka sendiri
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

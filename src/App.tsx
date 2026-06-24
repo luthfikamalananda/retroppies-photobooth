@@ -8,9 +8,10 @@ import { ToastHost } from '@/components/Common/ToastHost'
 import { FloatingKeyboard } from '@/components/Common/FloatingKeyboard'
 
 // Halaman components (lazy-loaded for performance)
-import { lazy, Suspense, useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useCartStore } from './store/cartStore'
 import { usePhotoStore } from './store/photoStore'
+import { timerBeforePayment } from './const/timers'
 
 const AdminLoginPage = lazy(() => import('@/components/Auth/AdminLoginPage').then(m => ({ default: m.AdminLoginPage })))
 const LandingPage = lazy(() => import('@/components/Onboarding/LandingPage').then(m => ({ default: m.LandingPage })))
@@ -46,6 +47,8 @@ const PAGE_COMPONENTS: Record<number, React.ComponentType> = {
 
 const TIMER_VISIBLE_HALAMAN = [10, 11, 12, 13]
 
+const HIDDEN_TIMER_HALAMAN = [2, 3, 4, 5, 6]
+
 // Protected halaman that require authentication
 const PROTECTED_HALAMAN = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
@@ -73,6 +76,28 @@ export default function App() {
   // Check if current halaman requires transaction data but it's not present
   const isMustHaveTransactionDataPage = MUSHAVE_TRANSACTION_DATA.includes(currentHalaman)
   const needsTransactionData = isMustHaveTransactionDataPage && (transaction === null)
+
+  const [hiddenCountDown, setHiddenCountDown] = useState(timerBeforePayment)
+
+  useEffect(() => {
+    if (HIDDEN_TIMER_HALAMAN.includes(currentHalaman)) {
+      setHiddenCountDown(timerBeforePayment)
+    }
+  }, [currentHalaman])
+
+  useEffect(() => {
+    if (!HIDDEN_TIMER_HALAMAN.includes(currentHalaman)) return
+    const timer = setInterval(() => {
+      setHiddenCountDown((prevCountDown) => prevCountDown - 1)
+    }, 1000)
+
+    console.log('hiddenCountDown', hiddenCountDown)
+    if (hiddenCountDown === 0 && HIDDEN_TIMER_HALAMAN.includes(currentHalaman)) {
+      goTo(1)
+    }
+
+    return () => clearInterval(timer)
+  }, [currentHalaman, hiddenCountDown])
 
   // Redirect handling in useEffect to prevent React render-phase updates/freezes
   useEffect(() => {

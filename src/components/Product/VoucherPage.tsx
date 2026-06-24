@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore'
 import { extractErrorMessage } from '@/utils/errorHandling'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { useKeyboardInput } from '../Common/FloatingKeyboard'
+import { timerBeforePayment } from '@/const/timers'
 
 // ─── Animation Variants ───────────────────────────────────────────────────────
 

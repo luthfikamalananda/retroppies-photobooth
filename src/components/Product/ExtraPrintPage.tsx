@@ -6,6 +6,7 @@ import { getProducts, type Product } from '@/services/productService'
 import { useUIStore } from '@/store/uiStore'
 import { btnDecrement, btnIncrement, btnNextBlack, btnSkipBlack, logoBack, logoExtraPrint, logoWindowControl } from '@/assets'
 import { useAuthStore } from '@/store/authStore'
+import { timerBeforePayment } from '@/const/timers'
 
 // ─── Animation Variants ───────────────────────────────────────────────────────
 
@@ -216,6 +217,7 @@ export function ExtraPrintPage() {
   const handleFooterClick = () => {
     setModal({ isOpen: true, totalPrint: productPrint.length + 1 })
   }
+
 
   return (
     <>

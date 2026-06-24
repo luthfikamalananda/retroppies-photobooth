@@ -6,6 +6,7 @@ import { getProducts, type Product } from '@/services/productService'
 import { useUIStore } from '@/store/uiStore'
 import { btnDecrement, btnIncrement, btnNextBlack, btnSkipBlack, logoAddOns, logoBack } from '@/assets'
 import { useAuthStore } from '@/store/authStore'
+import { timerBeforePayment } from '@/const/timers'
 
 // ─── Animation Variants ───────────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ const AddOnCard = memo(function AddOnCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function AddOnsPage() {
-  const { goNext, goBack, setTransaction } = useSessionStore()
+  const { goNext, goBack, setTransaction, goTo } = useSessionStore()
   const { productAddOns, setProductAddOns } = useCartStore()
   const { user } = useAuthStore()
   const setBg = useUIStore((s) => s.setBackgroundVariant)

@@ -1,3 +1,4 @@
+import { timerFinished } from '@/const/timers'
 import { TransactionResult } from '@/services/paymentService'
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
@@ -61,7 +62,7 @@ export const useSessionStore = create<SessionState>()(
       continueToFinalization: (code) => set({
         sessionCode: code,
         currentHalaman: 13,
-        timerSeconds: 60,
+        timerSeconds: timerFinished,
         timerRunning: false,
       }),
       resetSession: () =>
