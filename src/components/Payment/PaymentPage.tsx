@@ -1,16 +1,35 @@
 import { btnBackGold, logoWindowControl } from '@/assets'
-import { createTransactionTunai, createTransactionv2, getTransactionStatus, TransactionResult } from '@/services/paymentService'
+import {
+  createTransactionTunai,
+  createTransactionv2,
+  getTransactionStatus,
+} from '@/services/paymentService'
 import { useCartStore } from '@/store/cartStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useUIStore } from '@/store/uiStore'
 import { extractErrorMessage } from '@/utils/errorHandling'
 import { formatCurrency } from '@/utils/formatCurrency'
 import axios from 'axios'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AdminLoginModal } from '../Auth/AdminLoginPage'
-import { createSessions } from '@/services/finalizeService'
+import { createTransactionTunai as _createTunai } from '@/services/paymentService'
+
+// ─── Animation Variants ───────────────────────────────────────────────────────
+
+const pageVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.25, ease: 'easeOut' } },
+  exit: { opacity: 0, transition: { duration: 0.2 } },
+}
+
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.3, ease: 'easeOut' } },
+}
+
+// ─── VoucherLimitModal ────────────────────────────────────────────────────────
 
 interface VoucherLimitModalProps {
   isOpen: boolean
@@ -19,7 +38,12 @@ interface VoucherLimitModalProps {
   onBackToVoucher: () => void
 }
 
-function VoucherLimitModal({ isOpen, errorText, onContinueWithoutVoucher, onBackToVoucher }: VoucherLimitModalProps) {
+function VoucherLimitModal({
+  isOpen,
+  errorText,
+  onContinueWithoutVoucher,
+  onBackToVoucher,
+}: VoucherLimitModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -32,24 +56,18 @@ function VoucherLimitModal({ isOpen, errorText, onContinueWithoutVoucher, onBack
         >
           <motion.div
             className="bg-white rounded-xl border-4 border-[#F7CC40] shadow-2xl overflow-hidden w-[650px]"
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.88, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
+            exit={{ scale: 0.88, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="bg-[#F7CC40] px-5 py-4 flex items-center justify-between">
               <h2 className="font-gaming text-[#2C2C2C] text-3xl">VOUCHER LIMIT</h2>
-              <img src={logoWindowControl} alt="Window-Control" className="select-none pointer-events-none h-auto" />
+              <img src={logoWindowControl} alt="" className="select-none pointer-events-none h-auto" />
             </div>
-
-            {/* Content */}
             <div className="bg-[#FCF8EF] px-8 py-8 flex flex-col gap-6">
-              <p className="font-gaming text-[#2C2C2C] text-2xl py-2  text-center">
-                {errorText}
-              </p>
-
-              {/* Buttons */}
+              <p className="font-gaming text-[#2C2C2C] text-2xl py-2 text-center">{errorText}</p>
               <div className="flex gap-4 justify-center mt-4">
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -74,363 +92,327 @@ function VoucherLimitModal({ isOpen, errorText, onContinueWithoutVoucher, onBack
   )
 }
 
+// ─── PaymentTimer ─────────────────────────────────────────────────────────────
+
 function PaymentTimer({ expiredAt }: { expiredAt: string }) {
-  const [timeLeft, setTimeLeft] = useState<{ hours: string; minutes: string; seconds: string }>({
-    hours: '00',
-    minutes: '00',
-    seconds: '00',
-  })
-  const [isExpired, setIsExpired] = useState(false)
   const { goTo } = useSessionStore()
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date()
-      const expiry = new Date(expiredAt)
-
-      if (isNaN(expiry.getTime())) {
-        console.error('Invalid expiredAt format:', expiredAt)
-        setIsExpired(true)
-        clearInterval(interval)
-        return
-      }
-
-      const diff = expiry.getTime() - now.getTime()
-
-      if (diff <= 0) {
-        setTimeLeft({ hours: '00', minutes: '00', seconds: '00' })
-        setIsExpired(true)
-        clearInterval(interval)
-      } else {
-        const hours = Math.floor(diff / 3600000)
-        const minutes = Math.floor((diff % 3600000) / 60000)
-        const seconds = Math.floor((diff % 60000) / 1000)
-        setTimeLeft({
-          hours: String(hours).padStart(2, '0'),
-          minutes: String(minutes).padStart(2, '0'),
-          seconds: String(seconds).padStart(2, '0'),
-        })
-      }
-    }, 1000)
-
-    return () => clearInterval(interval)
+  // Hitung sisa ms dari expiredAt — lazy init agar tidak hitung ulang tiap render
+  const calcTimeLeft = useCallback(() => {
+    const diff = new Date(expiredAt).getTime() - Date.now()
+    if (diff <= 0) return null
+    return {
+      hours: String(Math.floor(diff / 3_600_000)).padStart(2, '0'),
+      minutes: String(Math.floor((diff % 3_600_000) / 60_000)).padStart(2, '0'),
+      seconds: String(Math.floor((diff % 60_000) / 1_000)).padStart(2, '0'),
+    }
   }, [expiredAt])
 
+  const [timeLeft, setTimeLeft] = useState(calcTimeLeft)
+  const isExpired = timeLeft === null
+
   useEffect(() => {
-    if (isExpired) {
-      const timeout = setTimeout(() => {
-        location.reload(); // Expired
-      }, 1000)
-      return () => clearTimeout(timeout)
+    if (isNaN(new Date(expiredAt).getTime())) {
+      console.error('Invalid expiredAt format:', expiredAt)
+      setTimeLeft(null)
+      return
     }
-  }, [isExpired])
+
+    const id = setInterval(() => {
+      const t = calcTimeLeft()
+      setTimeLeft(t)
+      if (!t) clearInterval(id)
+    }, 1_000)
+
+    return () => clearInterval(id)
+  }, [expiredAt, calcTimeLeft])
+
+  // Redirect 1 detik setelah expired — debounce dengan timeout
+  useEffect(() => {
+    if (!isExpired) return
+    const id = setTimeout(() => location.reload(), 1_000)
+    return () => clearTimeout(id)
+  }, [isExpired, goTo])
+
+  const digits = timeLeft ?? { hours: '00', minutes: '00', seconds: '00' }
 
   return (
     <motion.div
-      className={`w-full flex flex-row items-center justify-between px-5 py-3 rounded-xl border-2 ${isExpired
-        ? 'border-red-500 bg-red-500/10'
-        : 'border-[#575757] bg-[#F8F8F8]'
+      className={`w-full flex flex-row items-center justify-between px-5 py-3 rounded-xl border-2 ${isExpired ? 'border-red-500 bg-red-500/10' : 'border-[#575757] bg-[#F8F8F8]'
         }`}
-      animate={{ opacity: isExpired ? [1, 0.7, 1] : 1 }}
-      transition={{ duration: isExpired ? 0.6 : 0, repeat: isExpired ? Infinity : 0 }}
+      // Blink hanya saat expired — tidak jalan terus setiap render
+      animate={isExpired ? { opacity: [1, 0.65, 1] } : { opacity: 1 }}
+      transition={isExpired ? { duration: 0.6, repeat: Infinity } : { duration: 0 }}
     >
-      {/* Label Text */}
       <h2 className="font-bebas text-[#090C0E] text-3xl tracking-[0.05em]">
         SELESAIKAN PEMBAYARAN SEBELUM
       </h2>
 
-      {/* Time Display */}
       <div className="flex items-center gap-2">
-        {/* Hours */}
-        <div className="bg-[#090C0E] px-2 py-2 rounded-lg border-2">
-          <span className="font-gaming text-[#FFFFFF] text-lg tracking-wider">
-            {timeLeft.hours}
-          </span>
-        </div>
-
-        {/* Separator */}
-        <span className="font-bebas text-[#090C0E] text-lg tracking-wider">:</span>
-
-        {/* Minutes */}
-        <div className="bg-[#090C0E] px-2 py-2 rounded-lg border-2">
-          <span className="font-gaming text-[#FFFFFF] text-lg tracking-wider">
-            {timeLeft.minutes}
-          </span>
-        </div>
-
-        {/* Separator */}
-        <span className="font-bebas text-[#090C0E] text-lg tracking-wider">:</span>
-
-        {/* Seconds */}
-        <div className="bg-[#090C0E] px-2 py-2 rounded-lg border-2">
-          <span className="font-gaming text-[#FFFFFF] text-lg tracking-wider">
-            {timeLeft.seconds}
-          </span>
-        </div>
+        {(['hours', 'minutes', 'seconds'] as const).map((unit, i) => (
+          <div key={unit} className="flex items-center gap-2">
+            {i > 0 && (
+              <span className="font-bebas text-[#090C0E] text-lg">:</span>
+            )}
+            <div className="bg-[#090C0E] px-2 py-2 rounded-lg border-2">
+              <span className="font-gaming text-white text-lg tracking-wider">
+                {digits[unit]}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
     </motion.div>
   )
 }
 
+// ─── QR Content area ──────────────────────────────────────────────────────────
+
+function QRContent({
+  loading,
+  error,
+  qrContent,
+  finalAmount,
+}: {
+  loading: boolean
+  error: string | null
+  qrContent?: string
+  finalAmount?: number
+}) {
+  if (loading) {
+    return (
+      <p className="font-gaming text-retro-cream/60 text-xl pb-8">Membuat QR...</p>
+    )
+  }
+  if (error) {
+    return (
+      <p className="font-gaming text-[#BA371E] text-xl uppercase pb-8 px-4">{error}</p>
+    )
+  }
+  if (qrContent) {
+    return (
+      <div className="flex flex-col items-center gap-1 w-full">
+        <p className="font-gaming text-[#2C2C2C] text-5xl">RETROPPIES</p>
+        <div className="p-4 rounded-2xl w-[50%] h-[50%]">
+          {/* QRCodeSVG tidak trigger layout paint — aman */}
+          <QRCodeSVG value={qrContent} width="100%" height="100%" level="H" />
+        </div>
+        <div className="bg-[#F7CC40] flex flex-row justify-center items-center mt-1 py-3 w-max px-6 rounded-lg border-2 border-black">
+          <p className="font-gaming text-[#2C2C2C] text-2xl">
+            {formatCurrency(finalAmount ?? 0)}
+          </p>
+        </div>
+      </div>
+    )
+  }
+  return null
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export function PaymentPage() {
   const { goTo, goBack, transaction, setTransaction, setTransactionStatus } = useSessionStore()
-
-  const { productBundle, productPrint, productAddOns, voucher, setVoucher } = useCartStore() // nanti akan dipakai untuk kirim detail transaksi ke backend
+  const { productBundle, productPrint, productAddOns, voucher, setVoucher } = useCartStore()
+  const setBg = useUIStore((s) => s.setBackgroundVariant)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showVoucherLimit, setShowVoucherLimit] = useState(false)
+  const [showAdminModal, setShowAdminModal] = useState(false)
 
-  // Modal
-  const [showVoucherLimitModal, setShowVoucherLimitModal] = useState(false)
-  const [showAskForHelpModal, setShowAskForHelpModal] = useState(false)
-
-  const setBg = useUIStore((s) => s.setBackgroundVariant)
-
-  useEffect(() => {
-    setBg('image-black')
-  }, [])
-
-  const initializedRef = useRef(false)
-  const abortControllerRef = useRef<AbortController | null>(null)
-
-  // Karena react membaca kode initTransaction bersifat stale closure, jadi ketika function dibuat langsung membaca vakeu voucher pada saat itu juga.
-  // Sehingga jika voucher di set menjadi null, valuenya tidak berubah (menggunakan value saat function dibuat)
+  const initialized = useRef(false)
+  const abortCtrlRef = useRef<AbortController | null>(null)
+  // Ref untuk voucher agar initTransaction tidak jadi stale closure
   const voucherRef = useRef(voucher)
 
-  // Sync ref setiap kali voucher berubah
   useEffect(() => {
     voucherRef.current = voucher
   }, [voucher])
 
-  const initTransaction = () => {
-    // Abort polling sebelumnya jika ada
-    abortControllerRef.current?.abort()
-    abortControllerRef.current = new AbortController()
-    const { signal } = abortControllerRef.current
+  useEffect(() => {
+    setBg('image-black')
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const startPolling = async (id: string) => {
+  // ── Polling ──────────────────────────────────────────────────────────
+
+  const startPolling = useCallback((invoiceNumber: string, signal: AbortSignal) => {
+    const poll = async () => {
       if (signal.aborted) return
       try {
-        const status = await getTransactionStatus({ invoiceNumber: id })
+        const status = await getTransactionStatus({ invoiceNumber })
         if (signal.aborted) return
 
         if (status.result.status === 'SUCCESS') {
           setTransactionStatus('SUCCESS')
           goTo(8)
-        } else if (status.result.status === 'PENDING') {
-          setTimeout(() => startPolling(id), 2000)
         } else if (status.result.status === 'EXPIRED' || status.result.status === 'FAILED') {
           setTransactionStatus('FAILED')
           goTo(8)
+        } else {
+          // PENDING — poll lagi
+          setTimeout(poll, 2_000)
         }
       } catch {
-        if (!signal.aborted) {
-          setTimeout(() => startPolling(id), 2000)
-        }
+        if (!signal.aborted) setTimeout(poll, 2_000)
       }
     }
+    poll()
+  }, [goTo, setTransactionStatus])
+
+  // ── Init / retry transaksi ────────────────────────────────────────────
+
+  const initTransaction = useCallback(() => {
+    // Batalkan polling sebelumnya
+    abortCtrlRef.current?.abort()
+    abortCtrlRef.current = new AbortController()
+    const { signal } = abortCtrlRef.current
 
     if (!productBundle && !transaction) {
       goTo(3)
       return
     }
 
-    if (transaction !== null) {
-      startPolling(transaction.invoiceNumber)
+    // Transaksi sudah ada (mis. setelah refresh state) — lanjut polling
+    if (transaction) {
+      startPolling(transaction.invoiceNumber, signal)
       return
     }
 
-    if (productBundle) {
-      setLoading(true)
-      setError(null) // Reset error sebelum coba lagi
-      createTransactionv2({
-        items: [...[productBundle], ...productPrint, ...productAddOns],
-        voucherCode: voucherRef.current ?? '',
-        totalPrint: productPrint.length + 1,
+    if (!productBundle) return
+
+    setLoading(true)
+    setError(null)
+
+    createTransactionv2({
+      items: [productBundle, ...productPrint, ...productAddOns],
+      voucherCode: voucherRef.current ?? '',
+      totalPrint: productPrint.length + 1,
+    })
+      .then((res) => {
+        if (signal.aborted) return
+        if (res.success) {
+          setTransaction(res.result)
+          startPolling(res.result.invoiceNumber, signal)
+        } else {
+          setError('Gagal membuat transaksi. Coba lagi.')
+        }
       })
-        .then(res => {
-          if (signal.aborted) return
-          if (res.success) {
-            setTransaction(res.result)
-            startPolling(res.result.invoiceNumber)
-          } else {
-            setError('Gagal membuat transaksi. Coba lagi.')
-          }
-        })
-        .catch((e) => {
-          if (signal.aborted) return
-          if (axios.isAxiosError(e) && e.response?.data?.statusCode === '203') {
-            setShowVoucherLimitModal(true)
-            setError(extractErrorMessage(e))
-            return
-          }
-          setError(extractErrorMessage(e) || 'Gagal membuat transaksi. Coba lagi.')
-        })
-        .finally(() => {
-          if (!signal.aborted) setLoading(false)
-        })
-    }
-  }
+      .catch((e) => {
+        if (signal.aborted) return
+        if (axios.isAxiosError(e) && e.response?.data?.statusCode === '203') {
+          setShowVoucherLimit(true)
+          setError(extractErrorMessage(e))
+          return
+        }
+        setError(extractErrorMessage(e) || 'Gagal membuat transaksi. Coba lagi.')
+      })
+      .finally(() => {
+        if (!signal.aborted) setLoading(false)
+      })
+  }, [productBundle, productPrint, productAddOns, transaction, goTo, setTransaction, startPolling])
 
   useEffect(() => {
-    if (initializedRef.current) return
-    initializedRef.current = true
-
+    if (initialized.current) return
+    initialized.current = true
     initTransaction()
-
-    return () => {
-      abortControllerRef.current?.abort()
-    }
+    return () => { abortCtrlRef.current?.abort() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Render ────────────────────────────────────────────────────────────
 
   return (
     <>
       <motion.div
         className="relative z-10 flex flex-col w-full h-full py-12 px-14 gap-10"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        variants={pageVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
       >
-        {/* HEADER */}
+        {/* ── HEADER ── */}
         <div className="w-full flex justify-between items-center flex-shrink-0">
           <motion.img
             src={btnBackGold}
             alt="Back"
+            variants={fadeIn}
             whileTap={{ scale: 0.95 }}
             onClick={goBack}
-            className="w-48 h-max cursor-pointer flex gap-4 justify-end flex-shrink-0"
-            initial={{ rotate: -20, opacity: 0 }}
-            animate={{ rotate: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
+            className="w-48 h-max cursor-pointer flex-shrink-0"
             draggable={false}
           />
         </div>
 
-        {/* CONTENT */}
-        <motion.div
-          className="relative z-10 flex flex-1 flex-row items-center justify-center w-full h-full pb-10 px-16"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
+        {/* ── CONTENT ── */}
+        <div className="relative z-10 flex flex-1 flex-row items-center justify-center w-full h-full pb-10 px-16">
           <div className="flex flex-col items-center justify-center w-[53%] h-max">
-            {/* Header */}
-            <div className="flex flex-row justify-between items-center bg-[#F7CC40] px-6 py-5 w-full rounded-t-xl" >
+            {/* Card header */}
+            <div className="flex flex-row justify-between items-center bg-[#F7CC40] px-6 py-5 w-full rounded-t-xl">
               <h1 className="font-gaming text-[#2C2C2C] text-2xl">PAY WITH QRIS</h1>
-              <img src={logoWindowControl} alt="Window-Control" className="select-none pointer-events-none" />
+              <img src={logoWindowControl} alt="" className="select-none pointer-events-none" />
             </div>
-            {/* Content */}
+            {/* Card body */}
             <div className="flex flex-col items-center justify-start w-full bg-[#FCF8EF] pt-8 border-8 border-t-0 border-[#F7CC40] rounded-b-xl h-full">
-              {/* Timer */}
-              <div className="w-full flex flex-col px-6">
-                {transaction?.expiredAt && (
+              {transaction?.expiredAt && (
+                <div className="w-full flex flex-col px-6">
                   <PaymentTimer expiredAt={transaction.expiredAt} />
-                )}
-              </div>
+                </div>
+              )}
               <div className="flex flex-col items-center justify-center py-8 gap-6 w-full h-full">
-                {loading && <p className="font-gaming text-retro-cream/60 text-xl pb-8">Membuat QR...</p>}
-                {error && <p className="font-gaming text-[#BA371E] text-xl uppercase pb-8 px-4">{error}</p>}
-                {(transaction?.qrContent && !error) && (
-                  <div className="flex flex-col items-center gap-1 w-full">
-                    <p className="font-gaming text-[#2C2C2C] text-5xl">RETROPPIES</p>
-                    <div className="p-4 rounded-2xl w-[50%] h-[50%]">
-                      <QRCodeSVG
-                        value={transaction.qrContent}
-                        width={"100%"}
-                        height={"100%"}
-                        level="H"
-                      />
-                    </div>
-                    <div className="bg-[#F7CC40] flex flex-row justify-center items-center mt-1 py-3 w-max px-6 rounded-lg border-2 border-[#000000]">
-                      <p className="font-gaming text-[#2C2C2C] text-2xl">{formatCurrency(transaction.finalAmount)}</p>
-                    </div>
-                  </div>
-                )}
+                <QRContent
+                  loading={loading}
+                  error={error}
+                  qrContent={transaction?.qrContent}
+                  finalAmount={transaction?.finalAmount}
+                />
               </div>
-
             </div>
           </div>
-        </motion.div>
+        </div>
 
-        {/* development */}
-        {/* button skip to succes page */}
-        {
-          // true && (
-          //   <div className="flex flex-row items-center gap-8 justify-center w-full">
-          //     <motion.button
-          //       whileTap={{ scale: 0.95 }}
-          //       onClick={() => {
-          //         setTransactionStatus('SUCCESS')
-          //         goTo(8)
-          //       }}
-          //       className="bg-green-500 hover:bg-green-600 text-white font-gaming text-lg py-3 px-5 rounded-lg z-50"
-          //     >
-          //       Skip to Success
-          //     </motion.button>
-          //     {/* button skip to failed page */}
-          //     <motion.button
-          //       whileTap={{ scale: 0.95 }}
-          //       onClick={() => {
-          //         setTransactionStatus('FAILED')
-          //         goTo(8)
-          //       }}
-          //       className="bg-red-500 hover:bg-red-600 text-white font-gaming text-lg py-3 px-5 rounded-lg z-50"
-          //     >
-          //       Skip to Failed
-          //     </motion.button>
-          //   </div>
-          // )
-        }
-        {/* FOOTER */}
+        {/* ── FOOTER ── */}
         <div className="flex-0 flex items-center justify-end w-full">
           <motion.button
+            variants={fadeIn}
             whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              setShowAskForHelpModal(true)
-            }}
+            onClick={() => setShowAdminModal(true)}
             className="font-gaming w-64 h-max cursor-pointer flex gap-4 justify-center flex-shrink-0 bg-[#E9C140] items-center rounded-full px-2 py-5 font-bold text-xl tracking-widest"
-            initial={{ rotate: 0, opacity: 0 }}
-            animate={{ rotate: 0, opacity: 1 }}
-            transition={{ delay: 0.1 }}
             draggable={false}
           >
             ASK TO HELP ?
           </motion.button>
         </div>
-      </motion.div >
+      </motion.div>
 
+      {/* ── Modals — di luar motion.div agar tidak kena animasi exit ── */}
 
-
-      {/* Voucher Limit Modal */}
       <VoucherLimitModal
+        isOpen={showVoucherLimit}
         errorText={error || 'Voucher sudah mencapai limit penggunaan!'}
-        isOpen={showVoucherLimitModal}
         onContinueWithoutVoucher={() => {
-          setVoucher(null)          // Update state (async)
-          voucherRef.current = null // Update ref langsung (sync) ← Tambah ini
-          setShowVoucherLimitModal(false)
+          setVoucher(null)
+          voucherRef.current = null  // sync ref langsung
+          setShowVoucherLimit(false)
+          // Reset initialized agar initTransaction bisa jalan ulang
+          initialized.current = false
           initTransaction()
         }}
         onBackToVoucher={() => {
-          setShowVoucherLimitModal(false)
-          goTo(6) // Kembali ke halaman voucher input
+          setShowVoucherLimit(false)
+          goTo(6)
         }}
       />
 
       <AdminLoginModal
-        isOpen={showAskForHelpModal}
-        onClose={() => {
-          setShowAskForHelpModal(false)
-          console.log("Close")
-        }}
+        isOpen={showAdminModal}
+        onClose={() => setShowAdminModal(false)}
         onSuccess={async () => {
           if (!productBundle) {
-            alert("Error: No product bundle")
+            alert('Error: No product bundle')
             return
           }
           try {
             const response = await createTransactionTunai({
-              items: [...[productBundle], ...productPrint, ...productAddOns],
+              items: [productBundle, ...productPrint, ...productAddOns],
               voucherCode: voucherRef.current ?? '',
               totalPrint: productPrint.length + 1,
             })
@@ -438,8 +420,8 @@ export function PaymentPage() {
               setTransaction(response.result)
               goTo(8)
             }
-          } catch (error) {
-            console.log("Error", error)
+          } catch (e) {
+            console.error('Cash transaction error:', e)
           }
         }}
       />
