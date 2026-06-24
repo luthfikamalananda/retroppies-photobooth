@@ -106,9 +106,11 @@ export function TakePhotoPage() {
       // bisa "race" dengan resolusi lama yang belum sempat ganti.
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
+      const settings = track.getSettings()
+
       const dataUrl = webcamRef.current?.getScreenshot({
-        width: track.getSettings().width,
-        height: track.getSettings().height,
+        width: settings.width ?? 3840,
+        height: settings.height ?? 2160,
       });
 
       return dataUrl ?? undefined;
