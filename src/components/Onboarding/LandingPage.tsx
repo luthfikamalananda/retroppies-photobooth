@@ -5,6 +5,7 @@ import logoPlay from '@/assets/logo-play.svg'
 import logoBattery from '@/assets/logo-battery.svg'
 import logoPressStart from '@/assets/logo-press-start.svg'
 import { useEffect } from 'react'
+import { useUIStore } from '@/store/uiStore'
 
 
 export function LandingPage() {
@@ -14,6 +15,14 @@ export function LandingPage() {
   useEffect(() => {
     setTransaction(null) // reset transaksi saat masuk halaman ini
   }, [])
+
+  const setBg = useUIStore((s) => s.setBackgroundVariant)
+
+  useEffect(() => {
+    setTransaction(null)
+    setBg('video-black')
+    // cleanup tidak perlu — halaman lain set bg mereka sendiri
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <motion.div

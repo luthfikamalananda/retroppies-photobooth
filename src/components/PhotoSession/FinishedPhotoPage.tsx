@@ -137,6 +137,9 @@ export function FinishedPhotoPage() {
 
   useEffect(() => {
     setBg("image-white");
+    return () => {
+      setBg("image-black")
+    }
   }, []);
 
   let isInitialized = false; // flag untuk memastikan init hanya sekali
