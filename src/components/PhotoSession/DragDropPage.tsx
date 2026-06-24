@@ -1,16 +1,16 @@
 import { btnNextBlack, logoBack, logoChooseFilter, logoDragAndDrop, logoWindowControl } from "@/assets";
 import { getLayoutDef } from "@/config/layouts.config";
+import { applyColorGrade, COLOR_GRADE_PRESETS, type ColorGradeOptions } from "@/services/colorGrading";
 import { createSessions } from "@/services/finalizeService";
 import { printPhotoBorderless } from '@/services/printService';
+import { useAuthStore } from "@/store/authStore";
 import { CapturedPhoto, usePhotoStore } from "@/store/photoStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { useUIStore } from "@/store/uiStore";
 import type { SlotDef } from "@/types/layout";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { VideoPreviewModal } from "./VideoPreviewModal";
-import { useAuthStore } from "@/store/authStore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,66 +23,93 @@ type FilterId =
   | 'original'
   | 'kodakVintage'
   | 'noirFilm'
-  | 'digicam200s'
+  | 'digicam2000s'
   | '80sRetro'
-  | 'dramaticB&W'
+  | 'dramaticBW'
   | 'dreamyVintage'
 
 interface Filter {
   id: FilterId
   label: string
-  cssFilter: string
+  /** undefined = original, tidak ada grading apapun diterapkan */
+  grade?: ColorGradeOptions
 }
 
 const FILTERS: Array<Filter> = [
-  {
-    id: 'original',
-    label: 'Original',
-    cssFilter: 'none',
-  },
-
-  {
-    id: 'kodakVintage',
-    label: 'Kodak Vintage',
-    cssFilter:
-      "sepia(0.45) saturate(0.8) contrast(0.95) brightness(1.12) hue-rotate(-12deg)",
-  },
-
-  {
-    id: 'noirFilm',
-    label: 'Noir Film',
-    cssFilter:
-      "grayscale(1) contrast(1.7) brightness(1.02)"
-  },
-
-  {
-    id: 'digicam200s',
-    label: 'Digicam 2000s',
-    cssFilter:
-      'saturate(1.6) contrast(1.25) brightness(1.12)',
-  },
-
-  {
-    id: '80sRetro',
-    label: '80s Retro',
-    cssFilter:
-      'sepia(0.2) saturate(1.25) contrast(1.1) brightness(1.05) hue-rotate(-20deg)',
-  },
-
-  {
-    id: 'dramaticB&W',
-    label: 'Dramatic B&W',
-    cssFilter:
-      'grayscale(1) contrast(2) brightness(0.92)',
-  },
-
-  {
-    id: 'dreamyVintage',
-    label: 'Dreamy Vintage',
-    cssFilter:
-      'sepia(0.2) saturate(0.85) brightness(1.15) contrast(0.9) saturate(0.9)',
-  }
+  { id: 'original', label: 'Original', grade: undefined },
+  { id: 'kodakVintage', label: 'Kodak Vintage', grade: COLOR_GRADE_PRESETS.kodakVintage },
+  { id: 'noirFilm', label: 'Noir Film', grade: COLOR_GRADE_PRESETS.noirFilm },
+  { id: 'digicam2000s', label: 'Digicam 2000s', grade: COLOR_GRADE_PRESETS.digicam2000s },
+  { id: '80sRetro', label: '80s Retro', grade: COLOR_GRADE_PRESETS['80sRetro'] },
+  { id: 'dramaticBW', label: 'Dramatic B&W', grade: COLOR_GRADE_PRESETS.dramaticBW },
+  { id: 'dreamyVintage', label: 'Dreamy Vintage', grade: COLOR_GRADE_PRESETS.dreamyVintage },
 ]
+
+// ─── Helper: render foto + color grade ke sebuah <canvas> ────────────────────
+//
+// Dipakai untuk preview di slot template DAN thumbnail filter tray.
+// Grading hanya di-recompute saat src ATAU grade berubah (via useEffect
+// dependency) — bukan di setiap render React. Untuk mini PC, ini krusial:
+// tanpa memoization ini, applyColorGrade (loop semua pixel) akan jalan
+// berkali-kali secara tidak perlu setiap kali parent re-render.
+function GradedImage({
+  src,
+  grade,
+  className,
+  style,
+}: {
+  src: string
+  grade: ColorGradeOptions | undefined
+  className?: string
+  style?: React.CSSProperties
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [isReady, setIsReady] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setIsReady(false)
+
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      if (cancelled) return
+      const canvas = canvasRef.current
+      if (!canvas) return
+
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      ctx.drawImage(img, 0, 0)
+
+      // grade undefined (Original) → skip pixel manipulation sepenuhnya
+      if (grade) {
+        applyColorGrade(canvas, grade)
+      }
+
+      setIsReady(true)
+    }
+    img.src = src
+
+    return () => {
+      cancelled = true
+    }
+  }, [src, grade])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className={className}
+      style={{
+        ...style,
+        opacity: isReady ? 1 : 0,
+        transition: 'opacity 0.15s ease-out',
+      }}
+    />
+  )
+}
 
 // ─── Modal Ask Permission ───────────────────────────────────────────────────────────
 
@@ -148,11 +175,6 @@ function AskPermissionModal({ isOpen, onAccept, onDecline }: AskPermissionModalP
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-/**
- * Renders the template composite:
- *   Layer 1 (bottom): Photo fills each slot area via absolutely positioned <div>
- *   Layer 2 (top):    Template PNG (with transparent holes) sits over everything
- */
 interface TemplateCompositeProps {
   templateUrl: string;
   slots: SlotState[];
@@ -177,7 +199,7 @@ function TemplateComposite({
   return (
     // Outer wrapper — maintains template's natural aspect ratio
     <div className="relative w-full h-full select-none">
-      {/* ── Layer 1: photo fills per slot ── */}
+      {/* ── Layer 1: photo fills per slot (dengan rotasi via cx/cy/angle) ── */}
       {slots.map(({ slotDef, photo }) => (
         <div
           key={slotDef.index}
@@ -197,13 +219,12 @@ function TemplateComposite({
         >
           {photo ? (
             <div className="relative w-full h-full">
-              <img
-                style={{
-                  filter: selectedFilter.cssFilter
-                }}
+              {/* Ganti <img style={{filter}}> menjadi GradedImage berbasis canvas
+                  — hasil grading akurat (split-tone, curve, vignette, grain),
+                  bukan sekadar approximation CSS filter global. */}
+              <GradedImage
                 src={photo.dataUrl}
-                alt={`Slot ${slotDef.index + 1}`}
-                draggable={false}
+                grade={selectedFilter.grade}
                 className="w-full h-full object-cover"
               />
               {/* Clear button inside slot */}
@@ -211,7 +232,7 @@ function TemplateComposite({
                 <button
                   type="button"
                   onClick={(e) => {
-                    e.stopPropagation(); // prevent selecting slot
+                    e.stopPropagation();
                     onClearSlot(slotDef.index);
                   }}
                   className="absolute top-2 right-2 w-4 h-4 rounded-full bg-retro-brown/90 border border-retro-amber text-retro-amber flex items-center justify-center font-bold text-[10px] shadow-md hover:bg-retro-amber hover:text-retro-brown active:scale-95 transition-all duration-150 z-20 touch-target"
@@ -221,7 +242,6 @@ function TemplateComposite({
               }
             </div>
           ) : (
-            /* Empty slot placeholder — visible through the transparent hole */
             <div className="w-full h-full flex flex-col items-center justify-center bg-black/30 group-hover:bg-retro-amber/10 transition-colors duration-200">
               <span className="font-gaming text-3xl mb-1">＋</span>
               <span className="font-gaming text-sm">
@@ -230,7 +250,6 @@ function TemplateComposite({
             </div>
           )}
 
-          {/* Slot highlight ring when selected or dragged over */}
           {(selectedSlotIndex === slotDef.index || dragOverSlotIndex === slotDef.index) && (
             <div
               className={`absolute inset-0 border-4 ${dragOverSlotIndex === slotDef.index ? "border-retro-amber border-dashed animate-pulse" : "border-retro-amber"
@@ -245,7 +264,7 @@ function TemplateComposite({
         </div>
       ))}
 
-      {/* ── Layer 2: template PNG overlay (transparent holes reveal photos) ── */}
+      {/* ── Layer 2: template PNG overlay ── */}
       <img
         src={templateUrl}
         alt="Template overlay"
@@ -277,9 +296,9 @@ function PhotoTray({ captures, activeSlotIndex, onAssign, onDrag, onDragEnd }: P
         src={logoDragAndDrop}
         alt="Drag and Drop"
         className="w-80 h-20 select-none pointer-events-none"
-        initial={{ rotate: -20, opacity: 0 }}
-        animate={{ rotate: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1, duration: 0.3 }}
         draggable={false}
       />
       <div className="grid grid-cols-2 gap-4 h-full w-full overflow-hidden">
@@ -296,7 +315,6 @@ function PhotoTray({ captures, activeSlotIndex, onAssign, onDrag, onDragEnd }: P
               if (activeSlotIndex !== null) onAssign(activeSlotIndex, photo.dataUrl)
             }}
             onPointerDown={(e) => {
-              // Catat posisi awal untuk ghost element
               setDraggingPhoto(photo)
               setDragPosition({ x: e.clientX, y: e.clientY })
             }}
@@ -307,7 +325,6 @@ function PhotoTray({ captures, activeSlotIndex, onAssign, onDrag, onDragEnd }: P
               dragElastic={0.6}
               style={{ touchAction: 'none' }}
               onDrag={(event, info) => {
-                // Update posisi ghost
                 setDragPosition({ x: info.point.x, y: info.point.y })
                 onDrag(event, info)
               }}
@@ -316,7 +333,7 @@ function PhotoTray({ captures, activeSlotIndex, onAssign, onDrag, onDragEnd }: P
                 onDragEnd(photo)
                 setDraggingPhoto(null)
               }}
-              whileDrag={{ opacity: 0.3 }} // Original memudar saat di-drag
+              whileDrag={{ opacity: 0.3 }}
               className="w-full h-full aspect-square overflow-hidden"
             >
               <img
@@ -329,7 +346,6 @@ function PhotoTray({ captures, activeSlotIndex, onAssign, onDrag, onDragEnd }: P
         ))}
       </div>
 
-      {/* Ghost element di-render via Portal langsung ke body — bebas dari overflow-hidden */}
       {draggingPhoto && createPortal(
         <div
           className="fixed pointer-events-none z-[9999]"
@@ -352,6 +368,8 @@ function PhotoTray({ captures, activeSlotIndex, onAssign, onDrag, onDragEnd }: P
 }
 
 // ─── Select Filter Tray ────────────────────────────────────────────────────────
+// Thumbnail tiap filter sekarang pakai GradedImage juga, supaya preview yang
+// ditampilkan akurat (bukan CSS filter approximation).
 function SelectFilterTray({
   selectedFilter,
   setSelectedFilter,
@@ -360,15 +378,17 @@ function SelectFilterTray({
   setSelectedFilter: (filter: Filter) => void
 }) {
   const { captures } = usePhotoStore()
+  const previewSrc = captures[0]?.dataUrl
+
   return (
     <div className="flex flex-col h-full gap-2 justify-between items-center w-[50%] z-50">
       <motion.img
         src={logoChooseFilter}
         alt="Drag and Drop"
         className="w-80 h-20 select-none pointer-events-none"
-        initial={{ rotate: -20, opacity: 0 }}
-        animate={{ rotate: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1, duration: 0.3 }}
         draggable={false}
       />
       <div className="grid grid-cols-2 gap-4 h-full w-full overflow-y-scroll bg-[#B23E3E] p-4 rounded-3xl">
@@ -376,23 +396,19 @@ function SelectFilterTray({
           <div
             key={filter.id}
             className={[
-              "rounded-xl w-full flex-col p-2 border-4  transition-all duration-200 flex-shrink-0 cursor-grab active:cursor-grabbing flex justify-center items-center",
+              "rounded-xl w-full flex-col p-2 border-4  transition-transform duration-200 flex-shrink-0 cursor-pointer flex justify-center items-center",
               'border-[#B23E3E] hover:border-[#F8F8F8] hover:scale-[1.02]',
               selectedFilter.id == filter.id && 'border-[#F8F8F8]'
             ].join(" ")}
-            onClick={() => {
-              // if (activeSlotIndex !== null) onAssign(activeSlotIndex, photo.dataUrl)
-              setSelectedFilter(filter)
-            }}
+            onClick={() => setSelectedFilter(filter)}
           >
-            <img
-              style={{
-                filter: filter.cssFilter
-              }}
-              src={captures[0].dataUrl}
-              alt={`FilteredPhoto ${filter.label}`}
-              className="w-full h-72 object-cover pointer-events-none rounded-xl"
-            />
+            {previewSrc && (
+              <GradedImage
+                src={previewSrc}
+                grade={filter.grade}
+                className="w-full h-72 object-cover pointer-events-none rounded-xl"
+              />
+            )}
             <p className="text-center italic font-body text-lg font-bold text-[#F8F8F8] py-2">{filter.label}</p>
           </div>
         ))}
@@ -407,26 +423,16 @@ export function DragDropPage() {
   const [pageState, setPageState] = useState<'dragdrop' | 'selectfilter'>('dragdrop')
   const [openModalPermission, setOpenModalPermission] = useState<boolean>(false)
 
-  const [selectedFilter, setSelectedFilter] = useState<Filter>({
-    id: 'original',
-    label: 'Original',
-    cssFilter: 'none',
-  })
+  const [selectedFilter, setSelectedFilter] = useState<Filter>(FILTERS[0])
 
   const { goBack, continueToFinalization, transaction, autoSubmit } = useSessionStore();
   const { user } = useAuthStore()
   const { template, captures, capturesVideo, setTemplateAndGif } = usePhotoStore();
 
-  // slotMap: { [slotIndex]: dataUrl }
   const [slotMap, setSlotMap] = useState<Record<number, string>>({});
-
-  // Which slot is currently "active" / waiting for a photo tap
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
-
-  // Drag-and-drop state
   const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
 
-  // ── Derive layout from template.layoutId ──────────────────────────────────
   const layoutDef = template ? getLayoutDef(template.layoutId) : null;
   const slotCount = layoutDef?.slotCount ?? 1;
 
@@ -439,16 +445,13 @@ export function DragDropPage() {
 
   const allSlotsFilled = Object.keys(slotMap).length >= slotCount;
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
   const handleSlotClick = (slotIndex: number) => {
-    // Toggle: tap again to deselect
     setActiveSlotIndex((prev) => (prev === slotIndex ? null : slotIndex));
   };
 
   const handleAssign = (slotIndex: number, dataUrl: string) => {
     setSlotMap((prev) => ({ ...prev, [slotIndex]: dataUrl }));
-    setActiveSlotIndex(null); // deselect after assigning
+    setActiveSlotIndex(null);
   };
 
   const handleClearSlot = (slotIndex: number) => {
@@ -480,7 +483,6 @@ export function DragDropPage() {
   const handleDragEnd = (photo: CapturedPhoto) => {
     if (dragOverSlotIndex !== null) {
       const targetSlot = dragOverSlotIndex;
-      // Push state update to next tick to allow Framer Motion to release drag state cleanly
       setTimeout(() => {
         handleAssign(targetSlot, photo.dataUrl);
       }, 0);
@@ -526,12 +528,14 @@ export function DragDropPage() {
         return { sx, sy, sw, sh }
       }
 
-      // Filter CSS dari selectedFilter — dipakai di ctx.filter
-      const cssFilter = selectedFilter.cssFilter === 'none' ? '' : selectedFilter.cssFilter
+      // Grade yang dipilih user — undefined kalau "Original"
+      const grade = selectedFilter.grade
 
       const templateImg = await loadImage(template.displayUrl)
 
-      // ── 1. Composite foto + filter → satu gambar ─────────────────────────
+      // ── 1. Composite foto → satu gambar (display resolution) ─────────────
+      // Rotasi per-slot (cx/cy/angle) dipertahankan sama persis seperti versi
+      // kamu sebelumnya — color grading TIDAK mengubah logic positioning ini.
 
       const photoCanvas = document.createElement('canvas')
       const dispW = layoutDef.templateSize?.w ?? width
@@ -553,42 +557,29 @@ export function DragDropPage() {
         const { sx, sy, sw, sh } = getCropParams(img.width, img.height, slotW, slotH)
 
         photoCtx.save()
-
         photoCtx.translate(slotCX, slotCY)
         photoCtx.rotate((angle * Math.PI) / 180)
-
         photoCtx.beginPath()
         photoCtx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
         photoCtx.clip()
-
-        photoCtx.filter = cssFilter || 'none'
-
-        photoCtx.drawImage(
-          img,
-          sx, sy, sw, sh,
-          -slotW / 2,
-          -slotH / 2,
-          slotW,
-          slotH
-        )
-
+        photoCtx.drawImage(img, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
         photoCtx.restore()
       }
 
-      // Template overlay tidak kena filter
-      photoCtx.filter = 'none'
+      // Apply color grade SEKALI ke seluruh canvas foto (setelah semua slot
+      // selesai digambar, sebelum template overlay) — lebih efisien dan
+      // grading konsisten di seluruh frame komposit, terlepas dari rotasi
+      // masing-masing slot (karena ini operasi pixel-level post-process).
+      if (grade) {
+        applyColorGrade(photoCanvas, grade)
+      }
+
       photoCtx.drawImage(templateImg, 0, 0, dispW, dispH)
       const resultPhotoDataUrl = photoCanvas.toDataURL('image/png', 0.95)
 
-      // ── 1b. Composite foto + filter → production (pakai productionUrl) ────────
-      //
-      // Logika identik dengan di atas, bedanya template overlay menggunakan
-      // productionUrl yang resolusinya lebih tinggi untuk keperluan print
+      // ── 1b. Composite foto → production (resolusi tinggi untuk print) ────
 
       const productionTemplateImg = await loadImage(template.productionUrl)
-
-      // Canvas production menggunakan ukuran asli template (bukan ukuran layar)
-      // agar resolusi output setinggi mungkin
       const prodW = layoutDef.templateSize?.w ?? width
       const prodH = layoutDef.templateSize?.h ?? height
 
@@ -610,32 +601,29 @@ export function DragDropPage() {
         const { sx, sy, sw, sh } = getCropParams(img.width, img.height, slotW, slotH)
 
         photoProductionCtx.save()
-
         photoProductionCtx.translate(slotCX, slotCY)
         photoProductionCtx.rotate((angle * Math.PI) / 180)
-
         photoProductionCtx.beginPath()
         photoProductionCtx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
         photoProductionCtx.clip()
-
-        photoProductionCtx.filter = cssFilter || 'none'
-
-        photoProductionCtx.drawImage(
-          img,
-          sx, sy, sw, sh,
-          -slotW / 2,
-          -slotH / 2,
-          slotW,
-          slotH
-        )
-
+        photoProductionCtx.drawImage(img, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
         photoProductionCtx.restore()
       }
-      photoProductionCtx.filter = 'none'
+
+      if (grade) {
+        applyColorGrade(photoProductionCanvas, grade)
+      }
+
       photoProductionCtx.drawImage(productionTemplateImg, 0, 0, prodW, prodH)
       const resultPhotoProductionDataUrl = photoProductionCanvas.toDataURL('image/png', 0.95)
 
-      // ── 2. Composite video + filter → satu video ─────────────────────────
+      // ── 2. Composite video → satu video ───────────────────────────────────
+      // Note: grading untuk video TIDAK menggunakan applyColorGrade per-frame
+      // (akan terlalu berat di CPU mini PC untuk render loop 30fps real-time
+      // — applyColorGrade melakukan getImageData/putImageData yang costly
+      // kalau dipanggil di requestAnimationFrame loop). Video composite tetap
+      // tanpa grading; foto (output utama yang di-print) tetap dapat grading
+      // akurat penuh. Ini trade-off yang wajar untuk hardware low-end.
 
       const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0] }[] = []
 
@@ -707,32 +695,15 @@ export function DragDropPage() {
             )
 
             ctx.save()
-
             ctx.translate(slotCX, slotCY)
             ctx.rotate((angle * Math.PI) / 180)
-
             ctx.beginPath()
             ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
             ctx.clip()
-
-            // 🔥 apply filter per-draw (bukan global state leak)
-            ctx.filter = cssFilter || 'none'
-
-            ctx.drawImage(
-              videoEl,
-              sx, sy, sw, sh,
-              -slotW / 2,
-              -slotH / 2,
-              slotW,
-              slotH
-            )
-
+            ctx.drawImage(videoEl, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
             ctx.restore()
-
           }
 
-          // Template overlay tidak kena filter
-          ctx.filter = 'none'
           ctx.drawImage(templateImg, 0, 0, width, height)
 
           requestAnimationFrame(renderLoop)
@@ -743,7 +714,7 @@ export function DragDropPage() {
         else { recorder.stop(); resolve(new Blob([], { type: mimeType })) }
       })
 
-      // ── 3. GIF dari foto raw + filter ────────────────────────────────────
+      // ── 3. GIF dari foto raw + grade ───────────────────────────────────────
 
       const resultGifBlob = await (async () => {
         // @ts-ignore
@@ -764,10 +735,13 @@ export function DragDropPage() {
           const img = await loadImage(capture.dataUrl)
           gifCtx.clearRect(0, 0, gifWidth, gifHeight)
           const { sx, sy, sw, sh } = getCropParams(img.width, img.height, gifWidth, gifHeight)
-
-          gifCtx.filter = cssFilter || 'none' // ← Apply filter ke tiap frame GIF
           gifCtx.drawImage(img, sx, sy, sw, sh, 0, 0, gifWidth, gifHeight)
-          gifCtx.filter = 'none'
+
+          // Apply grade per-frame GIF — frame count kecil (cuma 4 foto),
+          // jadi cost-nya bisa diterima meski pakai applyColorGrade
+          if (grade) {
+            applyColorGrade(gifCanvas, grade)
+          }
 
           const imageData = gifCtx.getImageData(0, 0, gifWidth, gifHeight)
           const palette = quantize(imageData.data, 256)
@@ -782,7 +756,6 @@ export function DragDropPage() {
 
       if (transaction?.invoiceNumber && captures.length > 0) {
 
-        // Helper: konversi dataUrl → File
         const dataUrlToFile = (dataUrl: string, filename: string): File => {
           const [meta, data] = dataUrl.split(',')
           const mimeType = meta.match(/:(.*?);/)?.[1] || 'image/jpeg'
@@ -792,29 +765,26 @@ export function DragDropPage() {
           return new File([bytes], filename, { type: mimeType })
         }
 
-        // Helper to get raw photo by repeating available captures
         const getRawPhoto = (index: number) => {
           const sorted = [...captures].sort((a, b) => a.slotIndex - b.slotIndex)
           const cap = sorted[index % sorted.length]
           return cap.dataUrl
         }
 
-        // ---------------
         try {
           const result = await createSessions({
             invoiceNumber: transaction?.invoiceNumber,
             tenantId: 1,
             isPublish: permission,
-            photo1: dataUrlToFile(resultPhotoDataUrl, 'photo1.jpg'),      // ← foto composited
-            photo2: dataUrlToFile(getRawPhoto(0), 'photo2.jpg'), // ← foto raw slot 0
-            photo3: dataUrlToFile(getRawPhoto(1), 'photo3.jpg'), // ← foto raw slot 1
-            photo4: dataUrlToFile(getRawPhoto(2), 'photo4.jpg'), // ← foto raw slot 2
-            photo5: dataUrlToFile(getRawPhoto(3), 'photo5.jpg'), // ← foto raw slot 3
+            photo1: dataUrlToFile(resultPhotoDataUrl, 'photo1.jpg'),
+            photo2: dataUrlToFile(getRawPhoto(0), 'photo2.jpg'),
+            photo3: dataUrlToFile(getRawPhoto(1), 'photo3.jpg'),
+            photo4: dataUrlToFile(getRawPhoto(2), 'photo4.jpg'),
+            photo5: dataUrlToFile(getRawPhoto(3), 'photo5.jpg'),
             gif: resultGifBlob,
             video: resultVideoBlob,
           })
           if (result.success === true) {
-            // ── 4. Simpan & navigasi ──────────────────────────────────────────────
             setTemplateAndGif({
               templateWithPhoto: resultPhotoDataUrl,
               templateWithPhotoProduction: resultPhotoProductionDataUrl,
@@ -824,11 +794,10 @@ export function DragDropPage() {
             continueToFinalization(result.result.sessionCode)
           }
         } catch (error) {
+          alert(JSON.stringify(error, null, 2))
           console.error('Error creating session:', error)
         }
-        // ---------------
 
-        // ---------------
         try {
           await printPhotoBorderless({
             dataUrl: resultPhotoProductionDataUrl,
@@ -838,7 +807,6 @@ export function DragDropPage() {
         } catch (printErr) {
           console.error('Print gagal:', printErr)
         }
-        // ---------------
       }
     } catch (err) {
       console.error('handleNext error:', err)
@@ -849,7 +817,6 @@ export function DragDropPage() {
 
   useEffect(() => {
     if (autoSubmit && template && layoutDef) {
-      // 1. Auto fill slotMap
       const tempSlotMap: Record<number, string> = {};
       const slotCount = layoutDef.slotCount;
       if (captures.length > 0) {
@@ -859,8 +826,6 @@ export function DragDropPage() {
         }
       }
       setSlotMap(tempSlotMap);
-
-      // 2. Trigger submit with populated slotMap
       handleNext({ permission: false, overrideSlotMap: tempSlotMap });
     }
   }, [autoSubmit, template, layoutDef]);
@@ -896,16 +861,16 @@ export function DragDropPage() {
     <>
       <motion.div
         className="relative z-10 flex flex-col items-center justify-between w-full h-full py-12 px-14  gap-4"
-        initial={{ opacity: 0, x: 60 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -60 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25 }}
       >
         {/* ── Header row ── */}
         <div className="flex flex-row w-full justify-between items-center flex-shrink-0">
-          <motion.img
+          <img
             src={logoBack}
             alt="Back"
-            whileTap={{ scale: 0.95 }}
             onClick={() => {
               switch (pageState) {
                 case 'dragdrop':
@@ -925,7 +890,6 @@ export function DragDropPage() {
         {/* ── Main content: template preview + photo tray ── */}
         <div className="flex-1 flex flex-row items-center justify-center w-full min-h-0 gap-20 px-28">
 
-          {/* Template composite — fills height, keeps aspect ratio */}
           <div
             id="template-composite-container"
             className="relative flex-shrink-0 h-full"
@@ -947,7 +911,6 @@ export function DragDropPage() {
               selectedFilter={selectedFilter}
             />
 
-            {/* Slot fill progress badge */}
             <div className="absolute -top-3 -right-3 bg-retro-amber text-retro-brown font-body font-bold text-xs rounded-full px-2 py-0.5 shadow-lg">
               {Object.keys(slotMap).length}/{slotCount}
             </div>
@@ -956,7 +919,6 @@ export function DragDropPage() {
           <AnimatePresence>
             {
               pageState === 'dragdrop' ?
-                // Photo tray — vertical on the right
                 <PhotoTray
                   captures={captures}
                   activeSlotIndex={activeSlotIndex}
@@ -998,10 +960,10 @@ export function DragDropPage() {
 
                 }}
                 className="touch-target w-48 h-max select-none cursor-pointer"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
                 draggable={false}
               />
             )}
