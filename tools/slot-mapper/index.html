@@ -1,24 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🎞️ Retroppies – Slot Mapper Tool</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>🎞️ Retroppies – Slot Mapper</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
 
     :root {
       --bg: #0d0d0d;
       --surface: #1a1a1a;
       --surface2: #252525;
+      --surface3: #2e2e2e;
       --border: #333;
+      --border2: #444;
       --amber: #D4A017;
-      --amber-dim: rgba(212,160,23,0.3);
+      --amber-dim: rgba(212, 160, 23, 0.18);
+      --amber-glow: rgba(212, 160, 23, 0.35);
       --cream: #f5f0e8;
       --red: #c0392b;
       --green: #27ae60;
       --text: #e0e0e0;
-      --text-dim: #888;
+      --text-dim: #777;
+      --text-mid: #aaa;
     }
 
     body {
@@ -28,215 +39,533 @@
       display: flex;
       height: 100vh;
       overflow: hidden;
+      font-size: 13px
     }
 
-    /* ─── SIDEBAR ─── */
+    /* ── SIDEBAR ── */
     #sidebar {
-      width: 320px;
-      min-width: 320px;
+      width: 340px;
+      min-width: 340px;
       background: var(--surface);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      gap: 0;
-      overflow-y: auto;
+      overflow-y: auto
     }
 
-    .sidebar-header {
-      padding: 20px 20px 16px;
-      border-bottom: 1px solid var(--border);
+    .sb-head {
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid var(--border)
     }
-    .sidebar-header h1 {
-      font-size: 16px;
+
+    .sb-head h1 {
+      font-size: 15px;
       font-weight: 700;
       color: var(--amber);
-      letter-spacing: 0.5px;
-    }
-    .sidebar-header p {
-      font-size: 12px;
-      color: var(--text-dim);
-      margin-top: 4px;
-      line-height: 1.5;
+      letter-spacing: .4px
     }
 
-    .section {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-    }
-    .section-title {
+    .sb-head p {
       font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
       color: var(--text-dim);
-      margin-bottom: 10px;
+      margin-top: 3px;
+      line-height: 1.5
     }
 
-    /* File input */
+    .sec {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .sec-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .9px;
+      color: var(--text-dim);
+      margin-bottom: 9px
+    }
+
+    /* dropzone */
     #dropzone {
       border: 2px dashed var(--border);
       border-radius: 8px;
-      padding: 20px;
+      padding: 18px;
       text-align: center;
       cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-      font-size: 13px;
-      color: var(--text-dim);
+      transition: border-color .2s, background .2s;
+      font-size: 12px;
+      color: var(--text-dim)
     }
-    #dropzone:hover, #dropzone.drag-over {
+
+    #dropzone:hover,
+    #dropzone.drag-over {
       border-color: var(--amber);
       background: var(--amber-dim);
-      color: var(--cream);
+      color: var(--cream)
     }
-    #dropzone input { display: none; }
-    #dropzone .icon { font-size: 28px; margin-bottom: 6px; }
 
-    /* Layout ID */
-    .field { display: flex; flex-direction: column; gap: 6px; }
-    .field label { font-size: 12px; color: var(--text-dim); }
-    .field input, .field select {
+    #dropzone input {
+      display: none
+    }
+
+    #dropzone .icon {
+      font-size: 26px;
+      margin-bottom: 5px
+    }
+
+    /* fields */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px
+    }
+
+    .field label {
+      font-size: 11px;
+      color: var(--text-dim)
+    }
+
+    .field input,
+    .field select {
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: 6px;
       color: var(--text);
-      padding: 8px 10px;
-      font-size: 13px;
+      padding: 7px 9px;
+      font-size: 12px;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color .15s
     }
-    .field input:focus, .field select:focus { border-color: var(--amber); }
 
-    /* Presets */
-    .preset-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--amber)
+    }
+
+    /* mode toggle */
+    .mode-toggle {
+      display: flex;
+      gap: 5px
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 7px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-dim);
+      transition: all .15s;
+      text-align: center
+    }
+
+    .mode-btn.active {
+      border-color: var(--amber);
+      color: var(--amber);
+      background: var(--amber-dim)
+    }
+
+    /* preset */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px
+    }
+
     .preset-btn {
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: 6px;
       color: var(--text);
-      padding: 8px 4px;
+      padding: 7px 4px;
       font-size: 11px;
       cursor: pointer;
       text-align: center;
-      transition: all 0.15s;
-      line-height: 1.3;
+      transition: all .15s;
+      line-height: 1.3
     }
-    .preset-btn:hover { border-color: var(--amber); color: var(--amber); }
 
-    /* Slot list */
-    #slot-list { display: flex; flex-direction: column; gap: 6px; }
-    .slot-item {
+    .preset-btn:hover {
+      border-color: var(--amber);
+      color: var(--amber)
+    }
+
+    /* slot list */
+    #slot-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px
+    }
+
+    .slot-card {
       background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 12px;
+      border-radius: 8px;
+      overflow: hidden
+    }
+
+    .slot-card.active-card {
+      border-color: var(--amber)
+    }
+
+    .slot-card-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 12px;
+      padding: 8px 11px;
+      background: var(--surface3);
+      cursor: pointer;
+      user-select: none
     }
-    .slot-item .slot-label { font-weight: 600; color: var(--amber); }
-    .slot-item .slot-coords { color: var(--text-dim); font-family: monospace; font-size: 11px; }
-    .slot-item .del-btn {
+
+    .slot-card-head:hover {
+      background: #333
+    }
+
+    .slot-card-label {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--amber)
+    }
+
+    .slot-card-summary {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: monospace
+    }
+
+    .slot-card-del {
       background: none;
       border: none;
       color: var(--red);
       cursor: pointer;
-      font-size: 16px;
-      line-height: 1;
-      padding: 0 4px;
-      opacity: 0.7;
-      transition: opacity 0.15s;
-    }
-    .slot-item .del-btn:hover { opacity: 1; }
-
-    .empty-state {
-      text-align: center;
-      color: var(--text-dim);
-      font-size: 12px;
-      padding: 16px;
-      border: 1px dashed var(--border);
-      border-radius: 6px;
+      font-size: 15px;
+      opacity: .6;
+      padding: 0 3px;
+      transition: opacity .12s
     }
 
-    /* Buttons */
-    .btn {
-      padding: 9px 16px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
+    .slot-card-del:hover {
+      opacity: 1
+    }
+
+    .slot-card-body {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px
+    }
+
+    /* ── PRECISION CONTROL ── */
+    /*  [ ──slider────── ] [ numinput ] [ unit ]  */
+    .ctrl {
+      display: flex;
+      flex-direction: column;
+      gap: 3px
+    }
+
+    .ctrl-label {
+      font-size: 10px;
+      color: var(--text-mid);
+      letter-spacing: .3px;
+      text-transform: uppercase
+    }
+
+    .ctrl-row {
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .ctrl-row input[type=range] {
+      flex: 1;
+      height: 4px;
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--surface3);
+      border-radius: 2px;
+      accent-color: var(--amber);
       cursor: pointer;
-      border: none;
-      transition: all 0.15s;
-      width: 100%;
+      outline: none
     }
-    .btn-primary { background: var(--amber); color: #0d0d0d; }
-    .btn-primary:hover { filter: brightness(1.1); }
-    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
-    .btn-danger:hover { background: var(--red); color: white; }
-    .btn-row { display: flex; gap: 8px; }
-    .btn-row .btn { flex: 1; }
 
-    /* Output */
+    .ctrl-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--amber);
+      border: 2px solid var(--bg);
+      cursor: pointer;
+      box-shadow: 0 0 4px var(--amber-glow)
+    }
+
+    .ctrl-row input[type=range]:focus {
+      outline: none
+    }
+
+    /* number input with stepper hidden */
+    .num-in {
+      width: 68px;
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--amber);
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 6px;
+      text-align: right;
+      outline: none;
+      transition: border-color .12s;
+      -moz-appearance: textfield
+    }
+
+    .num-in::-webkit-inner-spin-button,
+    .num-in::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0
+    }
+
+    .num-in:focus {
+      border-color: var(--amber);
+      background: #1a1600
+    }
+
+    .ctrl-unit {
+      font-size: 10px;
+      color: var(--text-dim);
+      min-width: 16px
+    }
+
+    /* fine step buttons ‹ › */
+    .step-btns {
+      display: flex;
+      gap: 2px
+    }
+
+    .step-btn {
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-dim);
+      font-size: 11px;
+      padding: 3px 6px;
+      cursor: pointer;
+      line-height: 1;
+      transition: all .1s;
+      font-family: monospace
+    }
+
+    .step-btn:hover {
+      border-color: var(--amber);
+      color: var(--amber)
+    }
+
+    .step-btn:active {
+      background: var(--amber-dim)
+    }
+
+    /* snap row */
+    .snap-row {
+      display: flex;
+      gap: 3px;
+      flex-wrap: wrap
+    }
+
+    .snap-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-dim);
+      font-size: 10px;
+      padding: 2px 6px;
+      cursor: pointer;
+      transition: all .1s;
+      font-family: monospace
+    }
+
+    .snap-btn:hover {
+      border-color: var(--amber);
+      color: var(--amber)
+    }
+
+    .snap-btn.active-snap {
+      background: var(--amber-dim);
+      border-color: var(--amber);
+      color: var(--amber)
+    }
+
+    /* divider inside card */
+    .ctrl-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2px 0
+    }
+
+    /* output */
     #output-box {
       background: #111;
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 12px;
+      padding: 11px;
       font-family: monospace;
       font-size: 11px;
       color: #7ec8a0;
       white-space: pre;
       overflow-x: auto;
-      max-height: 220px;
+      max-height: 200px;
       overflow-y: auto;
-      line-height: 1.5;
+      line-height: 1.5
     }
 
-    /* Instructions */
-    .instruction { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
-    .instruction b { color: var(--cream); }
+    .empty-state {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 11px;
+      padding: 14px;
+      border: 1px dashed var(--border);
+      border-radius: 6px
+    }
+
+    .btn {
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all .15s;
+      width: 100%
+    }
+
+    .btn-primary {
+      background: var(--amber);
+      color: #0d0d0d
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.1)
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border)
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--amber);
+      color: var(--amber)
+    }
+
+    .btn-danger {
+      background: transparent;
+      border: 1px solid var(--red);
+      color: var(--red)
+    }
+
+    .btn-danger:hover {
+      background: var(--red);
+      color: #fff
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 7px
+    }
+
+    .btn-row .btn {
+      flex: 1
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600
+    }
+
+    .badge-amber {
+      background: var(--amber-dim);
+      color: var(--amber)
+    }
+
+    .instruction {
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.7
+    }
+
+    .instruction b {
+      color: var(--cream)
+    }
+
     kbd {
       display: inline-block;
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: 3px;
       padding: 1px 5px;
-      font-size: 11px;
-      font-family: monospace;
+      font-size: 10px;
+      font-family: monospace
     }
 
-    /* ─── CANVAS AREA ─── */
+    /* ── CANVAS ── */
     #canvas-area {
       flex: 1;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
-      background: #111;
+      overflow: hidden
     }
 
     #canvas-toolbar {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 10px 16px;
+      gap: 10px;
+      padding: 8px 14px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      font-size: 12px;
+      font-size: 11px
     }
-    #canvas-toolbar .tool-info { color: var(--text-dim); }
-    #canvas-toolbar .zoom-controls { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-    #canvas-toolbar button {
+
+    #canvas-toolbar .tool-info {
+      color: var(--text-dim)
+    }
+
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-left: auto
+    }
+
+    .zoom-controls button {
       background: var(--surface2);
       border: 1px solid var(--border);
       color: var(--text);
       border-radius: 4px;
-      padding: 4px 10px;
+      padding: 3px 9px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 11px
     }
-    #canvas-toolbar button:hover { border-color: var(--amber); color: var(--amber); }
-    #zoom-label { color: var(--text-dim); font-size: 12px; min-width: 44px; text-align: center; }
+
+    .zoom-controls button:hover {
+      border-color: var(--amber);
+      color: var(--amber)
+    }
+
+    #zoom-label {
+      color: var(--text-dim);
+      font-size: 11px;
+      min-width: 42px;
+      text-align: center
+    }
 
     #canvas-wrapper {
       flex: 1;
@@ -245,590 +574,564 @@
       align-items: flex-start;
       justify-content: flex-start;
       padding: 24px;
+      background-image: linear-gradient(45deg, #1c1c1c 25%, transparent 25%), linear-gradient(-45deg, #1c1c1c 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1c1c1c 75%), linear-gradient(-45deg, transparent 75%, #1c1c1c 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px
     }
 
     #canvas-container {
       position: relative;
       display: inline-block;
-      cursor: crosshair;
       user-select: none;
-      transform-origin: top left;
+      transform-origin: top left
     }
 
     #template-img {
       display: block;
-      max-width: none; /* controlled by zoom */
-      image-rendering: pixelated;
+      max-width: none;
+      image-rendering: pixelated
     }
 
-    #draw-canvas {
+    #slots-svg {
       position: absolute;
-      top: 0; left: 0;
+      top: 0;
+      left: 0;
       pointer-events: none;
+      overflow: visible
     }
 
     #interaction-layer {
       position: absolute;
-      top: 0; left: 0;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
-    }
-
-    .slot-overlay {
-      position: absolute;
-      border: 2px solid var(--amber);
-      background: rgba(212,160,23,0.15);
-      pointer-events: none;
-    }
-    .slot-overlay .slot-num {
-      position: absolute;
-      top: 4px;
-      left: 6px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--amber);
-      background: rgba(0,0,0,0.7);
-      padding: 1px 5px;
-      border-radius: 3px;
-    }
-    .slot-overlay.drawing {
-      border-color: #fff;
-      background: rgba(255,255,255,0.12);
+      cursor: crosshair
     }
 
     #status-bar {
-      padding: 6px 16px;
+      padding: 5px 14px;
       background: var(--surface);
       border-top: 1px solid var(--border);
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text-dim);
       display: flex;
-      gap: 20px;
+      gap: 18px
     }
 
-    .badge {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 10px;
-      font-size: 10px;
-      font-weight: 600;
-    }
-    .badge-green { background: rgba(39,174,96,0.2); color: #2ecc71; }
-    .badge-amber { background: var(--amber-dim); color: var(--amber); }
-
-    /* Checkerboard bg for transparency */
-    #canvas-wrapper {
-      background-image:
-        linear-gradient(45deg, #222 25%, transparent 25%),
-        linear-gradient(-45deg, #222 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #222 75%),
-        linear-gradient(-45deg, transparent 75%, #222 75%);
-      background-size: 20px 20px;
-      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-    }
-
-    .copied-toast {
+    .toast {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
+      bottom: 22px;
+      right: 22px;
       background: var(--green);
-      color: white;
-      padding: 10px 18px;
+      color: #fff;
+      padding: 9px 16px;
       border-radius: 8px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       pointer-events: none;
       opacity: 0;
-      transform: translateY(10px);
-      transition: opacity 0.2s, transform 0.2s;
-      z-index: 1000;
+      transform: translateY(8px);
+      transition: opacity .2s, transform .2s;
+      z-index: 1000
     }
-    .copied-toast.show { opacity: 1; transform: translateY(0); }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0)
+    }
   </style>
 </head>
+
 <body>
 
-<!-- ── SIDEBAR ── -->
-<aside id="sidebar">
-  <div class="sidebar-header">
-    <h1>🎞️ Retroppies Slot Mapper</h1>
-    <p>Tandai area foto (slot) pada template PNG secara visual, lalu export koordinat JSON.</p>
-  </div>
-
-  <!-- Load template -->
-  <div class="section">
-    <div class="section-title">1. Load Template PNG</div>
-    <div id="dropzone">
-      <input type="file" id="file-input" accept="image/png" />
-      <div class="icon">🖼️</div>
-      <div>Drop PNG di sini atau <b>klik untuk pilih</b></div>
-      <div style="font-size:11px;margin-top:4px;">Pastikan PNG punya area transparan</div>
+  <aside id="sidebar">
+    <div class="sb-head">
+      <h1>🎞️ Retroppies Slot Mapper</h1>
+      <p>Tandai slot foto pada template PNG. Setiap properti bisa dikontrol presisi via slider + angka langsung.</p>
     </div>
-  </div>
 
-  <!-- Metadata -->
-  <div class="section">
-    <div class="section-title">2. Metadata Layout</div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <div class="field">
-        <label>Layout ID</label>
-        <input type="number" id="layout-id" value="1" min="1" />
-      </div>
-      <div class="field">
-        <label>Layout Name</label>
-        <input type="text" id="layout-name" placeholder="e.g. Single Center" />
-      </div>
-      <div class="field">
-        <label>Aspect Ratio Template</label>
-        <select id="aspect-ratio">
-          <option value="">— auto detect —</option>
-          <option value="0.707">A4 Portrait (1:√2 ≈ 0.707)</option>
-          <option value="1.414">A4 Landscape (√2:1)</option>
-          <option value="0.707">A6 Portrait (same as A4)</option>
-          <option value="custom">Custom</option>
-        </select>
+    <div class="sec">
+      <div class="sec-title">1 · Load Template</div>
+      <div id="dropzone">
+        <input type="file" id="file-input" accept="image/*" />
+        <div class="icon">🖼️</div>
+        <div>Drop PNG di sini atau <b>klik untuk pilih</b></div>
       </div>
     </div>
-  </div>
 
-  <!-- Presets -->
-  <div class="section">
-    <div class="section-title">3. Preset Auto-Slot (opsional)</div>
-    <div class="preset-grid">
-      <button class="preset-btn" onclick="applyPreset(1)">📸<br>Layout 1<br>1 Foto Tengah</button>
-      <button class="preset-btn" onclick="applyPreset(2)">⊞<br>Layout 2<br>2×2 Grid</button>
-      <button class="preset-btn" onclick="applyPreset(3)">║<br>Layout 3<br>Strip Vertikal</button>
-    </div>
-    <p style="font-size:11px;color:var(--text-dim);margin-top:8px;">
-      Preset hanya sebagai titik awal estimasi. Sesuaikan dengan template PNG asli.
-    </p>
-  </div>
-
-  <!-- Slots -->
-  <div class="section">
-    <div class="section-title">4. Slot yang Ditandai <span id="slot-count-badge" class="badge badge-amber">0 slot</span></div>
-    <div id="slot-list">
-      <div class="empty-state">Belum ada slot. Gambar persegi di kanvas template.</div>
-    </div>
-    <div style="margin-top:10px;" class="btn-row">
-      <button class="btn btn-danger" onclick="clearSlots()">🗑 Hapus Semua</button>
-    </div>
-  </div>
-
-  <!-- Export -->
-  <div class="section">
-    <div class="section-title">5. Export JSON</div>
-    <pre id="output-box">// Koordinat akan muncul di sini</pre>
-    <div style="margin-top:10px;" class="btn-row">
-      <button class="btn btn-primary" onclick="copyOutput()">📋 Copy JSON</button>
-      <button class="btn btn-primary" onclick="downloadOutput()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);">⬇ Download</button>
-    </div>
-  </div>
-
-  <!-- Help -->
-  <div class="section">
-    <div class="section-title">Cara Pakai</div>
-    <div class="instruction">
-      <b>1.</b> Load template PNG<br>
-      <b>2.</b> Klik + drag di area transparan untuk buat slot<br>
-      <b>3.</b> Slot otomatis terdaftar dengan koordinat % relatif<br>
-      <b>4.</b> Copy / download JSON untuk dipakai di kode<br><br>
-      <kbd>Scroll</kbd> untuk zoom · <kbd>Del</kbd> hapus slot terakhir
-    </div>
-  </div>
-</aside>
-
-<!-- ── CANVAS AREA ── -->
-<main id="canvas-area">
-  <div id="canvas-toolbar">
-    <span class="tool-info" id="tool-status">✏️ Mode: <b>Draw Slot</b> — load template PNG terlebih dahulu</span>
-    <div class="zoom-controls">
-      <button onclick="setZoom(zoom - 0.1)">−</button>
-      <span id="zoom-label">100%</span>
-      <button onclick="setZoom(zoom + 0.1)">+</button>
-      <button onclick="fitToView()">Fit</button>
-      <button onclick="setZoom(1)">1:1</button>
-    </div>
-  </div>
-
-  <div id="canvas-wrapper">
-    <div id="canvas-container">
-      <img id="template-img" src="" alt="" style="display:none;" />
-      <canvas id="draw-canvas"></canvas>
-      <div id="interaction-layer"></div>
-    </div>
-  </div>
-
-  <div id="status-bar">
-    <span id="img-size">Belum ada gambar</span>
-    <span id="cursor-pos">X: — Y: —</span>
-    <span id="drawing-size"></span>
-  </div>
-</main>
-
-<div class="copied-toast" id="copied-toast">✅ JSON disalin!</div>
-
-<script>
-// ══════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════
-let imgNaturalW = 0, imgNaturalH = 0;
-let zoom = 1;
-let slots = []; // { x, y, w, h } in % (0..1)
-let isDrawing = false;
-let startX = 0, startY = 0;
-let currentRect = null; // overlay div while drawing
-
-// ══════════════════════════════════════════
-// FILE LOAD
-// ══════════════════════════════════════════
-const dropzone = document.getElementById('dropzone');
-const fileInput = document.getElementById('file-input');
-const templateImg = document.getElementById('template-img');
-const container = document.getElementById('canvas-container');
-const drawCanvas = document.getElementById('draw-canvas');
-const interactionLayer = document.getElementById('interaction-layer');
-
-dropzone.addEventListener('click', () => fileInput.click());
-dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
-dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
-dropzone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropzone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file && file.type === 'image/png') loadFile(file);
-});
-fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) loadFile(fileInput.files[0]);
-});
-
-function loadFile(file) {
-  const url = URL.createObjectURL(file);
-  templateImg.onload = () => {
-    imgNaturalW = templateImg.naturalWidth;
-    imgNaturalH = templateImg.naturalHeight;
-    templateImg.style.display = 'block';
-    drawCanvas.width = imgNaturalW;
-    drawCanvas.height = imgNaturalH;
-    slots = [];
-    fitToView();
-    renderSlots();
-    updateOutput();
-    document.getElementById('img-size').textContent = `Template: ${imgNaturalW} × ${imgNaturalH} px`;
-    document.getElementById('tool-status').innerHTML = `✏️ Mode: <b>Draw Slot</b> — klik + drag untuk tandai area foto`;
-    
-    // Set layout name from filename if empty
-    const nameInput = document.getElementById('layout-name');
-    if (!nameInput.value) nameInput.value = file.name.replace(/\.[^.]+$/, '');
-  };
-  templateImg.src = url;
-}
-
-// ══════════════════════════════════════════
-// ZOOM
-// ══════════════════════════════════════════
-function setZoom(z) {
-  zoom = Math.max(0.1, Math.min(4, z));
-  zoom = Math.round(zoom * 100) / 100;
-  container.style.transform = `scale(${zoom})`;
-  document.getElementById('zoom-label').textContent = Math.round(zoom * 100) + '%';
-}
-
-function fitToView() {
-  if (!imgNaturalW) return;
-  const wrapper = document.getElementById('canvas-wrapper');
-  const wrapW = wrapper.clientWidth - 48;
-  const wrapH = wrapper.clientHeight - 48;
-  const zx = wrapW / imgNaturalW;
-  const zy = wrapH / imgNaturalH;
-  setZoom(Math.min(zx, zy, 1));
-}
-
-document.getElementById('canvas-wrapper').addEventListener('wheel', e => {
-  if (e.ctrlKey || e.metaKey) {
-    e.preventDefault();
-    setZoom(zoom + (e.deltaY < 0 ? 0.1 : -0.1));
-  }
-}, { passive: false });
-
-// ══════════════════════════════════════════
-// DRAWING INTERACTION
-// ══════════════════════════════════════════
-interactionLayer.addEventListener('mousedown', onMouseDown);
-interactionLayer.addEventListener('mousemove', onMouseMove);
-interactionLayer.addEventListener('mouseup', onMouseUp);
-interactionLayer.addEventListener('mouseleave', onMouseLeave);
-
-// Touch support
-interactionLayer.addEventListener('touchstart', e => {
-  e.preventDefault();
-  onMouseDown(touchToMouse(e));
-}, { passive: false });
-interactionLayer.addEventListener('touchmove', e => {
-  e.preventDefault();
-  onMouseMove(touchToMouse(e));
-}, { passive: false });
-interactionLayer.addEventListener('touchend', e => {
-  e.preventDefault();
-  onMouseUp(touchToMouse(e, true));
-}, { passive: false });
-
-function touchToMouse(e, isEnd = false) {
-  const t = isEnd ? e.changedTouches[0] : e.touches[0];
-  return { clientX: t.clientX, clientY: t.clientY, preventDefault: () => {} };
-}
-
-function getRelativePos(e) {
-  const rect = interactionLayer.getBoundingClientRect();
-  return {
-    x: (e.clientX - rect.left) / zoom,
-    y: (e.clientY - rect.top) / zoom,
-  };
-}
-
-function onMouseDown(e) {
-  if (!imgNaturalW) return;
-  const pos = getRelativePos(e);
-  // clamp
-  startX = Math.max(0, Math.min(pos.x, imgNaturalW));
-  startY = Math.max(0, Math.min(pos.y, imgNaturalH));
-  isDrawing = true;
-
-  // Create preview overlay
-  currentRect = document.createElement('div');
-  currentRect.classList.add('slot-overlay', 'drawing');
-  currentRect.style.left = startX + 'px';
-  currentRect.style.top = startY + 'px';
-  currentRect.style.width = '0px';
-  currentRect.style.height = '0px';
-  interactionLayer.appendChild(currentRect);
-}
-
-function onMouseMove(e) {
-  const pos = getRelativePos(e);
-  const cx = Math.max(0, Math.min(pos.x, imgNaturalW));
-  const cy = Math.max(0, Math.min(pos.y, imgNaturalH));
-
-  document.getElementById('cursor-pos').textContent =
-    `X: ${Math.round(cx)} Y: ${Math.round(cy)} (${toPercent(cx, imgNaturalW)}% × ${toPercent(cy, imgNaturalH)}%)`;
-
-  if (!isDrawing || !currentRect) return;
-
-  const x = Math.min(startX, cx);
-  const y = Math.min(startY, cy);
-  const w = Math.abs(cx - startX);
-  const h = Math.abs(cy - startY);
-
-  currentRect.style.left = x + 'px';
-  currentRect.style.top = y + 'px';
-  currentRect.style.width = w + 'px';
-  currentRect.style.height = h + 'px';
-
-  document.getElementById('drawing-size').textContent =
-    `Drawing: ${Math.round(w)}×${Math.round(h)}px (${toPercent(w, imgNaturalW)}%×${toPercent(h, imgNaturalH)}%)`;
-}
-
-function onMouseUp(e) {
-  if (!isDrawing || !currentRect) return;
-  isDrawing = false;
-
-  const pos = getRelativePos(e);
-  const cx = Math.max(0, Math.min(pos.x, imgNaturalW));
-  const cy = Math.max(0, Math.min(pos.y, imgNaturalH));
-
-  const x = Math.min(startX, cx);
-  const y = Math.min(startY, cy);
-  const w = Math.abs(cx - startX);
-  const h = Math.abs(cy - startY);
-
-  // Remove preview
-  currentRect.remove();
-  currentRect = null;
-  document.getElementById('drawing-size').textContent = '';
-
-  // Min size = 10px
-  if (w < 10 || h < 10) return;
-
-  slots.push({
-    x: parseFloat((x / imgNaturalW).toFixed(4)),
-    y: parseFloat((y / imgNaturalH).toFixed(4)),
-    w: parseFloat((w / imgNaturalW).toFixed(4)),
-    h: parseFloat((h / imgNaturalH).toFixed(4)),
-  });
-
-  renderSlots();
-  updateOutput();
-}
-
-function onMouseLeave(e) {
-  if (isDrawing) onMouseUp(e);
-}
-
-// ══════════════════════════════════════════
-// RENDER
-// ══════════════════════════════════════════
-function renderSlots() {
-  // Clear existing slot overlays
-  interactionLayer.querySelectorAll('.slot-overlay').forEach(el => el.remove());
-
-  slots.forEach((s, i) => {
-    const el = document.createElement('div');
-    el.classList.add('slot-overlay');
-    el.style.left = (s.x * imgNaturalW) + 'px';
-    el.style.top = (s.y * imgNaturalH) + 'px';
-    el.style.width = (s.w * imgNaturalW) + 'px';
-    el.style.height = (s.h * imgNaturalH) + 'px';
-    el.innerHTML = `<span class="slot-num">Slot ${i + 1}</span>`;
-    interactionLayer.appendChild(el);
-  });
-
-  // Update sidebar list
-  const listEl = document.getElementById('slot-list');
-  const badge = document.getElementById('slot-count-badge');
-  badge.textContent = `${slots.length} slot`;
-
-  if (slots.length === 0) {
-    listEl.innerHTML = '<div class="empty-state">Belum ada slot. Gambar persegi di kanvas template.</div>';
-    return;
-  }
-
-  listEl.innerHTML = '';
-  slots.forEach((s, i) => {
-    const el = document.createElement('div');
-    el.classList.add('slot-item');
-    el.innerHTML = `
-      <div>
-        <div class="slot-label">Slot ${i + 1}</div>
-        <div class="slot-coords">x:${s.x} y:${s.y}<br>w:${s.w} h:${s.h}</div>
+    <div class="sec">
+      <div class="sec-title">2 · Metadata</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="field"><label>Layout ID</label><input type="number" id="layout-id" value="1" min="1" /></div>
+        <div class="field"><label>Layout Name</label><input type="text" id="layout-name"
+            placeholder="e.g. 4-Strip Portrait" /></div>
       </div>
-      <button class="del-btn" onclick="deleteSlot(${i})" title="Hapus slot ini">✕</button>
-    `;
-    listEl.appendChild(el);
-  });
-}
+    </div>
 
-function deleteSlot(i) {
-  slots.splice(i, 1);
-  renderSlots();
-  updateOutput();
-}
+    <div class="sec">
+      <div class="sec-title">3 · Mode Gambar</div>
+      <div class="mode-toggle">
+        <div class="mode-btn active" id="mode-rect" onclick="setMode('rect')">⬛ Normal</div>
+        <div class="mode-btn" id="mode-rotate" onclick="setMode('rotate')">🔄 Miring</div>
+      </div>
+      <p style="font-size:10px;color:var(--text-dim);margin-top:7px" id="mode-hint">Drag untuk gambar slot. Fine-tune di
+        panel slot.</p>
+    </div>
 
-function clearSlots() {
-  slots = [];
-  renderSlots();
-  updateOutput();
-}
+    <div class="sec">
+      <div class="sec-title">Preset</div>
+      <div class="preset-grid">
+        <button class="preset-btn" onclick="applyPreset(1)">📸<br>1 Foto</button>
+        <button class="preset-btn" onclick="applyPreset(2)">⊞<br>2×2</button>
+        <button class="preset-btn" onclick="applyPreset(3)">║<br>Strip</button>
+      </div>
+    </div>
 
-// ══════════════════════════════════════════
-// PRESETS
-// ══════════════════════════════════════════
-function applyPreset(layoutId) {
-  if (!imgNaturalW) { alert('Load template PNG terlebih dahulu!'); return; }
+    <div class="sec">
+      <div class="sec-title">4 · Slots <span id="slot-count-badge" class="badge badge-amber">0</span></div>
+      <div id="slot-list">
+        <div class="empty-state">Belum ada slot. Gambar di kanvas.</div>
+      </div>
+      <div style="margin-top:9px" class="btn-row">
+        <button class="btn btn-danger" onclick="clearSlots()">🗑 Hapus Semua</button>
+      </div>
+    </div>
 
-  // These are approximate — user should fine-tune by looking at the template
-  const presets = {
-    1: [
-      // Layout 1: 1 foto besar tengah (estimasi ~70% width, 50% height, centered)
-      { x: 0.08, y: 0.22, w: 0.84, h: 0.52 }
-    ],
-    2: [
-      // Layout 2: 2x2 grid (estimasi)
-      { x: 0.06, y: 0.10, w: 0.42, h: 0.36 },
-      { x: 0.52, y: 0.10, w: 0.42, h: 0.36 },
-      { x: 0.06, y: 0.52, w: 0.42, h: 0.36 },
-      { x: 0.52, y: 0.52, w: 0.42, h: 0.36 },
-    ],
-    3: [
-      // Layout 3: vertical strip (estimasi)
-      { x: 0.35, y: 0.05, w: 0.30, h: 0.20 },
-      { x: 0.35, y: 0.28, w: 0.30, h: 0.20 },
-      { x: 0.35, y: 0.51, w: 0.30, h: 0.20 },
-      { x: 0.35, y: 0.74, w: 0.30, h: 0.20 },
-    ],
-  };
+    <div class="sec">
+      <div class="sec-title">5 · Export</div>
+      <pre id="output-box">// JSON akan muncul di sini</pre>
+      <div style="margin-top:9px" class="btn-row">
+        <button class="btn btn-primary" onclick="copyOutput()">📋 Copy</button>
+        <button class="btn btn-secondary" onclick="downloadOutput()">⬇ Download</button>
+      </div>
+    </div>
 
-  slots = presets[layoutId] || [];
-  document.getElementById('layout-id').value = layoutId;
-  document.getElementById('layout-name').value = ['', 'Single Center', '2×2 Grid', 'Vertical Strip'][layoutId];
-  renderSlots();
-  updateOutput();
-}
+    <div class="sec">
+      <div class="sec-title">Tips</div>
+      <div class="instruction">
+        <b>Slider</b> untuk drag kasar · <b>Angka</b> untuk ketik presisi<br>
+        <b>‹ ›</b> tombol untuk step kecil (0.1° / 0.001)<br>
+        <b>Snap</b> klik langsung ke sudut umum<br>
+        <kbd>↑↓</kbd> saat fokus di number input = step x1<br>
+        <kbd>Shift+↑↓</kbd> = step x10 · <kbd>Del</kbd> hapus slot terakhir
+      </div>
+    </div>
+  </aside>
 
-// ══════════════════════════════════════════
-// OUTPUT
-// ══════════════════════════════════════════
-function updateOutput() {
-  const layoutId = parseInt(document.getElementById('layout-id').value) || 1;
-  const layoutName = document.getElementById('layout-name').value || 'Unnamed';
+  <main id="canvas-area">
+    <div id="canvas-toolbar">
+      <span class="tool-info" id="tool-status">Load template PNG untuk mulai</span>
+      <div class="zoom-controls">
+        <button onclick="setZoom(zoom-.1)">−</button>
+        <span id="zoom-label">100%</span>
+        <button onclick="setZoom(zoom+.1)">+</button>
+        <button onclick="fitToView()">Fit</button>
+        <button onclick="setZoom(1)">1:1</button>
+      </div>
+    </div>
+    <div id="canvas-wrapper">
+      <div id="canvas-container">
+        <img id="template-img" src="" alt="" style="display:none" />
+        <svg id="slots-svg" width="0" height="0"></svg>
+        <div id="interaction-layer"></div>
+      </div>
+    </div>
+    <div id="status-bar">
+      <span id="img-size">—</span>
+      <span id="cursor-pos">X:— Y:—</span>
+      <span id="drawing-info"></span>
+    </div>
+  </main>
 
-  const output = {
-    layoutId,
-    name: layoutName,
-    slotCount: slots.length,
-    templateSize: imgNaturalW ? { w: imgNaturalW, h: imgNaturalH } : null,
-    slots: slots.map((s, i) => ({
-      index: i,
-      // % relative coords (0..1)
-      x: s.x,
-      y: s.y,
-      w: s.w,
-      h: s.h,
-      // Convenience: px at original resolution
-      _pxHint: imgNaturalW ? {
-        x: Math.round(s.x * imgNaturalW),
-        y: Math.round(s.y * imgNaturalH),
-        w: Math.round(s.w * imgNaturalW),
-        h: Math.round(s.h * imgNaturalH),
-      } : undefined,
-    })),
-  };
+  <div class="toast" id="toast">✅ JSON disalin!</div>
 
-  document.getElementById('output-box').textContent = JSON.stringify(output, null, 2);
-}
+  <script>
+    // ════════════════════════════════════════════════════
+    // STATE
+    // ════════════════════════════════════════════════════
+    let imgW = 0, imgH = 0, zoom = 1, drawMode = 'rect';
+    let slots = [];
+    /*
+      slot = { cx, cy, w, h, angle }
+      cx/cy = center (0..1)
+      w/h   = size (0..1)
+      angle = degrees CW
+    */
+    let isDrawing = false, dragStart = null, ghostEl = null;
 
-document.getElementById('layout-id').addEventListener('input', updateOutput);
-document.getElementById('layout-name').addEventListener('input', updateOutput);
+    const templateImg = document.getElementById('template-img');
+    const container = document.getElementById('canvas-container');
+    const slotsSvg = document.getElementById('slots-svg');
+    const iLayer = document.getElementById('interaction-layer');
 
-function copyOutput() {
-  const text = document.getElementById('output-box').textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const t = document.getElementById('copied-toast');
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2000);
-  });
-}
+    // ════════════════════════════════════════════════════
+    // FILE
+    // ════════════════════════════════════════════════════
+    const dz = document.getElementById('dropzone');
+    const fi = document.getElementById('file-input');
+    dz.addEventListener('click', () => fi.click());
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over') });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) loadFile(f) });
+    fi.addEventListener('change', () => { if (fi.files[0]) loadFile(fi.files[0]) });
 
-function downloadOutput() {
-  const text = document.getElementById('output-box').textContent;
-  const layoutName = document.getElementById('layout-name').value || 'layout';
-  const safeName = layoutName.toLowerCase().replace(/\s+/g, '-');
-  const blob = new Blob([text], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `layout-${safeName}-slots.json`;
-  a.click();
-}
-
-// ══════════════════════════════════════════
-// UTILS
-// ══════════════════════════════════════════
-function toPercent(val, total) {
-  return total ? (val / total * 100).toFixed(1) : '—';
-}
-
-// Keyboard shortcut
-document.addEventListener('keydown', e => {
-  if (e.key === 'Delete' || e.key === 'Backspace') {
-    if (document.activeElement.tagName !== 'INPUT') {
-      slots.pop();
-      renderSlots();
-      updateOutput();
+    function loadFile(file) {
+      const url = URL.createObjectURL(file);
+      templateImg.onload = () => {
+        imgW = templateImg.naturalWidth; imgH = templateImg.naturalHeight;
+        templateImg.style.display = 'block';
+        slotsSvg.setAttribute('width', imgW); slotsSvg.setAttribute('height', imgH);
+        slots = []; fitToView(); renderAll(); updateOutput();
+        document.getElementById('img-size').textContent = `${imgW}×${imgH}px`;
+        document.getElementById('tool-status').innerHTML = `✏️ Mode: <b>${drawMode === 'rect' ? 'Normal' : 'Miring'}</b>`;
+        const n = document.getElementById('layout-name'); if (!n.value) n.value = file.name.replace(/\.[^.]+$/, '');
+      };
+      templateImg.src = url;
     }
-  }
-});
 
-// Init
-updateOutput();
-</script>
+    // ════════════════════════════════════════════════════
+    // ZOOM
+    // ════════════════════════════════════════════════════
+    function setZoom(z) {
+      zoom = Math.max(.1, Math.min(4, Math.round(z * 100) / 100));
+      container.style.transform = `scale(${zoom})`;
+      document.getElementById('zoom-label').textContent = Math.round(zoom * 100) + '%';
+    }
+    function fitToView() {
+      if (!imgW) return;
+      const wr = document.getElementById('canvas-wrapper');
+      setZoom(Math.min((wr.clientWidth - 48) / imgW, (wr.clientHeight - 48) / imgH, 1));
+    }
+    document.getElementById('canvas-wrapper').addEventListener('wheel', e => {
+      if (e.ctrlKey || e.metaKey) { e.preventDefault(); setZoom(zoom + (e.deltaY < 0 ? .1 : -.1)); }
+    }, { passive: false });
+
+    // ════════════════════════════════════════════════════
+    // MODE
+    // ════════════════════════════════════════════════════
+    function setMode(m) {
+      drawMode = m;
+      document.getElementById('mode-rect').classList.toggle('active', m === 'rect');
+      document.getElementById('mode-rotate').classList.toggle('active', m === 'rotate');
+      document.getElementById('mode-hint').textContent = m === 'rect'
+        ? 'Drag untuk gambar slot persegi. Fine-tune di panel slot.'
+        : 'Klik titik tengah slot, drag untuk tentukan sudut + lebar.';
+    }
+
+    // ════════════════════════════════════════════════════
+    // DRAW INTERACTION
+    // ════════════════════════════════════════════════════
+    iLayer.addEventListener('mousedown', onDown);
+    iLayer.addEventListener('mousemove', onMove);
+    iLayer.addEventListener('mouseup', onUp);
+    iLayer.addEventListener('mouseleave', e => { if (isDrawing) onUp(e) });
+    iLayer.addEventListener('touchstart', e => { e.preventDefault(); onDown(t2m(e)) }, { passive: false });
+    iLayer.addEventListener('touchmove', e => { e.preventDefault(); onMove(t2m(e)) }, { passive: false });
+    iLayer.addEventListener('touchend', e => { e.preventDefault(); onUp(t2m(e, true)) }, { passive: false });
+    function t2m(e, end = false) { const t = end ? e.changedTouches[0] : e.touches[0]; return { clientX: t.clientX, clientY: t.clientY } }
+
+    function getPos(e) {
+      const r = iLayer.getBoundingClientRect();
+      return { x: Math.max(0, Math.min((e.clientX - r.left) / zoom, imgW)), y: Math.max(0, Math.min((e.clientY - r.top) / zoom, imgH)) };
+    }
+
+    function onDown(e) {
+      if (!imgW) return;
+      dragStart = getPos(e); isDrawing = true;
+      ghostEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      ghostEl.setAttribute('fill', 'rgba(255,255,255,0.08)');
+      ghostEl.setAttribute('stroke', '#fff'); ghostEl.setAttribute('stroke-width', '1.5');
+      ghostEl.setAttribute('stroke-dasharray', '6,3');
+      slotsSvg.appendChild(ghostEl);
+    }
+    function onMove(e) {
+      const p = getPos(e);
+      document.getElementById('cursor-pos').textContent = `X:${Math.round(p.x)} Y:${Math.round(p.y)}`;
+      if (!isDrawing || !ghostEl) return;
+      liveGhost(p);
+    }
+    function liveGhost(p) {
+      if (drawMode === 'rect') {
+        const x = Math.min(dragStart.x, p.x), y = Math.min(dragStart.y, p.y);
+        const w = Math.abs(p.x - dragStart.x), h = Math.abs(p.y - dragStart.y);
+        ghostEl.setAttribute('x', x); ghostEl.setAttribute('y', y);
+        ghostEl.setAttribute('width', w); ghostEl.setAttribute('height', h); ghostEl.setAttribute('transform', '');
+        document.getElementById('drawing-info').textContent = `${Math.round(w)}×${Math.round(h)}px`;
+      } else {
+        const dx = p.x - dragStart.x, dy = p.y - dragStart.y;
+        const hw = Math.sqrt(dx * dx + dy * dy), hh = hw * .6;
+        const a = Math.atan2(dy, dx) * 180 / Math.PI;
+        ghostEl.setAttribute('x', -hw); ghostEl.setAttribute('y', -hh);
+        ghostEl.setAttribute('width', hw * 2); ghostEl.setAttribute('height', hh * 2);
+        ghostEl.setAttribute('transform', `translate(${dragStart.x},${dragStart.y}) rotate(${a})`);
+        document.getElementById('drawing-info').textContent = `${Math.round(hw * 2)}px · ${Math.round(a)}°`;
+      }
+    }
+    function onUp(e) {
+      if (!isDrawing) return; isDrawing = false;
+      if (ghostEl) { ghostEl.remove(); ghostEl = null; }
+      document.getElementById('drawing-info').textContent = '';
+      const p = getPos(e); const dx = p.x - dragStart.x, dy = p.y - dragStart.y;
+      if (drawMode === 'rect') {
+        const w = Math.abs(dx), h = Math.abs(dy); if (w < 8 || h < 8) return;
+        const x = Math.min(dragStart.x, p.x), y = Math.min(dragStart.y, p.y);
+        slots.push({ cx: r4((x + w / 2) / imgW), cy: r4((y + h / 2) / imgH), w: r4(w / imgW), h: r4(h / imgH), angle: 0 });
+      } else {
+        const hw = Math.sqrt(dx * dx + dy * dy); if (hw < 8) return;
+        const a = Math.atan2(dy, dx) * 180 / Math.PI;
+        slots.push({ cx: r4(dragStart.x / imgW), cy: r4(dragStart.y / imgH), w: r4(hw * 2 / imgW), h: r4(hw * 1.2 / imgH), angle: r4(a) });
+      }
+      renderAll(); updateOutput();
+    }
+
+    // ════════════════════════════════════════════════════
+    // RENDER
+    // ════════════════════════════════════════════════════
+    function renderAll() { renderSvg(); renderSidebar(); }
+
+    function renderSvg() {
+      slotsSvg.querySelectorAll('.sg').forEach(e => e.remove());
+      slots.forEach((s, i) => {
+        const cx = s.cx * imgW, cy = s.cy * imgH, w = s.w * imgW, h = s.h * imgH, a = s.angle || 0;
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.classList.add('sg'); g.setAttribute('transform', `translate(${cx},${cy}) rotate(${a})`);
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', -w / 2); rect.setAttribute('y', -h / 2); rect.setAttribute('width', w); rect.setAttribute('height', h);
+        rect.setAttribute('fill', 'rgba(212,160,23,0.13)'); rect.setAttribute('stroke', '#D4A017'); rect.setAttribute('stroke-width', '1.5');
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', -w / 2 + 5); label.setAttribute('y', -h / 2 + 14);
+        label.setAttribute('fill', '#D4A017'); label.setAttribute('font-size', '12'); label.setAttribute('font-weight', '700'); label.setAttribute('font-family', 'monospace');
+        label.textContent = `S${i + 1}` + (a ? ` ${r2(a)}°` : '');
+        g.appendChild(rect); g.appendChild(label); slotsSvg.appendChild(g);
+      });
+    }
+
+    // ════════════════════════════════════════════════════
+    // SIDEBAR — PRECISION CONTROLS
+    // ════════════════════════════════════════════════════
+    function renderSidebar() {
+      const list = document.getElementById('slot-list');
+      document.getElementById('slot-count-badge').textContent = slots.length;
+      if (slots.length === 0) { list.innerHTML = '<div class="empty-state">Belum ada slot. Gambar di kanvas.</div>'; return; }
+      list.innerHTML = '';
+      slots.forEach((s, i) => list.appendChild(buildSlotCard(s, i)));
+    }
+
+    function buildSlotCard(s, i) {
+      const card = document.createElement('div');
+      card.className = 'slot-card'; card.id = `card-${i}`;
+      card.innerHTML = `
+    <div class="slot-card-head" onclick="toggleCard(${i})">
+      <span class="slot-card-label">Slot ${i + 1}</span>
+      <span class="slot-card-summary" id="summary-${i}">cx:${r4(s.cx)} cy:${r4(s.cy)} · ${r2(s.angle || 0)}°</span>
+      <button class="slot-card-del" onclick="event.stopPropagation();deleteSlot(${i})">✕</button>
+    </div>
+    <div class="slot-card-body" id="body-${i}">
+      ${buildCtrl(i, 'cx', 'Center X', '', s.cx, -1, 2, .0001, .001, null)}
+      ${buildCtrl(i, 'cy', 'Center Y', '', s.cy, -1, 2, .0001, .001, null)}
+      <div class="ctrl-divider"></div>
+      ${buildCtrl(i, 'w', 'Lebar (w)', '', s.w, 0.001, 2, .0001, .001, null)}
+      ${buildCtrl(i, 'h', 'Tinggi (h)', '', s.h, 0.001, 2, .0001, .001, null)}
+      <div class="ctrl-divider"></div>
+      ${buildCtrl(i, 'angle', 'Rotasi', '°', s.angle || 0, -180, 180, .1, 1, [-90, -45, -30, -15, 0, 15, 30, 45, 90])}
+    </div>
+  `;
+      return card;
+    }
+
+    /**
+     * buildCtrl — membuat satu baris kontrol presisi
+     * @param {number} si       - slot index
+     * @param {string} prop     - nama property di slot object
+     * @param {string} label
+     * @param {string} unit     - unit label (° atau kosong)
+     * @param {number} val      - nilai awal
+     * @param {number} min
+     * @param {number} max
+     * @param {number} fineStep - step tombol ‹ ›
+     * @param {number} bigStep  - step Shift+arrow
+     * @param {number[]|null} snaps - array snap value (null = tidak ada)
+     */
+    function buildCtrl(si, prop, label, unit, val, min, max, fineStep, bigStep, snaps) {
+      const uid = `${si}-${prop}`;
+      const decimals = fineStep < 0.001 ? 5 : fineStep < 0.01 ? 4 : fineStep < 0.1 ? 2 : 1;
+      const dispVal = +val.toFixed(decimals);
+
+      let snapHtml = '';
+      if (snaps) {
+        snapHtml = `<div class="snap-row" id="snaprow-${uid}">` +
+          snaps.map(v => `<button class="snap-btn${v === Math.round(val) ? ` active-snap` : ''}" onclick="setVal(${si},'${prop}',${v})">${v}${unit}</button>`).join('') +
+          `</div>`;
+      }
+
+      return `
+    <div class="ctrl">
+      <div class="ctrl-label">${label}</div>
+      <div class="ctrl-row">
+        <div class="step-btns">
+          <button class="step-btn" title="−${fineStep}${unit}" onclick="nudge(${si},'${prop}',${-fineStep},${min},${max})">‹</button>
+        </div>
+        <input type="range"
+          id="rng-${uid}" min="${min}" max="${max}" step="${fineStep}" value="${dispVal}"
+          oninput="onRangeChange(${si},'${prop}',this.value,${min},${max})"
+        />
+        <input class="num-in" type="number"
+          id="num-${uid}" min="${min}" max="${max}" step="${fineStep}" value="${dispVal}"
+          oninput="onNumChange(${si},'${prop}',this.value,${min},${max})"
+          onkeydown="onNumKey(event,${si},'${prop}',${fineStep},${bigStep},${min},${max})"
+        />
+        <span class="ctrl-unit">${unit || ''}</span>
+        <div class="step-btns">
+          <button class="step-btn" title="+${fineStep}${unit}" onclick="nudge(${si},'${prop}',${fineStep},${min},${max})">›</button>
+        </div>
+      </div>
+      ${snapHtml}
+    </div>
+  `;
+    }
+
+    // ── Control event handlers ──────────────────────────
+
+    function onRangeChange(si, prop, rawVal, min, max) {
+      const v = clamp(parseFloat(rawVal), min, max);
+      slots[si][prop] = v;
+      syncNum(si, prop, v);
+      updateSummary(si); updateSnaps(si, prop, v); renderSvg(); updateOutput();
+    }
+    function onNumChange(si, prop, rawVal, min, max) {
+      const v = parseFloat(rawVal);
+      if (isNaN(v)) return;
+      const cv = clamp(v, min, max);
+      slots[si][prop] = cv;
+      syncRange(si, prop, cv);
+      updateSummary(si); updateSnaps(si, prop, cv); renderSvg(); updateOutput();
+    }
+    function onNumKey(e, si, prop, fineStep, bigStep, min, max) {
+      // Arrow keys: fine step. Shift+Arrow: big step
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const step = e.shiftKey ? bigStep : fineStep;
+        const delta = e.key === 'ArrowUp' ? step : -step;
+        nudge(si, prop, delta, min, max);
+      }
+    }
+    function nudge(si, prop, delta, min, max) {
+      const v = clamp((slots[si][prop] || 0) + delta, min, max);
+      const dec = Math.abs(delta) < 0.001 ? 5 : Math.abs(delta) < 0.01 ? 4 : Math.abs(delta) < 0.1 ? 2 : 1;
+      slots[si][prop] = parseFloat(v.toFixed(dec));
+      const uid = `${si}-${prop}`;
+      const numEl = document.getElementById(`num-${uid}`);
+      const rngEl = document.getElementById(`rng-${uid}`);
+      if (numEl) numEl.value = slots[si][prop];
+      if (rngEl) rngEl.value = slots[si][prop];
+      updateSummary(si); updateSnaps(si, prop, slots[si][prop]); renderSvg(); updateOutput();
+    }
+    function setVal(si, prop, v) {
+      slots[si][prop] = v;
+      const uid = `${si}-${prop}`;
+      const numEl = document.getElementById(`num-${uid}`);
+      const rngEl = document.getElementById(`rng-${uid}`);
+      if (numEl) numEl.value = v;
+      if (rngEl) rngEl.value = v;
+      updateSummary(si); updateSnaps(si, prop, v); renderSvg(); updateOutput();
+    }
+
+    function syncNum(si, prop, v) {
+      const el = document.getElementById(`num-${si}-${prop}`); if (el) el.value = v;
+    }
+    function syncRange(si, prop, v) {
+      const el = document.getElementById(`rng-${si}-${prop}`); if (el) el.value = v;
+    }
+    function updateSummary(si) {
+      const s = slots[si];
+      const el = document.getElementById(`summary-${si}`);
+      if (el) el.textContent = `cx:${r4(s.cx)} cy:${r4(s.cy)} · ${r2(s.angle || 0)}°`;
+    }
+    function updateSnaps(si, prop, v) {
+      const uid = `${si}-${prop}`;
+      const row = document.getElementById(`snaprow-${uid}`); if (!row) return;
+      row.querySelectorAll('.snap-btn').forEach(btn => {
+        const bv = parseFloat(btn.textContent);
+        btn.classList.toggle('active-snap', Math.abs(bv - v) < 0.001);
+      });
+    }
+
+    function toggleCard(i) {
+      const body = document.getElementById(`body-${i}`);
+      if (body) body.style.display = body.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    // ════════════════════════════════════════════════════
+    // SLOT ACTIONS
+    // ════════════════════════════════════════════════════
+    function deleteSlot(i) { slots.splice(i, 1); renderAll(); updateOutput(); }
+    function clearSlots() { slots = []; renderAll(); updateOutput(); }
+
+    // ════════════════════════════════════════════════════
+    // PRESETS
+    // ════════════════════════════════════════════════════
+    function applyPreset(id) {
+      if (!imgW) { alert('Load template PNG terlebih dahulu!'); return; }
+      const p = {
+        1: [{ cx: .5, cy: .48, w: .84, h: .52, angle: 0 }],
+        2: [{ cx: .27, cy: .28, w: .42, h: .36, angle: 0 }, { cx: .73, cy: .28, w: .42, h: .36, angle: 0 },
+        { cx: .27, cy: .70, w: .42, h: .36, angle: 0 }, { cx: .73, cy: .70, w: .42, h: .36, angle: 0 }],
+        3: [{ cx: .5, cy: .125, w: .30, h: .20, angle: 0 }, { cx: .5, cy: .375, w: .30, h: .20, angle: 0 },
+        { cx: .5, cy: .625, w: .30, h: .20, angle: 0 }, { cx: .5, cy: .875, w: .30, h: .20, angle: 0 }],
+      }[id];
+      slots = JSON.parse(JSON.stringify(p));
+      document.getElementById('layout-id').value = id;
+      document.getElementById('layout-name').value = ['', 'Single Center', '2×2 Grid', 'Vertical Strip'][id];
+      renderAll(); updateOutput();
+    }
+
+    // ════════════════════════════════════════════════════
+    // OUTPUT
+    // ════════════════════════════════════════════════════
+    function updateOutput() {
+      const lid = parseInt(document.getElementById('layout-id').value) || 1;
+      const lname = document.getElementById('layout-name').value || 'Unnamed';
+      const out = {
+        layoutId: lid, name: lname, slotCount: slots.length,
+        templateSize: imgW ? { w: imgW, h: imgH } : null,
+        slots: slots.map((s, i) => ({
+          index: i, cx: r4(s.cx), cy: r4(s.cy), w: r4(s.w), h: r4(s.h),
+          angle: r2(s.angle || 0),
+          _pxHint: imgW ? { cx: Math.round(s.cx * imgW), cy: Math.round(s.cy * imgH), w: Math.round(s.w * imgW), h: Math.round(s.h * imgH) } : undefined,
+        })),
+      };
+      document.getElementById('output-box').textContent = JSON.stringify(out, null, 2);
+    }
+    document.getElementById('layout-id').addEventListener('input', updateOutput);
+    document.getElementById('layout-name').addEventListener('input', updateOutput);
+
+    function copyOutput() {
+      navigator.clipboard.writeText(document.getElementById('output-box').textContent).then(() => {
+        const t = document.getElementById('toast'); t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000);
+      });
+    }
+    function downloadOutput() {
+      const name = (document.getElementById('layout-name').value || 'layout').toLowerCase().replace(/\s+/g, '-');
+      const blob = new Blob([document.getElementById('output-box').textContent], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `layout-${name}.json`; a.click();
+    }
+
+    // ════════════════════════════════════════════════════
+    // UTILS
+    // ════════════════════════════════════════════════════
+    function r4(n) { return Math.round(n * 10000) / 10000 }
+    function r2(n) { return Math.round(n * 100) / 100 }
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)) }
+
+    document.addEventListener('keydown', e => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement.tagName !== 'INPUT') {
+        slots.pop(); renderAll(); updateOutput();
+      }
+    });
+
+    updateOutput();
+  </script>
 </body>
+
 </html>

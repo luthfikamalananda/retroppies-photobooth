@@ -6,21 +6,19 @@
  * Origin (0,0) is top-left corner.
  */
 export interface SlotDef {
-  /** Slot index (0-based) */
   index: number;
-  /** Left edge, as fraction of template width  (0..1) */
-  x: number;
-  /** Top edge, as fraction of template height (0..1) */
-  y: number;
-  /** Width, as fraction of template width  (0..1) */
+  // Format baru (dengan rotasi) — titik tengah
+  cx: number;
+  cy: number;
+  // Bersama
   w: number;
-  /** Height, as fraction of template height (0..1) */
   h: number;
+  angle?: number; // derajat, searah jarum jam
   _pxHint?: {
-    x?: number;
-    y?: number;
-    w?: number;
-    h?: number;
+    cx: number;
+    cy: number;
+    w: number;
+    h: number;
   };
 }
 

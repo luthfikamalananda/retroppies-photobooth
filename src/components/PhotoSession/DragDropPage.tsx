@@ -185,10 +185,11 @@ function TemplateComposite({
           onClick={() => onSlotClick(slotDef.index)}
           style={{
             position: "absolute",
-            left: `${slotDef.x * 100}%`,
-            top: `${slotDef.y * 100}%`,
+            left: `${slotDef.cx * 100}%`,
+            top: `${slotDef.cy * 100}%`,
             width: `${slotDef.w * 100}%`,
             height: `${slotDef.h * 100}%`,
+            transform: `translate(-50%, -50%) rotate(${slotDef.angle}deg)`,
             overflow: "hidden",
             cursor: "pointer",
           }}
@@ -543,17 +544,34 @@ export function DragDropPage() {
         const dataUrl = currentSlotMap[slot.index]
         if (!dataUrl) continue
         const img = await loadImage(dataUrl)
-        const slotX = slot.x * dispW, slotY = slot.y * dispH
-        const slotW = slot.w * dispW, slotH = slot.h * dispH
+        const slotCX = slot.cx * dispW
+        const slotCY = slot.cy * dispH
+        const slotW = slot.w * dispW
+        const slotH = slot.h * dispH
+        const angle = slot.angle ?? 0
+
         const { sx, sy, sw, sh } = getCropParams(img.width, img.height, slotW, slotH)
 
         photoCtx.save()
+
+        photoCtx.translate(slotCX, slotCY)
+        photoCtx.rotate((angle * Math.PI) / 180)
+
         photoCtx.beginPath()
-        photoCtx.rect(slotX, slotY, slotW, slotH)
+        photoCtx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
         photoCtx.clip()
-        photoCtx.filter = cssFilter || 'none' // ← Apply filter ke foto
-        photoCtx.drawImage(img, sx, sy, sw, sh, slotX, slotY, slotW, slotH)
-        photoCtx.filter = 'none' // ← Reset filter sebelum gambar template overlay
+
+        photoCtx.filter = cssFilter || 'none'
+
+        photoCtx.drawImage(
+          img,
+          sx, sy, sw, sh,
+          -slotW / 2,
+          -slotH / 2,
+          slotW,
+          slotH
+        )
+
         photoCtx.restore()
       }
 
@@ -583,16 +601,34 @@ export function DragDropPage() {
         const dataUrl = currentSlotMap[slot.index]
         if (!dataUrl) continue
         const img = await loadImage(dataUrl)
-        const slotX = slot.x * prodW, slotY = slot.y * prodH
-        const slotW = slot.w * prodW, slotH = slot.h * prodH
+        const slotCX = slot.cx * prodW
+        const slotCY = slot.cy * prodH
+        const slotW = slot.w * prodW
+        const slotH = slot.h * prodH
+        const angle = slot.angle ?? 0
+
         const { sx, sy, sw, sh } = getCropParams(img.width, img.height, slotW, slotH)
+
         photoProductionCtx.save()
+
+        photoProductionCtx.translate(slotCX, slotCY)
+        photoProductionCtx.rotate((angle * Math.PI) / 180)
+
         photoProductionCtx.beginPath()
-        photoProductionCtx.rect(slotX, slotY, slotW, slotH)
+        photoProductionCtx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
         photoProductionCtx.clip()
+
         photoProductionCtx.filter = cssFilter || 'none'
-        photoProductionCtx.drawImage(img, sx, sy, sw, sh, slotX, slotY, slotW, slotH)
-        photoProductionCtx.filter = 'none'
+
+        photoProductionCtx.drawImage(
+          img,
+          sx, sy, sw, sh,
+          -slotW / 2,
+          -slotH / 2,
+          slotW,
+          slotH
+        )
+
         photoProductionCtx.restore()
       }
       photoProductionCtx.filter = 'none'
@@ -656,18 +692,43 @@ export function DragDropPage() {
 
           for (const { videoEl, slot } of videoSlots) {
             if (videoEl.ended) continue
-            const slotX = slot.x * width, slotY = slot.y * height
-            const slotW = slot.w * width, slotH = slot.h * height
-            const { sx, sy, sw, sh } = getCropParams(videoEl.videoWidth, videoEl.videoHeight, slotW, slotH)
+
+            const slotCX = slot.cx * width
+            const slotCY = slot.cy * height
+            const slotW = slot.w * width
+            const slotH = slot.h * height
+            const angle = slot.angle ?? 0
+
+            const { sx, sy, sw, sh } = getCropParams(
+              videoEl.videoWidth,
+              videoEl.videoHeight,
+              slotW,
+              slotH
+            )
 
             ctx.save()
+
+            ctx.translate(slotCX, slotCY)
+            ctx.rotate((angle * Math.PI) / 180)
+
             ctx.beginPath()
-            ctx.rect(slotX, slotY, slotW, slotH)
+            ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
             ctx.clip()
-            ctx.filter = cssFilter || 'none' // ← Apply filter ke video frame
-            ctx.drawImage(videoEl, sx, sy, sw, sh, slotX, slotY, slotW, slotH)
-            ctx.filter = 'none'
+
+            // 🔥 apply filter per-draw (bukan global state leak)
+            ctx.filter = cssFilter || 'none'
+
+            ctx.drawImage(
+              videoEl,
+              sx, sy, sw, sh,
+              -slotW / 2,
+              -slotH / 2,
+              slotW,
+              slotH
+            )
+
             ctx.restore()
+
           }
 
           // Template overlay tidak kena filter
@@ -970,7 +1031,7 @@ export function DragDropPage() {
       </AnimatePresence>
 
       {/* DEV */}
-      <VideoPreviewModal type="template" />
+      {/* <VideoPreviewModal type="template" /> */}
 
       <AskPermissionModal
         isOpen={openModalPermission}

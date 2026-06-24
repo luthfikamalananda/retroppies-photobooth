@@ -1,7 +1,5 @@
 import { btnNextBlack, iconChecklist, logoWindowControl, logoWindowControlWhite } from '@/assets'
-import { sendInvoice } from '@/services/emailService'
 import { getSessionResult, getSesssions, sendEmail } from '@/services/finalizeService'
-import { printPhoto, printPhotoBorderless } from '@/services/printService'
 import { usePhotoStore } from '@/store/photoStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useUIStore } from '@/store/uiStore'
@@ -80,7 +78,7 @@ function EmailSentModal({
 }
 
 export function FinishedPhotoPage() {
-  const { sessionCode, resetSession, startTimer } = useSessionStore()
+  const { sessionCode, resetSession, startTimer, goBack } = useSessionStore()
   const { templateWithPhotoProduction, clearPhotos } = usePhotoStore()
 
   const [sessionValue, setSessionValue] = useState<getSessionResult | null>(null)

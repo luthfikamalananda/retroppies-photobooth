@@ -191,10 +191,11 @@ export function TemplatePage() {
                                 style={{
                                   position: 'absolute',
                                   backgroundColor: "#DBDBDB",
-                                  left: `${slot.x * 100}%`,
-                                  top: `${slot.y * 100}%`,
+                                  left: `${slot.cx * 100}%`,
+                                  top: `${slot.cy * 100}%`,
                                   width: `${slot.w * 100}%`,
                                   height: `${slot.h * 100}%`,
+                                  transform: `translate(-50%, -50%) rotate(${slot.angle}deg)`
                                 }}
                                 className="flex flex-col items-center justify-center bg-retro-cream/10 border border-dashed border-retro-cream/30"
                               >
