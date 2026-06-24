@@ -17,18 +17,23 @@ import { VideoPreviewModal } from "./VideoPreviewModal";
 const TOTAL_SLOTS = 4;
 const COUNTDOWN_DURATION = 6;
 
-// ─── Webcam resolution — turunkan agar tidak boros decode di iGPU lemah ──────
-// 720p cukup untuk preview + screenshot kualitas baik, tapi jauh lebih ringan
-// dibanding default browser yang kadang minta 1080p+.
-const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
+// ─── Resolusi PREVIEW (live webcam di layar) — ringan untuk performa ────────
+const PREVIEW_CONSTRAINTS: MediaTrackConstraints = {
   width: { ideal: 1280 },
   height: { ideal: 720 },
-  frameRate: { ideal: 30, max: 60 }, // 24fps cukup smooth, lebih ringan dari 30fps
+  frameRate: { ideal: 30, max: 60 },
+};
+
+// ─── Resolusi CAPTURE (saat ambil foto) — tinggi untuk hasil tajam ──────────
+// Ini di-apply SEMENTARA ke track yang sama, tepat sebelum getScreenshot(),
+// lalu dikembalikan ke PREVIEW_CONSTRAINTS setelahnya. Browser/webcam modern
+// umumnya support hingga 4K (3840x2160) atau minimal Full HD (1920x1080).
+const CAPTURE_CONSTRAINTS: MediaTrackConstraints = {
+  width: { ideal: 3840 },
+  height: { ideal: 2160 },
 };
 
 // ─── Isolated Countdown component ────────────────────────────────────────────
-// Di-isolasi sendiri supaya re-render tiap detik TIDAK memicu re-render
-// seluruh TakePhotoPage (grid foto, webcam, dll tetap diam).
 const CountdownDisplay = memo(function CountdownDisplay({
   countdown,
 }: {
@@ -41,14 +46,11 @@ const CountdownDisplay = memo(function CountdownDisplay({
       <motion.div
         key={`key-${countdown}`}
         className="text-9xl font-gaming text-[#FFFFFF]"
-        // drop-shadow dihapus — sangat berat di iGPU rendah saat dikombinasikan
-        // dengan animasi scale tiap detik. Ganti dengan text-shadow CSS statis
-        // yang jauh lebih murah (tidak recalculate tiap frame animasi).
         style={{ textShadow: "0 4px 12px rgba(0,0,0,0.5)" }}
         initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 1.2, opacity: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }} // durasi lebih singkat, lebih ringan
+        transition={{ duration: 0.3, ease: "easeOut" }}
       >
         {countdown}
       </motion.div>
@@ -84,6 +86,46 @@ export function TakePhotoPage() {
     setBg("image-white");
   }, []);
 
+  // ── Helper: capture foto di resolusi tinggi, lalu kembalikan ke preview ──
+  const captureHighRes = useCallback(async (): Promise<string | undefined> => {
+    const videoEl = webcamRef.current?.video as HTMLVideoElement | undefined;
+    const stream = videoEl?.srcObject as MediaStream | undefined;
+    const track = stream?.getVideoTracks()[0];
+
+    if (!track) {
+      // Fallback — kalau track tidak ada, capture seperti biasa di resolusi preview
+      return webcamRef.current?.getScreenshot() ?? undefined;
+    }
+
+    try {
+      // Upscale sementara ke resolusi tinggi sebelum capture
+      await track.applyConstraints(CAPTURE_CONSTRAINTS);
+
+      // Tunggu 1 frame agar video element benar-benar render di resolusi baru
+      // sebelum getScreenshot() membaca canvas — tanpa ini, screenshot
+      // bisa "race" dengan resolusi lama yang belum sempat ganti.
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      const dataUrl = webcamRef.current?.getScreenshot({
+        width: track.getSettings().width,
+        height: track.getSettings().height,
+      });
+
+      return dataUrl ?? undefined;
+    } catch (err) {
+      console.error("Gagal apply high-res constraints, fallback ke preview res:", err);
+      return webcamRef.current?.getScreenshot() ?? undefined;
+    } finally {
+      // Selalu kembalikan ke resolusi preview yang ringan, apapun hasilnya
+      try {
+        await track.applyConstraints(PREVIEW_CONSTRAINTS);
+      } catch {
+        // Diamkan — beberapa device kadang reject constraint kedua,
+        // tapi ini tidak fatal, stream tetap jalan di resolusi terakhir yang berhasil
+      }
+    }
+  }, []);
+
   // Countdown timer effect with video recording
   useEffect(() => {
     if (countdown === null) return;
@@ -99,11 +141,9 @@ export function TakePhotoPage() {
               ? "video/webm"
               : "video/mp4";
 
-          // Bitrate dibatasi — mengurangi beban encoding CPU secara signifikan
-          // tanpa banyak mengurangi kualitas visual untuk ukuran video pendek ini.
           mediaRecorderRef.current = new MediaRecorder(stream, {
             mimeType,
-            videoBitsPerSecond: 2_500_000, // 2.5 Mbps — cukup untuk 720p, ringan di CPU
+            videoBitsPerSecond: 2_500_000,
           });
 
           mediaRecorderRef.current.ondataavailable = (event) => {
@@ -120,10 +160,12 @@ export function TakePhotoPage() {
     }
 
     if (countdown === 0) {
-      const dataUrl = webcamRef.current?.getScreenshot();
-      if (dataUrl) {
-        addCapture({ slotIndex: nextSlot, dataUrl, capturedAt: Date.now() });
-      }
+      // ── Capture foto di resolusi tinggi (async) ──
+      captureHighRes().then((dataUrl) => {
+        if (dataUrl) {
+          addCapture({ slotIndex: nextSlot, dataUrl, capturedAt: Date.now() });
+        }
+      });
 
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.onstop = () => {
@@ -160,10 +202,10 @@ export function TakePhotoPage() {
   return (
     <motion.div
       className="relative z-10 flex flex-col items-center justify-between w-full h-full py-12 px-14 gap-4"
-      initial={{ opacity: 0 }} // hapus translasi X — opacity-only jauh lebih ringan
+      initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }} // durasi lebih singkat
+      transition={{ duration: 0.25 }}
     >
       {/* ── Header row ── */}
       <div className="flex flex-row w-full justify-between items-center flex-shrink-0 invisible pb-4">
@@ -184,7 +226,8 @@ export function TakePhotoPage() {
             <Webcam
               ref={webcamRef}
               screenshotFormat="image/jpeg"
-              videoConstraints={VIDEO_CONSTRAINTS} // ← turunkan resolusi capture
+              screenshotQuality={0.95} // ← kualitas JPEG dinaikkan (default 0.92), penting untuk hasil tajam
+              videoConstraints={PREVIEW_CONSTRAINTS}
               className="w-full h-full object-cover"
               mirrored
             />
@@ -200,8 +243,6 @@ export function TakePhotoPage() {
               </div>
             )}
 
-            {/* Countdown sekarang terisolasi — re-render tiap detik TIDAK
-                memicu re-render TakePhotoPage atau grid foto */}
             <AnimatePresence mode="wait">
               <CountdownDisplay countdown={countdown} />
             </AnimatePresence>
@@ -266,7 +307,7 @@ export function TakePhotoPage() {
                 }
               }}
               className="touch-target w-48 h-max select-none cursor-pointer transition-all"
-              initial={{ opacity: 0 }} // hapus rotate — opacity-only lebih ringan
+              initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
