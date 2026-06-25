@@ -1,3 +1,36 @@
+/**
+ * TakePhotoPage — optimized for low-spec MiniPC
+ *
+ * Perubahan arsitektur utama:
+ *
+ * 1. RECORDING DIPISAH KE CANVAS OFFSCREEN
+ *    Dulu: MediaRecorder merekam langsung dari webcam stream (live preview track).
+ *    Sekarang: ada canvas offscreen kecil (960×540) khusus untuk recording.
+ *    - Preview webcam tetap jalan normal tanpa interferensi dari recorder
+ *    - Encoder video hanya handle resolusi kecil → tidak patah-patah di MiniPC
+ *    - applyConstraints untuk high-res TIDAK menyentuh recording track sama sekali
+ *
+ * 2. DURASI RECORDING DIJAMIN DENGAN TIMER FIXED
+ *    Dulu: recording berhenti saat countdown === 0 di useEffect.
+ *    Sekarang: recorder.stop() dipanggil via setTimeout(COUNTDOWN_DURATION * 1000)
+ *    sejak start recording — durasi selalu konsisten, tidak bergantung timing React.
+ *
+ * 3. FOTO DAN VIDEO DIPROSES PARALEL (sebisa mungkin)
+ *    Dulu: stopRecordingAndWait() → captureHighRes() sequential.
+ *    Sekarang: stopRecording() dipanggil dulu, lalu captureHighRes() langsung
+ *    jalan karena track recording TERPISAH dari track preview — tidak perlu
+ *    tunggu recording selesai untuk applyConstraints.
+ *    onstop callback handle simpan blob secara async.
+ *
+ * 4. POSE SCREEN saat countdown === 0
+ *    Full-screen overlay "POSE" muncul segera saat countdown hit 0,
+ *    sebelum proses foto selesai — user tidak lihat blank screen.
+ *
+ * 5. STRICT MODE SAFE
+ *    useRef untuk semua state recording (recorder, chunks, stopTimeout)
+ *    — tidak ada race condition dari double-invoke useEffect.
+ */
+
 import { useRef, useCallback, useEffect, useState, memo } from "react";
 import Webcam from "react-webcam";
 import { AnimatePresence, motion } from "framer-motion";
@@ -5,7 +38,6 @@ import { useSessionStore } from "@/store/sessionStore";
 import { usePhotoStore } from "@/store/photoStore";
 import { useUIStore } from "@/store/uiStore";
 import {
-  btnBackGold,
   btnNextBlack,
   btnNextWhite,
   iconNoImage,
@@ -13,251 +45,318 @@ import {
   logoBack,
 } from "@/assets";
 import { VideoPreviewModal } from "./VideoPreviewModal";
+import { countDownPhoto } from "@/const/timers";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const TOTAL_SLOTS = 4;
-const COUNTDOWN_DURATION = 6;
+const COUNTDOWN_DURATION = countDownPhoto;           // detik — harus sama dengan timer store
 
-// ─── Resolusi PREVIEW (live webcam di layar) — ringan untuk performa ────────
+// Resolusi PREVIEW — ringan agar preview smooth di MiniPC
 const PREVIEW_CONSTRAINTS: MediaTrackConstraints = {
   width: { ideal: 1280 },
   height: { ideal: 720 },
-  frameRate: { ideal: 30, max: 60 },
+  frameRate: { ideal: 30, max: 30 },   // cap 30fps — kurangi beban GPU
 };
 
-// ─── Resolusi CAPTURE (saat ambil foto) — tinggi untuk hasil tajam ──────────
+// Resolusi CAPTURE — tinggi untuk print quality
 const CAPTURE_CONSTRAINTS: MediaTrackConstraints = {
   width: { ideal: 3840 },
   height: { ideal: 2160 },
 };
 
-// ─── Isolated Countdown component ────────────────────────────────────────────
+// Resolusi canvas offscreen untuk recording video
+// Sengaja LEBIH KECIL dari preview — tujuannya hanya buat GIF/video sosmed
+// bukan untuk print. MiniPC tidak perlu encode 1280×720 real-time.
+const RECORD_WIDTH = 960;
+const RECORD_HEIGHT = 540;
+
+// ─── Countdown display ────────────────────────────────────────────────────────
+
 const CountdownDisplay = memo(function CountdownDisplay({
   countdown,
 }: {
   countdown: number | null;
 }) {
-  if (countdown === null) return null;
+  if (countdown === null || countdown === 0) return null;
 
   return (
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 py-2 rounded-full text-sm overflow-hidden">
-      <motion.div
-        key={`key-${countdown}`}
-        className="text-9xl font-gaming text-[#FFFFFF]"
-        style={{ textShadow: "0 4px 12px rgba(0,0,0,0.5)" }}
-        initial={{ scale: 0.5, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 1.2, opacity: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-      >
-        {countdown}
-      </motion.div>
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={`cd-${countdown}`}
+          className="text-9xl font-gaming text-white"
+          style={{ textShadow: "0 4px 24px rgba(0,0,0,0.6)" }}
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 1.2, opacity: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
+          {countdown}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 });
 
+// ─── POSE overlay — muncul saat countdown hit 0 ──────────────────────────────
+
+const PoseOverlay = memo(function PoseOverlay({ visible }: { visible: boolean }) {
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-30"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+        >
+          {/* Semi-transparent overlay */}
+          <div className="absolute inset-0 bg-black/30" />
+
+          {/* POSE text */}
+          <motion.p
+            className="relative font-gaming text-white z-10"
+            style={{
+              fontSize: "clamp(64px, 14vw, 160px)",
+              textShadow: "0 4px 32px rgba(0,0,0,0.8), 0 0 60px rgba(247,204,64,0.6)",
+              letterSpacing: "0.15em",
+              color: "#F7CC40",
+            }}
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 380, damping: 28, delay: 0.05 }}
+          >
+            POSE!
+          </motion.p>
+
+          {/* Subtitle */}
+          <motion.p
+            className="relative font-gaming text-white/80 z-10 text-2xl mt-2"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.2 }}
+          >
+            Taking photo...
+          </motion.p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+});
+
+// ─── TakePhotoPage ────────────────────────────────────────────────────────────
+
 export function TakePhotoPage() {
   const { goNext, goBack } = useSessionStore();
   const {
-    captures,
-    capturesVideo,
-    addCapture,
-    addVideoCapture,
-    retakeSlot,
-    retakeVideoSlot,
-    clearPhotos,
+    captures, capturesVideo,
+    addCapture, addVideoCapture,
+    retakeSlot, retakeVideoSlot,
   } = usePhotoStore();
-  const webcamRef = useRef<Webcam>(null);
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
 
+  const webcamRef = useRef<Webcam>(null);
   const setBg = useUIStore((s) => s.setBackgroundVariant);
 
+  // Countdown & pose state
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [showPose, setShowPose] = useState(false);
+
+  // Recording refs — tidak trigger re-render, strict mode safe
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const stopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  // nextSlot yang belum terisi
   const nextSlot =
     Array.from({ length: TOTAL_SLOTS }, (_, i) => i).find(
-      (i) => !captures.find((c) => c.slotIndex === i),
+      (i) => !captures.find((c) => c.slotIndex === i)
     ) ?? -1;
 
   useEffect(() => {
     setBg("image-white");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Cleanup saat unmount ──────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.stop();
+      }
+    };
   }, []);
 
-  // ── Helper: stop MediaRecorder dan tunggu sampai benar-benar selesai ──────
-  // Mengembalikan Promise yang resolve setelah onstop event terpanggil,
-  // sehingga kita PASTI tahu kapan stream sudah bebas dari proses recording
-  // sebelum melakukan applyConstraints (yang akan mengganggu stream aktif).
-  const stopRecordingAndWait = useCallback((): Promise<Blob | null> => {
-    return new Promise((resolve) => {
-      const recorder = mediaRecorderRef.current;
+  // ── Mulai recording ke canvas offscreen ──────────────────────────────────
+  // Menggunakan canvas offscreen kecil (RECORD_WIDTH × RECORD_HEIGHT) agar
+  // encoder video tidak membebani GPU MiniPC.
+  // Canvas ini di-feed frame dari <video> element via requestAnimationFrame loop.
+  const startRecording = useCallback((slotIdx: number) => {
+    const videoEl = webcamRef.current?.video as HTMLVideoElement | null;
+    if (!videoEl) return;
 
-      if (!recorder || recorder.state === "inactive") {
-        resolve(null);
-        return;
+    // Buat/reuse canvas offscreen
+    if (!offscreenCanvasRef.current) {
+      offscreenCanvasRef.current = document.createElement("canvas");
+    }
+    const canvas = offscreenCanvasRef.current;
+    canvas.width = RECORD_WIDTH;
+    canvas.height = RECORD_HEIGHT;
+    const ctx = canvas.getContext("2d", { willReadFrequently: false })!;
+
+    // Render loop: copy frame dari webcam ke canvas offscreen
+    const drawFrame = () => {
+      if (recorderRef.current?.state === "recording") {
+        ctx.save();
+        // Mirror horizontal (sesuai preview)
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoEl, -RECORD_WIDTH, 0, RECORD_WIDTH, RECORD_HEIGHT);
+        ctx.restore();
+        rafRef.current = requestAnimationFrame(drawFrame);
       }
+    };
 
-      recorder.onstop = () => {
-        const videoBlob = new Blob(recordedChunksRef.current, {
-          type: recorder.mimeType || "video/webm",
-        });
-        recordedChunksRef.current = [];
-        resolve(videoBlob);
+    // Pilih mimeType terbaik yang tersedia
+    const mimeType =
+      MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+        ? "video/webm;codecs=vp9"
+        : MediaRecorder.isTypeSupported("video/webm")
+          ? "video/webm"
+          : "video/mp4";
+
+    chunksRef.current = [];
+
+    try {
+      const stream = canvas.captureStream(30);
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 1_500_000,  // 1.5Mbps — cukup untuk 960×540, ringan di CPU
+      });
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
-      recorder.stop();
-    });
-  }, []);
+      recorder.onstop = () => {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        if (blob.size > 0) {
+          addVideoCapture({ slotIndex: slotIdx, videoBlob: blob, recordedAt: Date.now() });
+        }
+        chunksRef.current = [];
+      };
 
-  // ── Helper: capture foto di resolusi tinggi, lalu kembalikan ke preview ──
-  // PENTING: hanya dipanggil SETELAH recording benar-benar berhenti,
-  // supaya applyConstraints tidak mengganggu MediaRecorder yang aktif.
+      recorderRef.current = recorder;
+      recorder.start(1000); // timeslice 1s — flush data reguler
+
+      // Mulai render loop SETELAH recorder.start()
+      rafRef.current = requestAnimationFrame(drawFrame);
+
+      // Stop recording setelah durasi FIXED — tidak bergantung countdown React
+      // Ini yang menjamin durasi video selalu = COUNTDOWN_DURATION detik
+      stopTimeoutRef.current = setTimeout(() => {
+        if (recorder.state !== "inactive") recorder.stop();
+      }, COUNTDOWN_DURATION * 1000);
+
+    } catch (err) {
+      console.error("Gagal mulai recording:", err);
+    }
+  }, [addVideoCapture]);
+
+  // ── Capture foto high-res ─────────────────────────────────────────────────
+  // Dipanggil SETELAH recording stop karena sekarang recording pakai
+  // canvas offscreen stream, bukan webcam track langsung — jadi
+  // applyConstraints ke webcam aman dilakukan kapan saja.
   const captureHighRes = useCallback(async (): Promise<string | undefined> => {
-    const videoEl = webcamRef.current?.video as HTMLVideoElement | undefined;
-    const stream = videoEl?.srcObject as MediaStream | undefined;
+    const videoEl = webcamRef.current?.video as HTMLVideoElement | null;
+    const stream = videoEl?.srcObject as MediaStream | null;
     const track = stream?.getVideoTracks()[0];
 
     if (!track || !videoEl) {
       return webcamRef.current?.getScreenshot() ?? undefined;
     }
 
-    // Simpan resolusi original video element SEBELUM applyConstraints,
-    // untuk dipakai sebagai pembanding "apakah sudah benar2 berubah".
-    const originalVideoWidth = videoEl.videoWidth;
-    const originalVideoHeight = videoEl.videoHeight;
+    const origW = videoEl.videoWidth;
+    const origH = videoEl.videoHeight;
 
     try {
       await track.applyConstraints(CAPTURE_CONSTRAINTS);
 
-      // ── WAJIB: tunggu videoEl.videoWidth/videoHeight BENAR-BENAR berubah ──
-      // requestAnimationFrame saja TIDAK CUKUP — itu hanya menjamin browser
-      // sudah render 1 frame, BUKAN menjamin webcam hardware sudah selesai
-      // reconfigure ke resolusi baru. Tanpa menunggu ini, screenshot bisa
-      // diambil di tengah transisi resolusi → hasil ter-stretch/distorsi,
-      // kadang disertai 1 frame blackscreen di preview.
-      //
-      // Poll videoWidth/videoHeight sampai benar-benar berubah dari nilai
-      // original, dengan timeout supaya tidak infinite loop kalau webcam
-      // gagal reconfigure (fallback tetap capture di resolusi apapun yang ada).
-      const RESOLUTION_CHANGE_TIMEOUT_MS = 1500;
-      const POLL_INTERVAL_MS = 30;
-      const startTime = Date.now();
-
-      while (
-        videoEl.videoWidth === originalVideoWidth &&
-        videoEl.videoHeight === originalVideoHeight
-      ) {
-        if (Date.now() - startTime > RESOLUTION_CHANGE_TIMEOUT_MS) {
-          console.warn(
-            "Timeout menunggu resolusi video berubah, capture dengan resolusi yang tersedia saat ini."
-          );
-          break;
-        }
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      // Poll sampai resolusi benar-benar berubah (max 1.5 detik)
+      const deadline = Date.now() + 1500;
+      while (videoEl.videoWidth === origW && videoEl.videoHeight === origH) {
+        if (Date.now() > deadline) break;
+        await new Promise((r) => setTimeout(r, 30));
       }
 
-      // Setelah videoWidth/videoHeight berubah, tunggu 2 frame tambahan
-      // untuk memastikan buffer video benar-benar terisi penuh (tidak
-      // cuma "header" resolusi baru tapi pixel data masih kosong/parsial).
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      await new Promise((resolve) => requestAnimationFrame(resolve));
+      // Tunggu 2 frame extra setelah resolusi berubah
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
 
-      // Gunakan videoEl.videoWidth/videoHeight ASLI (bukan track.getSettings())
-      // sebagai source of truth — ini nilai yang BENAR-BENAR direpresentasikan
-      // di video element saat ini, beda dengan getSettings() yang kadang
-      // melaporkan nilai "target" walau belum sepenuhnya tercapai.
-      const dataUrl = webcamRef.current?.getScreenshot({
+      return webcamRef.current?.getScreenshot({
         width: videoEl.videoWidth || 3840,
         height: videoEl.videoHeight || 2160,
-      });
+      }) ?? undefined;
 
-      return dataUrl ?? undefined;
     } catch (err) {
-      console.error("Gagal apply high-res constraints, fallback ke preview res:", err);
+      console.error("High-res capture gagal, fallback ke preview res:", err);
       return webcamRef.current?.getScreenshot() ?? undefined;
     } finally {
-      try {
-        await track.applyConstraints(PREVIEW_CONSTRAINTS);
-      } catch {
-        // Diamkan — tidak fatal
-      }
+      // Kembalikan ke resolusi preview setelah capture
+      track.applyConstraints(PREVIEW_CONSTRAINTS).catch(() => { });
     }
   }, []);
 
-  // Countdown timer effect with video recording
-  useEffect(() => {
-    if (countdown === null) return;
+  // ── Mulai countdown ───────────────────────────────────────────────────────
+  const startCountdown = useCallback((slotIdx: number) => {
+    if (slotIdx === -1 || countdown !== null) return;
 
-    if (countdown === COUNTDOWN_DURATION) {
-      recordedChunksRef.current = [];
-      try {
-        const stream = (webcamRef.current?.video as any)?.srcObject as MediaStream;
-        if (stream) {
-          const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-            ? "video/webm;codecs=vp9"
-            : MediaRecorder.isTypeSupported("video/webm")
-              ? "video/webm"
-              : "video/mp4";
+    // Clear state sebelumnya
+    if (countdownRef.current) clearInterval(countdownRef.current);
 
-          mediaRecorderRef.current = new MediaRecorder(stream, {
-            mimeType,
-            videoBitsPerSecond: 2_500_000,
-          });
-
-          // timeslice 1000ms — paksa MediaRecorder flush chunk setiap 1 detik,
-          // bukan menunggu sampai stop(). Ini PENTING untuk konsistensi durasi:
-          // tanpa timeslice, beberapa browser/driver hanya nge-flush data
-          // secara tidak teratur, yang bisa menyebabkan video terpotong
-          // pendek kalau ada gangguan kecil di akhir proses recording.
-          mediaRecorderRef.current.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-              recordedChunksRef.current.push(event.data);
-            }
-          };
-
-          mediaRecorderRef.current.start(1000); // ← timeslice 1000ms
-        }
-      } catch (error) {
-        console.error("Failed to start recording:", error);
-      }
-    }
-
-    if (countdown === 0) {
-      // ── Urutan WAJIB berurutan, bukan bersamaan ──────────────────────────
-      // 1. Stop recording DULU dan tunggu sampai benar-benar selesai
-      // 2. SETELAH ITU baru capture foto high-res (applyConstraints aman
-      //    dilakukan karena stream sudah tidak sedang direkam)
-      (async () => {
-        const videoBlob = await stopRecordingAndWait();
-
-        if (videoBlob && videoBlob.size > 0) {
-          addVideoCapture({ slotIndex: nextSlot, videoBlob, recordedAt: Date.now() });
-        }
-
-        const dataUrl = await captureHighRes();
-        if (dataUrl) {
-          addCapture({ slotIndex: nextSlot, dataUrl, capturedAt: Date.now() });
-        }
-      })();
-
-      setCountdown(null);
-      return;
-    }
-
-    countdownIntervalRef.current = setInterval(() => {
-      setCountdown((prev) => (prev !== null ? prev - 1 : null));
-    }, 1000);
-
-    return () => {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
-    };
-  }, [countdown, stopRecordingAndWait, captureHighRes, addVideoCapture, addCapture, nextSlot]);
-
-  const capture = useCallback(() => {
-    if (nextSlot === -1 || countdown !== null) return;
     setCountdown(COUNTDOWN_DURATION);
-  }, [nextSlot, countdown]);
+    setShowPose(false);
+
+    // Mulai recording langsung — tidak perlu tunggu React re-render
+    startRecording(slotIdx);
+
+    let tick = COUNTDOWN_DURATION;
+
+    countdownRef.current = setInterval(() => {
+      tick -= 1;
+      setCountdown(tick);
+
+      if (tick === 0) {
+        clearInterval(countdownRef.current!);
+        countdownRef.current = null;
+
+        // Tampilkan POSE overlay segera
+        setShowPose(true);
+
+        // Capture foto — recording sudah jalan di track terpisah,
+        // tidak perlu tunggu recording selesai untuk applyConstraints
+        captureHighRes().then((dataUrl) => {
+          if (dataUrl) {
+            addCapture({ slotIndex: slotIdx, dataUrl, capturedAt: Date.now() });
+          }
+          // Sembunyikan POSE setelah foto selesai disimpan
+          setShowPose(false);
+          setCountdown(null);
+        });
+      }
+    }, 1000);
+  }, [countdown, startRecording, captureHighRes, addCapture]);
+
+  const handleCapture = useCallback(() => {
+    if (nextSlot === -1 || countdown !== null) return;
+    startCountdown(nextSlot);
+  }, [nextSlot, countdown, startCountdown]);
 
   return (
     <motion.div
@@ -267,7 +366,7 @@ export function TakePhotoPage() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
     >
-      {/* ── Header row ── */}
+      {/* ── Header ── */}
       <div className="flex flex-row w-full justify-between items-center flex-shrink-0 invisible pb-4">
         <img
           src={logoBack}
@@ -280,7 +379,7 @@ export function TakePhotoPage() {
       </div>
 
       <div className="flex-1 flex flex-row items-center justify-center w-full min-h-0 gap-20 px-20">
-        {/* Webcam Preview */}
+        {/* ── Webcam Preview ── */}
         <div className="flex w-full h-full justify-center items-center">
           <div className="w-full h-full relative rounded-2xl overflow-hidden border-2 border-[#B23E3E]">
             <Webcam
@@ -292,24 +391,27 @@ export function TakePhotoPage() {
               mirrored
             />
 
-            {nextSlot !== -1 && countdown === null && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full text-sm overflow-hidden">
+            {/* Tombol capture — hanya tampil saat tidak countdown dan slot tersedia */}
+            {nextSlot !== -1 && countdown === null && !showPose && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
                 <button
-                  className="touch-target w-20 h-20 rounded-full bg-white border-2 border-[#B23E3E] shadow-lg active:scale-95 transition-transform disabled:opacity-30 overflow-hidden flex items-center justify-center"
-                  onClick={capture}
+                  className="touch-target w-20 h-20 rounded-full bg-white border-2 border-[#B23E3E] shadow-lg active:scale-95 transition-transform flex items-center justify-center"
+                  onClick={handleCapture}
                 >
                   <img src={iconPhoto} alt="Capture" className="w-12 h-12" />
                 </button>
               </div>
             )}
 
-            <AnimatePresence mode="wait">
-              <CountdownDisplay countdown={countdown} />
-            </AnimatePresence>
+            {/* Countdown overlay */}
+            <CountdownDisplay countdown={countdown} />
+
+            {/* POSE overlay — muncul saat countdown hit 0 */}
+            <PoseOverlay visible={showPose} />
           </div>
         </div>
 
-        {/* Right Panel */}
+        {/* ── Right Panel: foto slots ── */}
         <div className="flex flex-col gap-6 w-full h-full justify-center items-center">
           <div className="grid grid-cols-2 gap-8 w-full h-full">
             {Array.from({ length: TOTAL_SLOTS }, (_, i) => {
@@ -327,7 +429,7 @@ export function TakePhotoPage() {
                         className="w-full h-full object-cover"
                       />
                       <button
-                        className="absolute left-1/2 -translate-x-1/2 bottom-3 w-12 h-12 bg-[#FFFFFF] text-[#000000] rounded-full text-3xl flex items-center justify-center"
+                        className="absolute left-1/2 -translate-x-1/2 bottom-3 w-12 h-12 bg-white text-black rounded-full text-3xl flex items-center justify-center"
                         onClick={() => {
                           retakeSlot(i);
                           retakeVideoSlot(i);
@@ -338,7 +440,7 @@ export function TakePhotoPage() {
                       </button>
                     </>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center font-body bg-[#F8E6E6]/90">
+                    <div className="w-full h-full flex items-center justify-center bg-[#F8E6E6]/90">
                       <img
                         src={iconNoImage}
                         alt={`Empty Slot ${i + 1}`}
@@ -353,20 +455,17 @@ export function TakePhotoPage() {
         </div>
       </div>
 
+      {/* ── Footer ── */}
       <div className="flex flex-row w-full justify-end items-center flex-shrink-0">
         <AnimatePresence>
           {captures.length === TOTAL_SLOTS && (
             <motion.img
-              key={"NEXT"}
+              key="NEXT"
               src={captures.length === TOTAL_SLOTS ? btnNextBlack : btnNextWhite}
               alt="NEXT"
               whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                if (captures.length === TOTAL_SLOTS) {
-                  goNext();
-                }
-              }}
-              className="touch-target w-48 h-max select-none cursor-pointer transition-all"
+              onClick={() => { if (captures.length === TOTAL_SLOTS) goNext(); }}
+              className="touch-target w-48 h-max select-none cursor-pointer"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -377,7 +476,7 @@ export function TakePhotoPage() {
         </AnimatePresence>
       </div>
 
-      {/* <VideoPreviewModal type="capture" /> */}
+      <VideoPreviewModal type="capture" />
     </motion.div>
   );
 }

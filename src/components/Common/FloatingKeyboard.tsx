@@ -119,9 +119,8 @@ function Key({ label, onPress, cfg, variant = 'default', grow, wide }: KeyProps)
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-
 export function FloatingKeyboard() {
-    const { isOpen, onKeyPress, close } = useKeyboardStore()
+    const { isOpen, onKeyPress, close, position, setPosition } = useKeyboardStore()
     const [mode, setMode] = useState<KeyboardMode>('normal')
     const [size, setSize] = useState<KeyboardSize>('besar')
 
@@ -129,8 +128,8 @@ export function FloatingKeyboard() {
     const layout = LAYOUTS[mode]
 
     // Position: start centred near bottom of screen
-    const x = useMotionValue(0)
-    const y = useMotionValue(0)
+    const x = useMotionValue(200)
+    const y = useMotionValue(400)
 
     useEffect(() => {
         if (isOpen) {
@@ -170,8 +169,10 @@ export function FloatingKeyboard() {
                         x,
                         y,
                         position: 'fixed',
-                        top: 0,
-                        left: 0,
+                        // top: -200,
+                        // left: -500,
+                        top: position.x,
+                        left: position.y,
                         zIndex: 9999,
                         width: cfg.width,
                         userSelect: 'none',
@@ -336,11 +337,13 @@ const headerBtnStyle: React.CSSProperties = {
  * ```
  */
 export function useKeyboardInput(
-    setValue: (updater: (prev: string) => string) => void
+    setValue: (updater: (prev: string) => string) => void,
+    position?: { x: number; y: number },
 ) {
-    const { open } = useKeyboardStore()
+    const { open, setPosition } = useKeyboardStore()
 
     const onFocus = () => {
+        setPosition(position ?? { x: 0, y: 0 })
         open((char) => {
             if (char === 'BACKSPACE') {
                 setValue(prev => prev.slice(0, -1))

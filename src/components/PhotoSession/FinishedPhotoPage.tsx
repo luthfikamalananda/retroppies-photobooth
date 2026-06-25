@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { useEffect, useState } from 'react'
 import { useKeyboardInput } from '../Common/FloatingKeyboard'
+import { useKeyboardStore } from '@/store/keyboardStore'
 
 function EmailSentModal({
   isOpen,
@@ -89,8 +90,7 @@ export function FinishedPhotoPage() {
   })
 
   const [email, setEmail] = useState('')
-
-  const kbEmail = useKeyboardInput(setEmail)
+  const kbEmail = useKeyboardInput(setEmail, { x: -200, y: -500 })
 
   useEffect(() => {
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;

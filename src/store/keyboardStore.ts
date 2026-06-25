@@ -11,6 +11,11 @@ interface KeyboardStore {
    */
   open: (onKeyPress: (char: string) => void) => void
   close: () => void
+  position: {
+    x: number
+    y: number
+  }
+  setPosition: (data: { x: number, y: number }) => void
 }
 
 export const useKeyboardStore = create<KeyboardStore>((set) => ({
@@ -20,4 +25,9 @@ export const useKeyboardStore = create<KeyboardStore>((set) => ({
     set({ isOpen: true, onKeyPress })
   },
   close: () => set({ isOpen: false, onKeyPress: null }),
+  position: {
+    x: 0,
+    y: 0
+  },
+  setPosition: (data: { x: number, y: number }) => set({ position: data }),
 }))

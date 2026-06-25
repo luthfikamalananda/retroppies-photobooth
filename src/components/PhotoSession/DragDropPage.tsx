@@ -11,6 +11,8 @@ import type { SlotDef } from "@/types/layout";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { VideoPreviewModal } from "./VideoPreviewModal";
+import { countDownPhoto } from "@/const/timers";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,16 +59,43 @@ function GradedImage({
   grade,
   className,
   style,
+  lazy = false,
 }: {
   src: string
   grade: ColorGradeOptions | undefined
   className?: string
   style?: React.CSSProperties
+  lazy?: boolean
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [isReady, setIsReady] = useState(false)
+  const [shouldRender, setShouldRender] = useState(!lazy)
+
+  // Observer hanya dipasang kalau lazy=true
+  useEffect(() => {
+    if (!lazy || shouldRender) return
+
+    const el = containerRef.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setShouldRender(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '100px' } // mulai render sedikit sebelum benar-benar terlihat
+    )
+
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [lazy, shouldRender])
 
   useEffect(() => {
+    if (!shouldRender) return
+
     let cancelled = false
     setIsReady(false)
 
@@ -84,7 +113,6 @@ function GradedImage({
 
       ctx.drawImage(img, 0, 0)
 
-      // grade undefined (Original) → skip pixel manipulation sepenuhnya
       if (grade) {
         applyColorGrade(canvas, grade)
       }
@@ -96,18 +124,20 @@ function GradedImage({
     return () => {
       cancelled = true
     }
-  }, [src, grade])
+  }, [src, grade, shouldRender])
 
   return (
-    <canvas
-      ref={canvasRef}
-      className={className}
-      style={{
-        ...style,
-        opacity: isReady ? 1 : 0,
-        transition: 'opacity 0.15s ease-out',
-      }}
-    />
+    <div ref={containerRef} className={className} style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <canvas
+        ref={canvasRef}
+        className={className}
+        style={{
+          ...style,
+          opacity: isReady ? 1 : 0,
+          transition: 'opacity 0.15s ease-out',
+        }}
+      />
+    </div>
   )
 }
 
@@ -407,6 +437,7 @@ function SelectFilterTray({
                 src={previewSrc}
                 grade={filter.grade}
                 className="w-full h-72 object-cover pointer-events-none rounded-xl"
+                lazy
               />
             )}
             <p className="text-center italic font-body text-lg font-bold text-[#F8F8F8] py-2">{filter.label}</p>
@@ -624,6 +655,11 @@ export function DragDropPage() {
       // kalau dipanggil di requestAnimationFrame loop). Video composite tetap
       // tanpa grading; foto (output utama yang di-print) tetap dapat grading
       // akurat penuh. Ini trade-off yang wajar untuk hardware low-end.
+      // ── Paste ini menggantikan blok videoSlots + resultVideoBlob ─────────────────
+
+      const TARGET_DURATION_MS = countDownPhoto * 1000   // ← ambil dari store
+      // Pastikan import timerSeconds dari useSessionStore di atas:
+      // const { ..., timerSeconds } = useSessionStore()
 
       const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0] }[] = []
 
@@ -638,12 +674,20 @@ export function DragDropPage() {
         const videoEl = document.createElement('video')
         videoEl.muted = true
         videoEl.playsInline = true
-        videoEl.loop = false
+        videoEl.loop = true           // ← FIX: loop agar tidak stop sebelum TARGET_DURATION_MS
         videoEl.src = URL.createObjectURL(matchedVideo.videoBlob)
+
+        // FIX: tunggu metadata DAN seek ke frame 0 sebelum lanjut
         await new Promise<void>((res, rej) => {
-          videoEl.onloadedmetadata = () => res()
+          videoEl.onloadedmetadata = () => {
+            videoEl.currentTime = 0
+            // canplay = browser sudah siap render frame pertama
+            videoEl.oncanplay = () => res()
+            videoEl.onerror = rej
+          }
           videoEl.onerror = rej
         })
+
         videoSlots.push({ videoEl, slot })
       }
 
@@ -662,25 +706,28 @@ export function DragDropPage() {
         const chunks: Blob[] = []
 
         recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-        recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }))
+        recorder.onstop = () => {
+          // Cleanup URL object setelah selesai
+          videoSlots.forEach(({ videoEl }) => URL.revokeObjectURL(videoEl.src))
+          resolve(new Blob(chunks, { type: mimeType }))
+        }
         recorder.onerror = reject
 
+        // FIX: hentikan recorder setelah TARGET_DURATION_MS — durasi FIXED
+        // Tidak bergantung pada `videoEl.ended` yang tidak reliable
+        const stopTimeout = setTimeout(() => {
+          if (recorder.state !== 'inactive') recorder.stop()
+        }, TARGET_DURATION_MS)
+
         recorder.start()
-        videoSlots.forEach(({ videoEl }) => videoEl.play())
 
         const renderLoop = () => {
-          const allEnded = videoSlots.every(({ videoEl }) => videoEl.ended)
-          if (allEnded) {
-            recorder.stop()
-            videoSlots.forEach(({ videoEl }) => URL.revokeObjectURL(videoEl.src))
-            return
-          }
+          // FIX: cek apakah recorder masih aktif sebelum render frame berikutnya
+          if (recorder.state === 'inactive') return
 
           ctx.clearRect(0, 0, width, height)
 
           for (const { videoEl, slot } of videoSlots) {
-            if (videoEl.ended) continue
-
             const slotCX = slot.cx * width
             const slotCY = slot.cy * height
             const slotW = slot.w * width
@@ -709,9 +756,28 @@ export function DragDropPage() {
           requestAnimationFrame(renderLoop)
         }
 
-        const firstVideo = videoSlots[0]?.videoEl
-        if (firstVideo) { firstVideo.onplay = () => requestAnimationFrame(renderLoop) }
-        else { recorder.stop(); resolve(new Blob([], { type: mimeType })) }
+        if (videoSlots.length === 0) {
+          // Tidak ada video — langsung stop setelah durasi
+          requestAnimationFrame(renderLoop)
+          return
+        }
+
+        // FIX: Promise.all() — tunggu SEMUA video play sebelum mulai renderLoop
+        // Bukan hanya firstVideo.onplay yang berisiko race condition
+        Promise.all(
+          videoSlots.map(({ videoEl }) =>
+            new Promise<void>((res) => {
+              const onPlay = () => { videoEl.removeEventListener('play', onPlay); res() }
+              videoEl.addEventListener('play', onPlay)
+              videoEl.play().catch(() => res()) // catch jika autoplay di-block
+            })
+          )
+        ).then(() => {
+          requestAnimationFrame(renderLoop)
+        }).catch(reject)
+
+        // Mulai semua video bersamaan
+        videoSlots.forEach(({ videoEl }) => videoEl.play().catch(() => { }))
       })
 
       // ── 3. GIF dari foto raw + grade ───────────────────────────────────────
@@ -771,6 +837,15 @@ export function DragDropPage() {
           return cap.dataUrl
         }
 
+        // DEV Uncomment This
+        // setTemplateAndGif({
+        //   templateWithPhoto: resultPhotoDataUrl,
+        //   templateWithPhotoProduction: resultPhotoProductionDataUrl,
+        //   templateWithVideo: resultVideoBlob,
+        //   capturesToGIF: resultGifBlob,
+        // })
+
+        // Prod Comment This
         try {
           const result = await createSessions({
             invoiceNumber: transaction?.invoiceNumber,
@@ -993,7 +1068,9 @@ export function DragDropPage() {
       </AnimatePresence>
 
       {/* DEV */}
-      {/* <VideoPreviewModal type="template" /> */}
+
+      <VideoPreviewModal type="template" />
+      <VideoPreviewModal type="capture" />
 
       <AskPermissionModal
         isOpen={openModalPermission}

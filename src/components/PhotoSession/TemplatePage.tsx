@@ -50,12 +50,14 @@ export function TemplatePage() {
     })
       .then((res) => {
         if (res.result.total > 0) {
-          setTemplates(res.result.templates);
-          const defaultTemplate = res.result.templates.find((t) => t.isDefault === true)
+          // sort the template by layoutId
+          const sortedResult = [...res.result.templates].sort((a, b) => a.layoutId - b.layoutId);
+          setTemplates(sortedResult);
+          const defaultTemplate = sortedResult.find((t) => t.isDefault === true)
           if (defaultTemplate) {
             setSelectedTemplate(defaultTemplate);
           } else {
-            setSelectedTemplate(res.result.templates[0]);
+            setSelectedTemplate(sortedResult[0]);
           }
         }
       })

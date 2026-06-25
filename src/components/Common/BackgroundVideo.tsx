@@ -5,7 +5,7 @@ import bgImageWhite from '@/assets/bg-white.svg'
 import bgImageBlack from '@/assets/bg-black.svg'
 
 /**
- * Renders either the VHS video loop or the secondary SVG background,
+ * Renders either the VHS video loop or one of the SVG backgrounds,
  * with a smooth crossfade when backgroundVariant changes.
  *
  * Toggle dari mana saja:
@@ -16,16 +16,16 @@ export function BackgroundVideo() {
   const variant = useUIStore(s => s.backgroundVariant)
 
   return (
-    // Both layers rendered on top of each other; AnimatePresence fades between them.
     <div className="fixed inset-0 w-full h-full z-0 pointer-events-none">
       <AnimatePresence mode="sync">
-        {/* Buatkan switch case agar lebih mudah dibaca */}
         {(() => {
           switch (variant) {
             case 'video-black':
               return (
                 <motion.video
-                  key="video"
+                  // FIX: key sebelumnya "video" — sudah unik dari case lain,
+                  // tidak diubah, hanya durasi transition diperpendek.
+                  key="bg-video-black"
                   className="absolute inset-0 w-full h-full object-cover"
                   src={bgVideoBlack}
                   autoPlay
@@ -35,13 +35,21 @@ export function BackgroundVideo() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.8, ease: 'easeInOut' }}
+                  transition={{ duration: 0.4, ease: 'easeInOut' }} // 0.8s → 0.4s
                 />
               )
             case 'image-white':
               return (
                 <motion.img
-                  key="image"
+                  // FIX UTAMA: sebelumnya key="image" — SAMA dengan case
+                  // 'image-black' di bawah. Akibatnya React/Framer Motion
+                  // menganggap kedua case ini sebagai ELEMEN YANG SAMA saat
+                  // berpindah dari satu ke yang lain (hanya src yang
+                  // berubah), bukan unmount+mount baru. Ini membuat exit/
+                  // enter animation AnimatePresence tidak berjalan benar,
+                  // dan browser harus reload+decode gambar baru di tempat
+                  // tanpa proper transition — inilah salah satu sumber lag.
+                  key="bg-image-white"
                   src={bgImageWhite}
                   alt=""
                   className="absolute inset-0 w-full h-full object-cover select-none"
@@ -49,13 +57,13 @@ export function BackgroundVideo() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.8, ease: 'easeInOut' }}
+                  transition={{ duration: 0.25, ease: 'easeInOut' }} // SVG ringan, durasi dipersingkat
                 />
               )
             case 'image-black':
               return (
                 <motion.img
-                  key="image"
+                  key="bg-image-black" // ← key unik, tidak lagi collide dengan image-white
                   src={bgImageBlack}
                   alt=""
                   className="absolute inset-0 w-full h-full object-cover select-none"
@@ -63,41 +71,13 @@ export function BackgroundVideo() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.8, ease: 'easeInOut' }}
+                  transition={{ duration: 0.25, ease: 'easeInOut' }}
                 />
               )
             default:
               return null
           }
         })()}
-
-        {/* {variant === 'video' ? (
-          <motion.video
-            key="video"
-            className="absolute inset-0 w-full h-full object-cover"
-            src={vhsVideo}
-            autoPlay
-            loop
-            muted
-            playsInline
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8, ease: 'easeInOut' }}
-          />
-        ) : (
-          <motion.img
-            key="image"
-            src={secondaryBg}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover select-none"
-            draggable={false}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8, ease: 'easeInOut' }}
-          />
-        )} */}
       </AnimatePresence>
     </div>
   )
