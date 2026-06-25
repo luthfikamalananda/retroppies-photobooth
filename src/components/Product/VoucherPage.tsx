@@ -10,6 +10,7 @@ import { extractErrorMessage } from '@/utils/errorHandling'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { useKeyboardInput } from '../Common/FloatingKeyboard'
 import { timerBeforePayment } from '@/const/timers'
+import { useKeyboardStore } from '@/store/keyboardStore'
 
 // ─── Animation Variants ───────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ export function VoucherPage() {
   const [error, setError] = useState<string | null>(null)
 
   const initialized = useRef(false)
+  const { close } = useKeyboardStore()
   const kbCode = useKeyboardInput(setCode)
 
   useEffect(() => {
@@ -218,7 +220,14 @@ export function VoucherPage() {
             alt="APPLY"
             variants={fadeIn}
             whileTap={loading || !code.trim() ? {} : { scale: 0.95 }}
-            onClick={loading || !code.trim() ? undefined : handleApply}
+            onClick={() => {
+              close()
+              if (loading || !code.trim()) {
+                return undefined
+              } else {
+                handleApply()
+              }
+            }}
             className="touch-target w-48 h-max select-none cursor-pointer transition-opacity"
             style={{ opacity: loading || !code.trim() ? 0.45 : 1 }}
             draggable={false}

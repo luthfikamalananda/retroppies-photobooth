@@ -90,6 +90,7 @@ export function FinishedPhotoPage() {
   })
 
   const [email, setEmail] = useState('')
+  const { close } = useKeyboardStore()
   const kbEmail = useKeyboardInput(setEmail, { x: -200, y: -500 })
 
   useEffect(() => {
@@ -166,6 +167,7 @@ export function FinishedPhotoPage() {
   }, [sessionCode])
 
   const handleSendEmail = async () => {
+    close()
     setIsProcessing(true)
     try {
       const result = await sendEmail({
@@ -267,7 +269,7 @@ export function FinishedPhotoPage() {
                       email === '' || (emailError.isError && emailError.errorMsg !== '') || isEmailSent ? 'opacity-50 cursor-not-allowed' : 'opacity-100'
                     ].join('')}
                     disabled={email === '' || (emailError.isError && emailError.errorMsg !== '') || isEmailSent}
-                    onClick={async () => {
+                    onClick={() => {
                       handleSendEmail()
                     }}
                   >

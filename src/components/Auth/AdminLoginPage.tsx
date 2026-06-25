@@ -7,6 +7,7 @@ import { useUIStore } from '@/store/uiStore'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { useKeyboardInput } from '../Common/FloatingKeyboard'
+import { useKeyboardStore } from '@/store/keyboardStore'
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -42,6 +43,7 @@ function useAdminLogin(options?: {
     const { goTo, resetSession } = useSessionStore()
     const { setLoading, loading } = useUIStore()
     const isLoading = loading['login'] ?? false
+    const { close } = useKeyboardStore()
 
     const fetchHardware = async () => {
         const hw = await checkHardware()
@@ -56,6 +58,7 @@ function useAdminLogin(options?: {
         setError(null)
         setLoading('login', true)
         try {
+            close()
             const res = await login({ username, password })
             if (res.result && res.success) {
                 if (!withoutSetAuth) {
