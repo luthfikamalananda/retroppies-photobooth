@@ -653,8 +653,10 @@ export function DragDropPage() {
       // ── 2. Composite video → satu video ───────────────────────────────────
 
       const TARGET_DURATION_MS = countDownPhoto * 1000
+      const VIDEO_RENDER_FPS = 12
+      const VIDEO_BITRATE = 800_000
 
-      const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0] }[] = []
+      const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0]; durationMs: number }[] = []
 
       for (const slot of layoutDef.slots) {
         const assignedDataUrl = currentSlotMap[slot.index]
@@ -668,79 +670,95 @@ export function DragDropPage() {
         videoEl.muted = true
         videoEl.playsInline = true
         videoEl.loop = true
+        videoEl.preload = 'auto'
         videoEl.src = URL.createObjectURL(matchedVideo.videoBlob)
 
         await new Promise<void>((res, rej) => {
           videoEl.onloadedmetadata = () => {
             videoEl.currentTime = 0
-            videoEl.oncanplay = () => res()
+            videoEl.playbackRate = 1
+            videoEl.oncanplaythrough = () => res()
             videoEl.onerror = rej
           }
           videoEl.onerror = rej
         })
 
-        videoSlots.push({ videoEl, slot })
+        const durationMs = Number.isFinite(videoEl.duration) ? Math.round(videoEl.duration * 1000) : TARGET_DURATION_MS
+        videoSlots.push({ videoEl, slot, durationMs })
       }
+
+      const targetDurationMs = Math.max(TARGET_DURATION_MS, ...videoSlots.map(({ durationMs }) => durationMs))
 
       const resultVideoBlob = await new Promise<Blob>((resolve, reject) => {
         const canvas = document.createElement('canvas')
         canvas.width = width
         canvas.height = height
-        const ctx = canvas.getContext('2d')!
+        const ctx = canvas.getContext('2d', { alpha: false })!
+        ctx.imageSmoothingEnabled = true
 
         const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
           ? 'video/webm;codecs=vp9'
           : MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : 'video/mp4'
 
-        const stream = canvas.captureStream(30)
-        const recorder = new MediaRecorder(stream, { mimeType })
+        const stream = canvas.captureStream(VIDEO_RENDER_FPS)
+        const recorder = new MediaRecorder(stream, {
+          mimeType,
+          videoBitsPerSecond: VIDEO_BITRATE,
+        })
         const chunks: Blob[] = []
+        let rafId: number | null = null
+        let lastDrawAt = performance.now()
 
         recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
         recorder.onstop = () => {
+          if (rafId) cancelAnimationFrame(rafId)
           videoSlots.forEach(({ videoEl }) => URL.revokeObjectURL(videoEl.src))
           resolve(new Blob(chunks, { type: mimeType }))
         }
         recorder.onerror = reject
 
-        const stopTimeout = setTimeout(() => {
+        const stopTimeout = window.setTimeout(() => {
           if (recorder.state !== 'inactive') recorder.stop()
-        }, TARGET_DURATION_MS)
+        }, targetDurationMs)
 
         recorder.start()
 
         const renderLoop = () => {
           if (recorder.state === 'inactive') return
 
-          ctx.clearRect(0, 0, width, height)
+          const now = performance.now()
+          if (now - lastDrawAt >= 1000 / VIDEO_RENDER_FPS) {
+            lastDrawAt = now
+            ctx.clearRect(0, 0, width, height)
 
-          for (const { videoEl, slot } of videoSlots) {
-            const slotCX = slot.cx * width
-            const slotCY = slot.cy * height
-            const slotW = slot.w * width
-            const slotH = slot.h * height
-            const angle = slot.angle ?? 0
+            for (const { videoEl, slot } of videoSlots) {
+              const slotCX = slot.cx * width
+              const slotCY = slot.cy * height
+              const slotW = slot.w * width
+              const slotH = slot.h * height
+              const angle = slot.angle ?? 0
 
-            const { sx, sy, sw, sh } = getCropParams(
-              videoEl.videoWidth,
-              videoEl.videoHeight,
-              slotW,
-              slotH
-            )
+              const { sx, sy, sw, sh } = getCropParams(
+                videoEl.videoWidth,
+                videoEl.videoHeight,
+                slotW,
+                slotH
+              )
 
-            ctx.save()
-            ctx.translate(slotCX, slotCY)
-            ctx.rotate((angle * Math.PI) / 180)
-            ctx.beginPath()
-            ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
-            ctx.clip()
-            ctx.drawImage(videoEl, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
-            ctx.restore()
+              ctx.save()
+              ctx.translate(slotCX, slotCY)
+              ctx.rotate((angle * Math.PI) / 180)
+              ctx.beginPath()
+              ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
+              ctx.clip()
+              ctx.drawImage(videoEl, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
+              ctx.restore()
+            }
+
+            ctx.drawImage(templateImg, 0, 0, width, height)
           }
 
-          ctx.drawImage(templateImg, 0, 0, width, height)
-
-          requestAnimationFrame(renderLoop)
+          rafId = requestAnimationFrame(renderLoop)
         }
 
         if (videoSlots.length === 0) {
@@ -761,6 +779,13 @@ export function DragDropPage() {
         }).catch(reject)
 
         videoSlots.forEach(({ videoEl }) => videoEl.play().catch(() => { }))
+
+        recorder.onstop = () => {
+          if (rafId) cancelAnimationFrame(rafId)
+          clearTimeout(stopTimeout)
+          videoSlots.forEach(({ videoEl }) => URL.revokeObjectURL(videoEl.src))
+          resolve(new Blob(chunks, { type: mimeType }))
+        }
       })
 
       // ── 3. GIF dari foto raw + grade ───────────────────────────────────────
