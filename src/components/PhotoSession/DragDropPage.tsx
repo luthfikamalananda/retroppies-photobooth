@@ -653,8 +653,9 @@ export function DragDropPage() {
       // ── 2. Composite video → satu video ───────────────────────────────────
 
       const TARGET_DURATION_MS = countDownPhoto * 1000
-      const VIDEO_RENDER_FPS = 24
-      const VIDEO_BITRATE = 800_000
+      const isLowEndDevice = (navigator.hardwareConcurrency ?? 4) <= 4
+      const VIDEO_RENDER_FPS = isLowEndDevice ? 4 : 6
+      const VIDEO_BITRATE = isLowEndDevice ? 180_000 : 250_000
 
       const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0]; durationMs: number }[] = []
 
@@ -743,7 +744,7 @@ export function DragDropPage() {
       const targetDurationMs = Math.max(TARGET_DURATION_MS, ...videoSlots.map(({ durationMs }) => durationMs))
 
       const resultVideoBlob = await new Promise<Blob>((resolve, reject) => {
-        const renderScale = width > 1280 ? 1280 / width : 1
+        const renderScale = width > 1280 ? 900 / width : 0.7
         const renderWidth = Math.max(640, Math.round(width * renderScale))
         const renderHeight = Math.max(480, Math.round(height * renderScale))
 
@@ -770,8 +771,8 @@ export function DragDropPage() {
         document.body.appendChild(hiddenVideoContainer)
         videoSlots.forEach(({ videoEl }) => hiddenVideoContainer.appendChild(videoEl))
 
-        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-          ? 'video/webm;codecs=vp9'
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+          ? 'video/webm;codecs=vp8'
           : MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : 'video/mp4'
 
         const stream = canvas.captureStream(VIDEO_RENDER_FPS)
@@ -784,7 +785,6 @@ export function DragDropPage() {
         let recordingStartedAt = 0
         let stopRequested = false
         let finished = false
-        let lastRenderAt = 0
 
         recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
         recorder.onerror = () => reject(new Error('MediaRecorder failed'))
@@ -794,18 +794,22 @@ export function DragDropPage() {
           stopRequested = true
 
           if (frameTimer) {
-            window.cancelAnimationFrame(frameTimer)
+            window.clearInterval(frameTimer)
             frameTimer = null
           }
 
           if (recorder.state !== 'inactive') {
-            recorder.requestData()
-            recorder.stop()
+            try {
+              recorder.requestData()
+              recorder.stop()
+            } catch {
+              // noop
+            }
           }
 
           window.setTimeout(() => {
             if (!finished) finish()
-          }, 250)
+          }, 300)
         }
 
         const finish = () => {
@@ -813,7 +817,7 @@ export function DragDropPage() {
           finished = true
 
           if (frameTimer) {
-            window.cancelAnimationFrame(frameTimer)
+            window.clearInterval(frameTimer)
             frameTimer = null
           }
           hiddenVideoContainer.remove()
@@ -842,59 +846,52 @@ export function DragDropPage() {
           }
         }
 
-        const renderLoop = (timestamp: number) => {
+        const renderLoop = () => {
           if (recorder.state === 'inactive') return
 
-          const elapsedMs = Date.now() - recordingStartedAt
+          const elapsedMs = performance.now() - recordingStartedAt
           if (elapsedMs >= targetDurationMs) {
             stopRecording()
             return
           }
 
-          if (timestamp - lastRenderAt >= 1000 / VIDEO_RENDER_FPS) {
-            lastRenderAt = timestamp
+          ctx.clearRect(0, 0, renderWidth, renderHeight)
+          ctx.drawImage(templateFrameCanvas, 0, 0, renderWidth, renderHeight)
 
-            ctx.clearRect(0, 0, renderWidth, renderHeight)
-            ctx.drawImage(templateFrameCanvas, 0, 0, renderWidth, renderHeight)
+          for (const { videoEl, slot } of videoSlots) {
+            const slotCX = slot.cx * renderWidth
+            const slotCY = slot.cy * renderHeight
+            const slotW = slot.w * renderWidth
+            const slotH = slot.h * renderHeight
+            const angle = slot.angle ?? 0
 
-            for (const { videoEl, slot } of videoSlots) {
-              const slotCX = slot.cx * renderWidth
-              const slotCY = slot.cy * renderHeight
-              const slotW = slot.w * renderWidth
-              const slotH = slot.h * renderHeight
-              const angle = slot.angle ?? 0
-
-              if (videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) {
-                continue
-              }
-
-              const { sx, sy, sw, sh } = getCropParams(
-                videoEl.videoWidth,
-                videoEl.videoHeight,
-                slotW,
-                slotH
-              )
-
-              ctx.save()
-              ctx.translate(slotCX, slotCY)
-              ctx.rotate((angle * Math.PI) / 180)
-              ctx.beginPath()
-              ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
-              ctx.clip()
-              ctx.drawImage(videoEl, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
-              ctx.restore()
+            if (videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) {
+              continue
             }
 
-          }
+            const { sx, sy, sw, sh } = getCropParams(
+              videoEl.videoWidth,
+              videoEl.videoHeight,
+              slotW,
+              slotH
+            )
 
-          frameTimer = window.requestAnimationFrame(renderLoop)
+            ctx.save()
+            ctx.translate(slotCX, slotCY)
+            ctx.rotate((angle * Math.PI) / 180)
+            ctx.beginPath()
+            ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
+            ctx.clip()
+            ctx.drawImage(videoEl, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
+            ctx.restore()
+          }
         }
 
         if (videoSlots.length === 0) {
           try {
-            recorder.start(250)
-            recordingStartedAt = Date.now()
-            frameTimer = window.requestAnimationFrame(renderLoop)
+            recorder.start(1000)
+            recordingStartedAt = performance.now()
+            frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
           } catch {
             finish()
           }
@@ -965,10 +962,10 @@ export function DragDropPage() {
           )
         ).then(() => {
           try {
-            recorder.start(250)
-            recordingStartedAt = Date.now()
+            recorder.start(1000)
+            recordingStartedAt = performance.now()
             void startPlayback()
-            frameTimer = window.requestAnimationFrame(renderLoop)
+            frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
           } catch {
             finish()
           }
