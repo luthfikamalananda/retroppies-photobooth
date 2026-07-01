@@ -653,8 +653,8 @@ export function DragDropPage() {
       // ── 2. Composite video → satu video ───────────────────────────────────
 
       const TARGET_DURATION_MS = countDownPhoto * 1000
-      const VIDEO_RENDER_FPS = 12
-      const VIDEO_BITRATE = 800_000
+      const VIDEO_RENDER_FPS = 8
+      const VIDEO_BITRATE = 500_000
 
       const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0]; durationMs: number }[] = []
 
@@ -673,14 +673,67 @@ export function DragDropPage() {
         videoEl.preload = 'auto'
         videoEl.src = URL.createObjectURL(matchedVideo.videoBlob)
 
-        await new Promise<void>((res, rej) => {
-          videoEl.onloadedmetadata = () => {
-            videoEl.currentTime = 0
-            videoEl.playbackRate = 1
-            videoEl.oncanplaythrough = () => res()
-            videoEl.onerror = rej
+        await new Promise<void>((res) => {
+          let settled = false
+          const cleanup = () => {
+            videoEl.onloadedmetadata = null
+            videoEl.onloadeddata = null
+            videoEl.oncanplaythrough = null
+            videoEl.onerror = null
           }
-          videoEl.onerror = rej
+          const settle = () => {
+            if (settled) return
+            settled = true
+            cleanup()
+            res()
+          }
+
+          const timeoutId = window.setTimeout(() => {
+            try {
+              videoEl.currentTime = 0
+              videoEl.pause()
+            } catch {
+              // noop
+            }
+            settle()
+          }, 3000)
+
+          const finish = () => {
+            window.clearTimeout(timeoutId)
+            settle()
+          }
+
+          videoEl.onloadedmetadata = () => {
+            try {
+              videoEl.currentTime = 0
+              videoEl.playbackRate = 1
+              videoEl.pause()
+            } catch {
+              // noop
+            }
+            finish()
+          }
+          videoEl.onloadeddata = () => {
+            try {
+              videoEl.currentTime = 0
+              videoEl.playbackRate = 1
+              videoEl.pause()
+            } catch {
+              // noop
+            }
+            finish()
+          }
+          videoEl.oncanplaythrough = () => {
+            try {
+              videoEl.currentTime = 0
+              videoEl.playbackRate = 1
+              videoEl.pause()
+            } catch {
+              // noop
+            }
+            finish()
+          }
+          videoEl.onerror = () => finish()
         })
 
         const durationMs = Number.isFinite(videoEl.duration) ? Math.round(videoEl.duration * 1000) : TARGET_DURATION_MS
@@ -696,6 +749,17 @@ export function DragDropPage() {
         const ctx = canvas.getContext('2d', { alpha: false })!
         ctx.imageSmoothingEnabled = true
 
+        const hiddenVideoContainer = document.createElement('div')
+        hiddenVideoContainer.style.position = 'fixed'
+        hiddenVideoContainer.style.left = '-9999px'
+        hiddenVideoContainer.style.top = '-9999px'
+        hiddenVideoContainer.style.width = '1px'
+        hiddenVideoContainer.style.height = '1px'
+        hiddenVideoContainer.style.opacity = '0'
+        hiddenVideoContainer.style.pointerEvents = 'none'
+        document.body.appendChild(hiddenVideoContainer)
+        videoSlots.forEach(({ videoEl }) => hiddenVideoContainer.appendChild(videoEl))
+
         const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
           ? 'video/webm;codecs=vp9'
           : MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : 'video/mp4'
@@ -708,11 +772,17 @@ export function DragDropPage() {
         const chunks: Blob[] = []
         let frameTimer: number | null = null
         let recordingStartedAt = 0
+        let stopRequested = false
+        let finished = false
+        let lastRenderAt = 0
 
         recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-        recorder.onerror = reject
+        recorder.onerror = () => reject(new Error('MediaRecorder failed'))
 
         const stopRecording = () => {
+          if (stopRequested || finished) return
+          stopRequested = true
+
           if (frameTimer) {
             clearInterval(frameTimer)
             frameTimer = null
@@ -722,13 +792,21 @@ export function DragDropPage() {
             recorder.requestData()
             recorder.stop()
           }
+
+          window.setTimeout(() => {
+            if (!finished) finish()
+          }, 250)
         }
 
         const finish = () => {
+          if (finished) return
+          finished = true
+
           if (frameTimer) {
-            clearInterval(frameTimer)
+            window.cancelAnimationFrame(frameTimer)
             frameTimer = null
           }
+          hiddenVideoContainer.remove()
           videoSlots.forEach(({ videoEl }) => URL.revokeObjectURL(videoEl.src))
           resolve(new Blob(chunks, { type: mimeType }))
         }
@@ -737,7 +815,24 @@ export function DragDropPage() {
           finish()
         }
 
-        const renderLoop = () => {
+        const startPlayback = async () => {
+          for (const { videoEl } of videoSlots) {
+            try {
+              videoEl.currentTime = 0
+              videoEl.playbackRate = 1
+              await videoEl.play()
+            } catch {
+              try {
+                videoEl.currentTime = 0
+                videoEl.pause()
+              } catch {
+                // noop
+              }
+            }
+          }
+        }
+
+        const renderLoop = (timestamp: number) => {
           if (recorder.state === 'inactive') return
 
           const elapsedMs = Date.now() - recordingStartedAt
@@ -746,71 +841,130 @@ export function DragDropPage() {
             return
           }
 
-          ctx.clearRect(0, 0, width, height)
+          if (timestamp - lastRenderAt >= 1000 / VIDEO_RENDER_FPS) {
+            lastRenderAt = timestamp
 
-          for (const { videoEl, slot, durationMs } of videoSlots) {
-            const slotCX = slot.cx * width
-            const slotCY = slot.cy * height
-            const slotW = slot.w * width
-            const slotH = slot.h * height
-            const angle = slot.angle ?? 0
-            const sourceDurationSec = Math.max(0.01, durationMs / 1000)
-            const targetTime = Math.min(sourceDurationSec, elapsedMs / 1000)
+            ctx.clearRect(0, 0, width, height)
 
-            if (videoEl.readyState >= 2) {
-              const delta = Math.abs(videoEl.currentTime - targetTime)
-              if (delta > 0.02) {
-                videoEl.currentTime = targetTime
+            for (const { videoEl, slot } of videoSlots) {
+              const slotCX = slot.cx * width
+              const slotCY = slot.cy * height
+              const slotW = slot.w * width
+              const slotH = slot.h * height
+              const angle = slot.angle ?? 0
+
+              if (videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) {
+                continue
               }
+
+              const { sx, sy, sw, sh } = getCropParams(
+                videoEl.videoWidth,
+                videoEl.videoHeight,
+                slotW,
+                slotH
+              )
+
+              ctx.save()
+              ctx.translate(slotCX, slotCY)
+              ctx.rotate((angle * Math.PI) / 180)
+              ctx.beginPath()
+              ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
+              ctx.clip()
+              ctx.drawImage(videoEl, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
+              ctx.restore()
             }
 
-            if (videoEl.readyState < 2) {
-              continue
-            }
-
-            const { sx, sy, sw, sh } = getCropParams(
-              videoEl.videoWidth,
-              videoEl.videoHeight,
-              slotW,
-              slotH
-            )
-
-            ctx.save()
-            ctx.translate(slotCX, slotCY)
-            ctx.rotate((angle * Math.PI) / 180)
-            ctx.beginPath()
-            ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
-            ctx.clip()
-            ctx.drawImage(videoEl, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
-            ctx.restore()
+            ctx.drawImage(templateImg, 0, 0, width, height)
           }
 
-          ctx.drawImage(templateImg, 0, 0, width, height)
+          frameTimer = window.requestAnimationFrame(renderLoop)
         }
 
         if (videoSlots.length === 0) {
-          recorder.start(250)
-          recordingStartedAt = Date.now()
-          frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
+          try {
+            recorder.start(250)
+            recordingStartedAt = Date.now()
+            frameTimer = window.requestAnimationFrame(renderLoop)
+          } catch {
+            finish()
+          }
           return
         }
 
         Promise.all(
           videoSlots.map(({ videoEl }) =>
-            new Promise<void>((res, rej) => {
-              videoEl.onloadedmetadata = () => {
-                videoEl.currentTime = 0
-                videoEl.pause()
+            new Promise<void>((res) => {
+              let settled = false
+              const cleanup = () => {
+                videoEl.onloadedmetadata = null
+                videoEl.onloadeddata = null
+                videoEl.oncanplaythrough = null
+                videoEl.onerror = null
+              }
+              const settle = () => {
+                if (settled) return
+                settled = true
+                cleanup()
                 res()
               }
-              videoEl.onerror = rej
+
+              const timeoutId = window.setTimeout(() => {
+                try {
+                  videoEl.currentTime = 0
+                  videoEl.pause()
+                } catch {
+                  // noop
+                }
+                settle()
+              }, 2000)
+
+              const finish = () => {
+                window.clearTimeout(timeoutId)
+                settle()
+              }
+
+              videoEl.onloadedmetadata = () => {
+                try {
+                  videoEl.currentTime = 0
+                  videoEl.pause()
+                } catch {
+                  // noop
+                }
+                finish()
+              }
+              videoEl.onloadeddata = () => {
+                try {
+                  videoEl.currentTime = 0
+                  videoEl.pause()
+                } catch {
+                  // noop
+                }
+                finish()
+              }
+              videoEl.oncanplaythrough = () => {
+                try {
+                  videoEl.currentTime = 0
+                  videoEl.pause()
+                } catch {
+                  // noop
+                }
+                finish()
+              }
+              videoEl.onerror = () => finish()
             })
           )
         ).then(() => {
-          recorder.start(250)
-          recordingStartedAt = Date.now()
-          frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
-        }).catch(reject)
+          try {
+            recorder.start(250)
+            recordingStartedAt = Date.now()
+            void startPlayback()
+            frameTimer = window.requestAnimationFrame(renderLoop)
+          } catch {
+            finish()
+          }
+        }).catch(() => {
+          finish()
+        })
       })
 
       // ── 3. GIF dari foto raw + grade ───────────────────────────────────────
