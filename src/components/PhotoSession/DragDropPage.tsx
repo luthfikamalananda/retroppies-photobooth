@@ -654,7 +654,7 @@ export function DragDropPage() {
 
       const TARGET_DURATION_MS = countDownPhoto * 1000
       const VIDEO_RENDER_FPS = 24
-      const VIDEO_BITRATE = 200_000
+      const VIDEO_BITRATE = 800_000
 
       const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0]; durationMs: number }[] = []
 
@@ -743,11 +743,21 @@ export function DragDropPage() {
       const targetDurationMs = Math.max(TARGET_DURATION_MS, ...videoSlots.map(({ durationMs }) => durationMs))
 
       const resultVideoBlob = await new Promise<Blob>((resolve, reject) => {
+        const renderScale = width > 1280 ? 1280 / width : 1
+        const renderWidth = Math.max(640, Math.round(width * renderScale))
+        const renderHeight = Math.max(480, Math.round(height * renderScale))
+
         const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
+        canvas.width = renderWidth
+        canvas.height = renderHeight
         const ctx = canvas.getContext('2d', { alpha: false })!
         ctx.imageSmoothingEnabled = true
+
+        const templateFrameCanvas = document.createElement('canvas')
+        templateFrameCanvas.width = renderWidth
+        templateFrameCanvas.height = renderHeight
+        const templateFrameCtx = templateFrameCanvas.getContext('2d')!
+        templateFrameCtx.drawImage(templateImg, 0, 0, renderWidth, renderHeight)
 
         const hiddenVideoContainer = document.createElement('div')
         hiddenVideoContainer.style.position = 'fixed'
@@ -784,7 +794,7 @@ export function DragDropPage() {
           stopRequested = true
 
           if (frameTimer) {
-            clearInterval(frameTimer)
+            window.cancelAnimationFrame(frameTimer)
             frameTimer = null
           }
 
@@ -844,13 +854,14 @@ export function DragDropPage() {
           if (timestamp - lastRenderAt >= 1000 / VIDEO_RENDER_FPS) {
             lastRenderAt = timestamp
 
-            ctx.clearRect(0, 0, width, height)
+            ctx.clearRect(0, 0, renderWidth, renderHeight)
+            ctx.drawImage(templateFrameCanvas, 0, 0, renderWidth, renderHeight)
 
             for (const { videoEl, slot } of videoSlots) {
-              const slotCX = slot.cx * width
-              const slotCY = slot.cy * height
-              const slotW = slot.w * width
-              const slotH = slot.h * height
+              const slotCX = slot.cx * renderWidth
+              const slotCY = slot.cy * renderHeight
+              const slotW = slot.w * renderWidth
+              const slotH = slot.h * renderHeight
               const angle = slot.angle ?? 0
 
               if (videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) {
@@ -874,7 +885,6 @@ export function DragDropPage() {
               ctx.restore()
             }
 
-            ctx.drawImage(templateImg, 0, 0, width, height)
           }
 
           frameTimer = window.requestAnimationFrame(renderLoop)
