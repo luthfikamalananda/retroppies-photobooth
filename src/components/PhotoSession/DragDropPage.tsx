@@ -706,92 +706,111 @@ export function DragDropPage() {
           videoBitsPerSecond: VIDEO_BITRATE,
         })
         const chunks: Blob[] = []
-        let rafId: number | null = null
-        let lastDrawAt = performance.now()
+        let frameTimer: number | null = null
+        let recordingStartedAt = 0
 
         recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-        recorder.onstop = () => {
-          if (rafId) cancelAnimationFrame(rafId)
-          videoSlots.forEach(({ videoEl }) => URL.revokeObjectURL(videoEl.src))
-          resolve(new Blob(chunks, { type: mimeType }))
-        }
         recorder.onerror = reject
 
         const stopRecording = () => {
+          if (frameTimer) {
+            clearInterval(frameTimer)
+            frameTimer = null
+          }
+
           if (recorder.state !== 'inactive') {
             recorder.requestData()
             recorder.stop()
           }
         }
 
-        const stopTimeout = window.setTimeout(() => {
-          stopRecording()
-        }, targetDurationMs + 250)
+        const finish = () => {
+          if (frameTimer) {
+            clearInterval(frameTimer)
+            frameTimer = null
+          }
+          videoSlots.forEach(({ videoEl }) => URL.revokeObjectURL(videoEl.src))
+          resolve(new Blob(chunks, { type: mimeType }))
+        }
+
+        recorder.onstop = () => {
+          finish()
+        }
 
         const renderLoop = () => {
           if (recorder.state === 'inactive') return
 
-          const now = performance.now()
-          if (now - lastDrawAt >= 1000 / VIDEO_RENDER_FPS) {
-            lastDrawAt = now
-            ctx.clearRect(0, 0, width, height)
-
-            for (const { videoEl, slot } of videoSlots) {
-              const slotCX = slot.cx * width
-              const slotCY = slot.cy * height
-              const slotW = slot.w * width
-              const slotH = slot.h * height
-              const angle = slot.angle ?? 0
-
-              const { sx, sy, sw, sh } = getCropParams(
-                videoEl.videoWidth,
-                videoEl.videoHeight,
-                slotW,
-                slotH
-              )
-
-              ctx.save()
-              ctx.translate(slotCX, slotCY)
-              ctx.rotate((angle * Math.PI) / 180)
-              ctx.beginPath()
-              ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
-              ctx.clip()
-              ctx.drawImage(videoEl, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
-              ctx.restore()
-            }
-
-            ctx.drawImage(templateImg, 0, 0, width, height)
+          const elapsedMs = Date.now() - recordingStartedAt
+          if (elapsedMs >= targetDurationMs) {
+            stopRecording()
+            return
           }
 
-          rafId = requestAnimationFrame(renderLoop)
+          ctx.clearRect(0, 0, width, height)
+
+          for (const { videoEl, slot, durationMs } of videoSlots) {
+            const slotCX = slot.cx * width
+            const slotCY = slot.cy * height
+            const slotW = slot.w * width
+            const slotH = slot.h * height
+            const angle = slot.angle ?? 0
+            const sourceDurationSec = Math.max(0.01, durationMs / 1000)
+            const targetTime = Math.min(sourceDurationSec, elapsedMs / 1000)
+
+            if (videoEl.readyState >= 2) {
+              const delta = Math.abs(videoEl.currentTime - targetTime)
+              if (delta > 0.02) {
+                videoEl.currentTime = targetTime
+              }
+            }
+
+            if (videoEl.readyState < 2) {
+              continue
+            }
+
+            const { sx, sy, sw, sh } = getCropParams(
+              videoEl.videoWidth,
+              videoEl.videoHeight,
+              slotW,
+              slotH
+            )
+
+            ctx.save()
+            ctx.translate(slotCX, slotCY)
+            ctx.rotate((angle * Math.PI) / 180)
+            ctx.beginPath()
+            ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
+            ctx.clip()
+            ctx.drawImage(videoEl, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
+            ctx.restore()
+          }
+
+          ctx.drawImage(templateImg, 0, 0, width, height)
         }
 
         if (videoSlots.length === 0) {
-          requestAnimationFrame(renderLoop)
+          recorder.start(250)
+          recordingStartedAt = Date.now()
+          frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
           return
         }
 
         Promise.all(
           videoSlots.map(({ videoEl }) =>
-            new Promise<void>((res) => {
-              const onPlay = () => { videoEl.removeEventListener('play', onPlay); res() }
-              videoEl.addEventListener('play', onPlay)
-              videoEl.play().catch(() => res())
+            new Promise<void>((res, rej) => {
+              videoEl.onloadedmetadata = () => {
+                videoEl.currentTime = 0
+                videoEl.pause()
+                res()
+              }
+              videoEl.onerror = rej
             })
           )
         ).then(() => {
           recorder.start(250)
-          requestAnimationFrame(renderLoop)
+          recordingStartedAt = Date.now()
+          frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
         }).catch(reject)
-
-        videoSlots.forEach(({ videoEl }) => videoEl.play().catch(() => { }))
-
-        recorder.onstop = () => {
-          if (rafId) cancelAnimationFrame(rafId)
-          clearTimeout(stopTimeout)
-          videoSlots.forEach(({ videoEl }) => URL.revokeObjectURL(videoEl.src))
-          resolve(new Blob(chunks, { type: mimeType }))
-        }
       })
 
       // ── 3. GIF dari foto raw + grade ───────────────────────────────────────
