@@ -669,7 +669,7 @@ export function DragDropPage() {
         const videoEl = document.createElement('video')
         videoEl.muted = true
         videoEl.playsInline = true
-        videoEl.loop = true
+        videoEl.loop = false
         videoEl.preload = 'auto'
         videoEl.src = URL.createObjectURL(matchedVideo.videoBlob)
 
@@ -717,11 +717,16 @@ export function DragDropPage() {
         }
         recorder.onerror = reject
 
-        const stopTimeout = window.setTimeout(() => {
-          if (recorder.state !== 'inactive') recorder.stop()
-        }, targetDurationMs)
+        const stopRecording = () => {
+          if (recorder.state !== 'inactive') {
+            recorder.requestData()
+            recorder.stop()
+          }
+        }
 
-        recorder.start()
+        const stopTimeout = window.setTimeout(() => {
+          stopRecording()
+        }, targetDurationMs + 250)
 
         const renderLoop = () => {
           if (recorder.state === 'inactive') return
@@ -775,6 +780,7 @@ export function DragDropPage() {
             })
           )
         ).then(() => {
+          recorder.start(250)
           requestAnimationFrame(renderLoop)
         }).catch(reject)
 
