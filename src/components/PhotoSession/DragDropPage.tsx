@@ -653,8 +653,8 @@ export function DragDropPage() {
       // ── 2. Composite video → satu video ───────────────────────────────────
 
       const TARGET_DURATION_MS = countDownPhoto * 1000
-      const VIDEO_RENDER_FPS = 8
-      const VIDEO_BITRATE = 500_000
+      const VIDEO_RENDER_FPS = 24
+      const VIDEO_BITRATE = 200_000
 
       const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0]; durationMs: number }[] = []
 
