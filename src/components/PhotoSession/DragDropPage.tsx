@@ -33,7 +33,6 @@ type FilterId =
 interface Filter {
   id: FilterId
   label: string
-  /** undefined = original, tidak ada grading apapun diterapkan */
   grade?: ColorGradeOptions
 }
 
@@ -49,95 +48,103 @@ const FILTERS: Array<Filter> = [
 
 // ─── Helper: render foto + color grade ke sebuah <canvas> ────────────────────
 //
-// Dipakai untuk preview di slot template DAN thumbnail filter tray.
-// Grading hanya di-recompute saat src ATAU grade berubah (via useEffect
-// dependency) — bukan di setiap render React. Untuk mini PC, ini krusial:
-// tanpa memoization ini, applyColorGrade (loop semua pixel) akan jalan
-// berkali-kali secara tidak perlu setiap kali parent re-render.
+// PENTING untuk mini PC low-end (Dell OptiPlex 3050, Intel HD 630):
+//
+// 1. DOWNSCALE sebelum grading — applyColorGrade berjalan O(width × height).
+//    Foto asli webcam bisa 3000-4000px lebar. Untuk thumbnail yang cuma
+//    ditampilkan ~150-300px, grading di resolusi PENUH itu costly besar
+//    tanpa manfaat visual tambahan. Downscale ke MAX_THUMB_SIZE SEBELUM
+//    applyColorGrade membuat operasi puluhan kali lebih cepat.
+//
+// 2. STAGGERED RENDERING via renderDelay — masalah utama transisi ke
+//    halaman filter: SelectFilterTray me-render 7 filter SEKALIGUS, dan
+//    karena semuanya langsung terlihat di grid (tidak perlu scroll),
+//    pendekatan lazy-load berbasis IntersectionObserver TIDAK membantu —
+//    observer langsung fire untuk ke-7 elemen di frame yang sama, persis
+//    seperti tidak lazy sama sekali. Solusinya: beri setiap thumbnail
+//    delay kecil bertingkat (renderDelay), sehingga applyColorGrade untuk
+//    ke-7 filter tersebar di beberapa frame berbeda, bukan menumpuk di
+//    satu frame yang menyebabkan main thread freeze sesaat.
+const MAX_THUMB_SIZE = 280 // px, lebar maksimum sebelum grading dihitung
+
 function GradedImage({
   src,
   grade,
   className,
   style,
-  lazy = false,
+  renderDelay = 0,
+  fullRes = false,
 }: {
   src: string
   grade: ColorGradeOptions | undefined
   className?: string
   style?: React.CSSProperties
-  lazy?: boolean
+  renderDelay?: number
+  fullRes?: boolean
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
   const [isReady, setIsReady] = useState(false)
-  const [shouldRender, setShouldRender] = useState(!lazy)
-
-  // Observer hanya dipasang kalau lazy=true
-  useEffect(() => {
-    if (!lazy || shouldRender) return
-
-    const el = containerRef.current
-    if (!el) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setShouldRender(true)
-          observer.disconnect()
-        }
-      },
-      { rootMargin: '100px' } // mulai render sedikit sebelum benar-benar terlihat
-    )
-
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [lazy, shouldRender])
 
   useEffect(() => {
-    if (!shouldRender) return
-
     let cancelled = false
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
     setIsReady(false)
 
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      if (cancelled) return
-      const canvas = canvasRef.current
-      if (!canvas) return
+    const run = () => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        if (cancelled) return
+        const canvas = canvasRef.current
+        if (!canvas) return
 
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
+        let targetW = img.naturalWidth
+        let targetH = img.naturalHeight
 
-      ctx.drawImage(img, 0, 0)
+        if (!fullRes && targetW > MAX_THUMB_SIZE) {
+          const scale = MAX_THUMB_SIZE / targetW
+          targetW = MAX_THUMB_SIZE
+          targetH = Math.round(img.naturalHeight * scale)
+        }
 
-      if (grade) {
-        applyColorGrade(canvas, grade)
+        canvas.width = targetW
+        canvas.height = targetH
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+
+        ctx.drawImage(img, 0, 0, targetW, targetH)
+
+        if (grade) {
+          applyColorGrade(canvas, grade)
+        }
+
+        setIsReady(true)
       }
-
-      setIsReady(true)
+      img.src = src
     }
-    img.src = src
+
+    if (renderDelay > 0) {
+      timeoutId = setTimeout(run, renderDelay)
+    } else {
+      run()
+    }
 
     return () => {
       cancelled = true
+      if (timeoutId) clearTimeout(timeoutId)
     }
-  }, [src, grade, shouldRender])
+  }, [src, grade, renderDelay, fullRes])
 
   return (
-    <div ref={containerRef} className={className} style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <canvas
-        ref={canvasRef}
-        className={className}
-        style={{
-          ...style,
-          opacity: isReady ? 1 : 0,
-          transition: 'opacity 0.15s ease-out',
-        }}
-      />
-    </div>
+    <canvas
+      ref={canvasRef}
+      className={className}
+      style={{
+        ...style,
+        opacity: isReady ? 1 : 0,
+        transition: 'opacity 0.15s ease-out',
+      }}
+    />
   )
 }
 
@@ -166,19 +173,16 @@ function AskPermissionModal({ isOpen, onAccept, onDecline }: AskPermissionModalP
             exit={{ scale: 0.8, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="bg-[#F7CC40] px-5 py-4 flex items-center justify-between">
               <h2 className="font-gaming text-[#2C2C2C] text-3xl">ASK FOR PERMISSION</h2>
               <img src={logoWindowControl} alt="Window-Control" className="select-none pointer-events-none h-auto" />
             </div>
 
-            {/* Content */}
             <div className="bg-[#FCF8EF] px-8 py-8 flex flex-col gap-6">
               <p className="font-gaming text-[#2C2C2C] text-2xl py-2 text-center">
                 Your photos look amazing! Would you allow us to feature them on @retroppies?
               </p>
 
-              {/* Buttons */}
               <div className="flex gap-4 justify-center mt-4">
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -227,9 +231,7 @@ function TemplateComposite({
   selectedFilter
 }: TemplateCompositeProps) {
   return (
-    // Outer wrapper — maintains template's natural aspect ratio
     <div className="relative w-full h-full select-none">
-      {/* ── Layer 1: photo fills per slot (dengan rotasi via cx/cy/angle) ── */}
       {slots.map(({ slotDef, photo }) => (
         <div
           key={slotDef.index}
@@ -249,15 +251,15 @@ function TemplateComposite({
         >
           {photo ? (
             <div className="relative w-full h-full">
-              {/* Ganti <img style={{filter}}> menjadi GradedImage berbasis canvas
-                  — hasil grading akurat (split-tone, curve, vignette, grain),
-                  bukan sekadar approximation CSS filter global. */}
+              {/* fullRes=true — slot template adalah output utama, butuh
+                  resolusi penuh untuk hasil akhir yang tajam, beda dengan
+                  thumbnail filter tray yang cukup downscale. */}
               <GradedImage
                 src={photo.dataUrl}
                 grade={selectedFilter.grade}
                 className="w-full h-full object-cover"
+                fullRes
               />
-              {/* Clear button inside slot */}
               {pageState === 'dragdrop' &&
                 <button
                   type="button"
@@ -294,7 +296,6 @@ function TemplateComposite({
         </div>
       ))}
 
-      {/* ── Layer 2: template PNG overlay ── */}
       <img
         src={templateUrl}
         alt="Template overlay"
@@ -398,8 +399,16 @@ function PhotoTray({ captures, activeSlotIndex, onAssign, onDrag, onDragEnd }: P
 }
 
 // ─── Select Filter Tray ────────────────────────────────────────────────────────
-// Thumbnail tiap filter sekarang pakai GradedImage juga, supaya preview yang
-// ditampilkan akurat (bukan CSS filter approximation).
+//
+// Thumbnail di-render dengan STAGGERED DELAY (index * 60ms) — ini KUNCI
+// fix performa di mini PC. Tanpa ini, mount SelectFilterTray langsung
+// memicu 7x applyColorGrade (loop pixel) di frame yang sama, menyebabkan
+// main thread freeze terasa sebagai "lag" saat transisi ke halaman filter.
+//
+// Dengan stagger 60ms, ke-7 filter selesai dalam ~420ms total, tapi
+// TERSEBAR di beberapa frame berbeda — browser tetap bisa render UI
+// lain (animasi transisi halaman, dsb) di antara setiap kalkulasi grading,
+// alih-alih satu frame yang "stuck" mengerjakan semuanya sekaligus.
 function SelectFilterTray({
   selectedFilter,
   setSelectedFilter,
@@ -422,7 +431,7 @@ function SelectFilterTray({
         draggable={false}
       />
       <div className="grid grid-cols-2 gap-4 h-full w-full overflow-y-scroll bg-[#B23E3E] p-4 rounded-3xl">
-        {FILTERS.map((filter) => (
+        {FILTERS.map((filter, index) => (
           <div
             key={filter.id}
             className={[
@@ -437,7 +446,7 @@ function SelectFilterTray({
                 src={previewSrc}
                 grade={filter.grade}
                 className="w-full h-72 object-cover pointer-events-none rounded-xl"
-                lazy
+                renderDelay={index * 60}
               />
             )}
             <p className="text-center italic font-body text-lg font-bold text-[#F8F8F8] py-2">{filter.label}</p>
@@ -559,14 +568,11 @@ export function DragDropPage() {
         return { sx, sy, sw, sh }
       }
 
-      // Grade yang dipilih user — undefined kalau "Original"
       const grade = selectedFilter.grade
 
       const templateImg = await loadImage(template.displayUrl)
 
       // ── 1. Composite foto → satu gambar (display resolution) ─────────────
-      // Rotasi per-slot (cx/cy/angle) dipertahankan sama persis seperti versi
-      // kamu sebelumnya — color grading TIDAK mengubah logic positioning ini.
 
       const photoCanvas = document.createElement('canvas')
       const dispW = layoutDef.templateSize?.w ?? width
@@ -597,10 +603,6 @@ export function DragDropPage() {
         photoCtx.restore()
       }
 
-      // Apply color grade SEKALI ke seluruh canvas foto (setelah semua slot
-      // selesai digambar, sebelum template overlay) — lebih efisien dan
-      // grading konsisten di seluruh frame komposit, terlepas dari rotasi
-      // masing-masing slot (karena ini operasi pixel-level post-process).
       if (grade) {
         applyColorGrade(photoCanvas, grade)
       }
@@ -649,17 +651,8 @@ export function DragDropPage() {
       const resultPhotoProductionDataUrl = photoProductionCanvas.toDataURL('image/png', 0.95)
 
       // ── 2. Composite video → satu video ───────────────────────────────────
-      // Note: grading untuk video TIDAK menggunakan applyColorGrade per-frame
-      // (akan terlalu berat di CPU mini PC untuk render loop 30fps real-time
-      // — applyColorGrade melakukan getImageData/putImageData yang costly
-      // kalau dipanggil di requestAnimationFrame loop). Video composite tetap
-      // tanpa grading; foto (output utama yang di-print) tetap dapat grading
-      // akurat penuh. Ini trade-off yang wajar untuk hardware low-end.
-      // ── Paste ini menggantikan blok videoSlots + resultVideoBlob ─────────────────
 
-      const TARGET_DURATION_MS = countDownPhoto * 1000   // ← ambil dari store
-      // Pastikan import timerSeconds dari useSessionStore di atas:
-      // const { ..., timerSeconds } = useSessionStore()
+      const TARGET_DURATION_MS = countDownPhoto * 1000
 
       const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0] }[] = []
 
@@ -674,14 +667,12 @@ export function DragDropPage() {
         const videoEl = document.createElement('video')
         videoEl.muted = true
         videoEl.playsInline = true
-        videoEl.loop = true           // ← FIX: loop agar tidak stop sebelum TARGET_DURATION_MS
+        videoEl.loop = true
         videoEl.src = URL.createObjectURL(matchedVideo.videoBlob)
 
-        // FIX: tunggu metadata DAN seek ke frame 0 sebelum lanjut
         await new Promise<void>((res, rej) => {
           videoEl.onloadedmetadata = () => {
             videoEl.currentTime = 0
-            // canplay = browser sudah siap render frame pertama
             videoEl.oncanplay = () => res()
             videoEl.onerror = rej
           }
@@ -707,14 +698,11 @@ export function DragDropPage() {
 
         recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
         recorder.onstop = () => {
-          // Cleanup URL object setelah selesai
           videoSlots.forEach(({ videoEl }) => URL.revokeObjectURL(videoEl.src))
           resolve(new Blob(chunks, { type: mimeType }))
         }
         recorder.onerror = reject
 
-        // FIX: hentikan recorder setelah TARGET_DURATION_MS — durasi FIXED
-        // Tidak bergantung pada `videoEl.ended` yang tidak reliable
         const stopTimeout = setTimeout(() => {
           if (recorder.state !== 'inactive') recorder.stop()
         }, TARGET_DURATION_MS)
@@ -722,7 +710,6 @@ export function DragDropPage() {
         recorder.start()
 
         const renderLoop = () => {
-          // FIX: cek apakah recorder masih aktif sebelum render frame berikutnya
           if (recorder.state === 'inactive') return
 
           ctx.clearRect(0, 0, width, height)
@@ -757,26 +744,22 @@ export function DragDropPage() {
         }
 
         if (videoSlots.length === 0) {
-          // Tidak ada video — langsung stop setelah durasi
           requestAnimationFrame(renderLoop)
           return
         }
 
-        // FIX: Promise.all() — tunggu SEMUA video play sebelum mulai renderLoop
-        // Bukan hanya firstVideo.onplay yang berisiko race condition
         Promise.all(
           videoSlots.map(({ videoEl }) =>
             new Promise<void>((res) => {
               const onPlay = () => { videoEl.removeEventListener('play', onPlay); res() }
               videoEl.addEventListener('play', onPlay)
-              videoEl.play().catch(() => res()) // catch jika autoplay di-block
+              videoEl.play().catch(() => res())
             })
           )
         ).then(() => {
           requestAnimationFrame(renderLoop)
         }).catch(reject)
 
-        // Mulai semua video bersamaan
         videoSlots.forEach(({ videoEl }) => videoEl.play().catch(() => { }))
       })
 
@@ -803,8 +786,6 @@ export function DragDropPage() {
           const { sx, sy, sw, sh } = getCropParams(img.width, img.height, gifWidth, gifHeight)
           gifCtx.drawImage(img, sx, sy, sw, sh, 0, 0, gifWidth, gifHeight)
 
-          // Apply grade per-frame GIF — frame count kecil (cuma 4 foto),
-          // jadi cost-nya bisa diterima meski pakai applyColorGrade
           if (grade) {
             applyColorGrade(gifCanvas, grade)
           }
@@ -837,15 +818,6 @@ export function DragDropPage() {
           return cap.dataUrl
         }
 
-        // DEV Uncomment This
-        // setTemplateAndGif({
-        //   templateWithPhoto: resultPhotoDataUrl,
-        //   templateWithPhotoProduction: resultPhotoProductionDataUrl,
-        //   templateWithVideo: resultVideoBlob,
-        //   capturesToGIF: resultGifBlob,
-        // })
-
-        // Prod Comment This
         try {
           const result = await createSessions({
             invoiceNumber: transaction?.invoiceNumber,
@@ -869,7 +841,6 @@ export function DragDropPage() {
             continueToFinalization(result.result.sessionCode)
           }
         } catch (error) {
-          alert(JSON.stringify(error, null, 2))
           console.error('Error creating session:', error)
         }
 
@@ -941,7 +912,6 @@ export function DragDropPage() {
         exit={{ opacity: 0 }}
         transition={{ duration: 0.25 }}
       >
-        {/* ── Header row ── */}
         <div className="flex flex-row w-full justify-between items-center flex-shrink-0">
           <img
             src={logoBack}
@@ -962,7 +932,6 @@ export function DragDropPage() {
           <div className="w-28" />
         </div>
 
-        {/* ── Main content: template preview + photo tray ── */}
         <div className="flex-1 flex flex-row items-center justify-center w-full min-h-0 gap-20 px-28">
 
           <div
@@ -1010,7 +979,6 @@ export function DragDropPage() {
           </AnimatePresence>
         </div>
 
-        {/* ── Footer row ── */}
         <div className="flex flex-row w-full justify-end items-center flex-shrink-0">
           <AnimatePresence>
             {allSlotsFilled && (
@@ -1046,7 +1014,6 @@ export function DragDropPage() {
         </div>
       </motion.div>
 
-      {/* Loading overlay */}
       <AnimatePresence>
         {isProcessing && (
           <motion.div
@@ -1066,8 +1033,6 @@ export function DragDropPage() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* DEV */}
 
       <VideoPreviewModal type="template" />
       <VideoPreviewModal type="capture" />
