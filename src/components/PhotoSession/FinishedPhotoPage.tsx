@@ -8,6 +8,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useEffect, useState } from 'react'
 import { useKeyboardInput } from '../Common/FloatingKeyboard'
 import { useKeyboardStore } from '@/store/keyboardStore'
+import { VideoPreviewModal } from './VideoPreviewModal'
 
 function EmailSentModal({
   isOpen,
@@ -293,6 +294,8 @@ export function FinishedPhotoPage() {
             </div>
           </div>
         </div>
+
+        <VideoPreviewModal type="template" />
 
         {/* ── Footer row ── */}
         <div className="flex flex-row w-full justify-end items-center flex-shrink-0 invisible">
