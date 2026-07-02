@@ -650,19 +650,25 @@ export function DragDropPage() {
       photoProductionCtx.drawImage(productionTemplateImg, 0, 0, prodW, prodH)
       const resultPhotoProductionDataUrl = photoProductionCanvas.toDataURL('image/png', 0.95)
 
-      // ── 2. Composite video → satu video ───────────────────────────────────
-
+      // ── 2. Composite video → satu video ───────────────────────────────────────────
       const TARGET_DURATION_MS = countDownPhoto * 1000
-      const VIDEO_RENDER_FPS = 16
-      const VIDEO_BITRATE = 300_000
+      const VIDEO_RENDER_FPS = 30 // Naikkan ke 30fps untuk smoothness
+      const VIDEO_BITRATE = 500_000 // Naikkan bitrate untuk kualitas lebih baik
 
-      const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0]; durationMs: number }[] = []
+      const videoSlots: {
+        videoEl: HTMLVideoElement;
+        slot: typeof layoutDef.slots[0];
+        durationMs: number
+      }[] = []
 
+      // Load semua video elements
       for (const slot of layoutDef.slots) {
         const assignedDataUrl = currentSlotMap[slot.index]
         if (!assignedDataUrl) continue
+
         const matchedCapture = captures.find(c => c.dataUrl === assignedDataUrl)
         if (!matchedCapture) continue
+
         const matchedVideo = capturesVideo.find(v => v.slotIndex === matchedCapture.slotIndex)
         if (!matchedVideo) continue
 
@@ -673,74 +679,54 @@ export function DragDropPage() {
         videoEl.preload = 'auto'
         videoEl.src = URL.createObjectURL(matchedVideo.videoBlob)
 
+        // Wait for video to be ready
         await new Promise<void>((resolve) => {
-          let settled = false
+          const timeout = window.setTimeout(() => {
+            cleanup()
+            resolve()
+          }, 5000)
+
           const cleanup = () => {
+            window.clearTimeout(timeout)
             videoEl.onloadedmetadata = null
             videoEl.onloadeddata = null
             videoEl.oncanplaythrough = null
             videoEl.onerror = null
           }
-          const settle = () => {
-            if (settled) return
-            settled = true
-            cleanup()
-            resolve()
-          }
-
-          const timeoutId = window.setTimeout(() => {
-            try {
-              videoEl.currentTime = 0
-              videoEl.pause()
-            } catch {
-              // noop
-            }
-            settle()
-          }, 3000)
-
-          const finish = () => {
-            window.clearTimeout(timeoutId)
-            settle()
-          }
 
           videoEl.onloadedmetadata = () => {
             try {
               videoEl.currentTime = 0
-              videoEl.playbackRate = 1
               videoEl.pause()
-            } catch {
-              // noop
-            }
-            finish()
+            } catch { }
+            cleanup()
+            resolve()
           }
-          videoEl.onloadeddata = () => {
-            try {
-              videoEl.currentTime = 0
-              videoEl.playbackRate = 1
-              videoEl.pause()
-            } catch {
-              // noop
-            }
-            finish()
-          }
+
           videoEl.oncanplaythrough = () => {
             try {
               videoEl.currentTime = 0
-              videoEl.playbackRate = 1
               videoEl.pause()
-            } catch {
-              // noop
-            }
-            finish()
+            } catch { }
+            cleanup()
+            resolve()
           }
-          videoEl.onerror = () => finish()
+
+          videoEl.onerror = () => {
+            cleanup()
+            resolve()
+          }
         })
 
-        const durationMs = Number.isFinite(videoEl.duration) ? Math.round(videoEl.duration * 1000) : TARGET_DURATION_MS
+        const durationMs = Number.isFinite(videoEl.duration) && videoEl.duration > 0
+          ? Math.round(videoEl.duration * 1000)
+          : TARGET_DURATION_MS
+
         videoSlots.push({ videoEl, slot, durationMs })
       }
 
-      const targetDurationMs = Math.max(TARGET_DURATION_MS, ...videoSlots.map(({ durationMs }) => durationMs))
+      // Target duration = max dari TARGET_DURATION_MS atau durasi video terpanjang
+      const targetDurationMs = Math.max(TARGET_DURATION_MS, ...videoSlots.map(v => v.durationMs))
 
       const resultVideoBlob = await new Promise<Blob>((resolve, reject) => {
         const outputWidth = layoutDef.templateSize?.w ?? width
@@ -751,127 +737,116 @@ export function DragDropPage() {
         canvas.height = outputHeight
         const ctx = canvas.getContext('2d', { alpha: false })!
         ctx.imageSmoothingEnabled = true
-        ctx.imageSmoothingQuality = 'low'
+        ctx.imageSmoothingQuality = 'high'
 
+        // Prepare template frame (static)
         const templateFrameCanvas = document.createElement('canvas')
         templateFrameCanvas.width = outputWidth
         templateFrameCanvas.height = outputHeight
         const templateFrameCtx = templateFrameCanvas.getContext('2d')!
         templateFrameCtx.drawImage(templateImg, 0, 0, outputWidth, outputHeight)
 
+        // Hidden container for video elements
         const hiddenVideoContainer = document.createElement('div')
-        hiddenVideoContainer.style.position = 'fixed'
-        hiddenVideoContainer.style.left = '-9999px'
-        hiddenVideoContainer.style.top = '-9999px'
-        hiddenVideoContainer.style.width = '1px'
-        hiddenVideoContainer.style.height = '1px'
-        hiddenVideoContainer.style.opacity = '0'
-        hiddenVideoContainer.style.pointerEvents = 'none'
+        hiddenVideoContainer.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;'
         document.body.appendChild(hiddenVideoContainer)
         videoSlots.forEach(({ videoEl }) => hiddenVideoContainer.appendChild(videoEl))
 
-        const mimeType = MediaRecorder.isTypeSupported('video/webm')
-          ? 'video/webm'
-          : 'video/mp4'
+        // Use captureStream with fixed FPS (lebih reliable di Intel UHD 630)
+        const stream = canvas.captureStream(VIDEO_RENDER_FPS)
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+          ? 'video/webm;codecs=vp9'
+          : MediaRecorder.isTypeSupported('video/webm')
+            ? 'video/webm'
+            : 'video/mp4'
 
-        const stream = canvas.captureStream(0)
         const recorder = new MediaRecorder(stream, {
           mimeType,
           videoBitsPerSecond: VIDEO_BITRATE,
         })
-        const captureTrack = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack | undefined
+
         const chunks: Blob[] = []
-        let frameTimer: number | null = null
         let recordingStartedAt = 0
-        let stopRequested = false
-        let finished = false
+        let animationFrameId: number | null = null
+        let isRecording = false
 
         recorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             chunks.push(event.data)
           }
         }
-        recorder.onerror = () => reject(new Error('MediaRecorder failed'))
 
-        const stopRecording = () => {
-          if (stopRequested || finished) return
-          stopRequested = true
-
-          if (frameTimer) {
-            window.clearInterval(frameTimer)
-            frameTimer = null
-          }
-
-          if (recorder.state !== 'inactive') {
-            try {
-              recorder.requestData()
-              recorder.stop()
-            } catch {
-              // noop
-            }
-          }
-
-          window.setTimeout(() => {
-            if (!finished) finish()
-          }, 250)
-        }
-
-        const finish = () => {
-          if (finished) return
-          finished = true
-
-          if (frameTimer) {
-            window.clearInterval(frameTimer)
-            frameTimer = null
-          }
-          hiddenVideoContainer.remove()
-          videoSlots.forEach(({ videoEl }) => URL.revokeObjectURL(videoEl.src))
-          resolve(new Blob(chunks, { type: mimeType }))
+        recorder.onerror = () => {
+          cleanup()
+          reject(new Error('MediaRecorder failed'))
         }
 
         recorder.onstop = () => {
-          finish()
+          cleanup()
+          resolve(new Blob(chunks, { type: mimeType }))
         }
 
-        const startPlayback = async () => {
-          for (const { videoEl } of videoSlots) {
-            try {
-              videoEl.currentTime = 0
-              videoEl.playbackRate = 1
-              await videoEl.play()
-            } catch {
-              try {
-                videoEl.currentTime = 0
-                videoEl.pause()
-              } catch {
-                // noop
-              }
-            }
+        const cleanup = () => {
+          if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId)
+            animationFrameId = null
           }
+          hiddenVideoContainer.remove()
+          videoSlots.forEach(({ videoEl }) => {
+            try {
+              videoEl.pause()
+              URL.revokeObjectURL(videoEl.src)
+            } catch { }
+          })
         }
 
+        const stopRecording = () => {
+          if (!isRecording) return
+          isRecording = false
+
+          // Pause all videos
+          videoSlots.forEach(({ videoEl }) => {
+            try {
+              videoEl.pause()
+            } catch { }
+          })
+
+          // Stop recorder after small delay to ensure last frames are captured
+          window.setTimeout(() => {
+            if (recorder.state !== 'inactive') {
+              try {
+                recorder.stop()
+              } catch { }
+            }
+          }, 100)
+        }
+
+        // Render loop menggunakan requestAnimationFrame (lebih smooth & akurat)
         const renderLoop = () => {
-          if (recorder.state === 'inactive') return
+          if (!isRecording) return
 
           const elapsedMs = performance.now() - recordingStartedAt
+
+          // Check if we've reached target duration
           if (elapsedMs >= targetDurationMs) {
             stopRecording()
             return
           }
 
+          // Clear canvas
           ctx.clearRect(0, 0, outputWidth, outputHeight)
-          ctx.drawImage(templateFrameCanvas, 0, 0, outputWidth, outputHeight)
 
+          // ── FIX: Gambar VIDEO DULU (di bawah template) ──
           for (const { videoEl, slot } of videoSlots) {
+            if (videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) {
+              continue
+            }
+
             const slotCX = slot.cx * outputWidth
             const slotCY = slot.cy * outputHeight
             const slotW = slot.w * outputWidth
             const slotH = slot.h * outputHeight
             const angle = slot.angle ?? 0
-
-            if (videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) {
-              continue
-            }
 
             const { sx, sy, sw, sh } = getCropParams(
               videoEl.videoWidth,
@@ -890,96 +865,56 @@ export function DragDropPage() {
             ctx.restore()
           }
 
-          captureTrack?.requestFrame?.()
+          // ── FIX: Gambar template DI ATAS video ──
+          ctx.drawImage(templateFrameCanvas, 0, 0, outputWidth, outputHeight)
+
+          // Continue loop
+          animationFrameId = requestAnimationFrame(renderLoop)
         }
 
-        if (videoSlots.length === 0) {
-          try {
-            recorder.start()
-            recordingStartedAt = performance.now()
-            frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
-            window.setTimeout(() => stopRecording(), targetDurationMs)
-          } catch {
-            finish()
-          }
-          return
+        // Start playback semua video
+        const startPlayback = async () => {
+          const playPromises = videoSlots.map(async ({ videoEl }) => {
+            try {
+              videoEl.currentTime = 0
+              videoEl.playbackRate = 1
+              await videoEl.play()
+            } catch (err) {
+              console.warn('Video play failed:', err)
+              // Fallback: try again after small delay
+              await new Promise(r => setTimeout(r, 100))
+              try {
+                await videoEl.play()
+              } catch { }
+            }
+          })
+
+          await Promise.all(playPromises)
         }
 
-        Promise.all(
-          videoSlots.map(({ videoEl }) =>
-            new Promise<void>((resolve) => {
-              let settled = false
-              const cleanup = () => {
-                videoEl.onloadedmetadata = null
-                videoEl.onloadeddata = null
-                videoEl.oncanplaythrough = null
-                videoEl.onerror = null
-              }
-              const settle = () => {
-                if (settled) return
-                settled = true
-                cleanup()
-                resolve()
-              }
+        // Start recording
+        try {
+          recorder.start(100) // Request data every 100ms
+          recordingStartedAt = performance.now()
+          isRecording = true
 
-              const timeoutId = window.setTimeout(() => {
-                try {
-                  videoEl.currentTime = 0
-                  videoEl.pause()
-                } catch {
-                  // noop
-                }
-                settle()
-              }, 2000)
+          // Start video playback
+          void startPlayback().then(() => {
+            // Start render loop
+            animationFrameId = requestAnimationFrame(renderLoop)
+          })
 
-              const finish = () => {
-                window.clearTimeout(timeoutId)
-                settle()
-              }
+          // Safety timeout: stop recording setelah targetDurationMs + buffer
+          window.setTimeout(() => {
+            if (isRecording) {
+              stopRecording()
+            }
+          }, targetDurationMs + 500)
 
-              videoEl.onloadedmetadata = () => {
-                try {
-                  videoEl.currentTime = 0
-                  videoEl.pause()
-                } catch {
-                  // noop
-                }
-                finish()
-              }
-              videoEl.onloadeddata = () => {
-                try {
-                  videoEl.currentTime = 0
-                  videoEl.pause()
-                } catch {
-                  // noop
-                }
-                finish()
-              }
-              videoEl.oncanplaythrough = () => {
-                try {
-                  videoEl.currentTime = 0
-                  videoEl.pause()
-                } catch {
-                  // noop
-                }
-                finish()
-              }
-              videoEl.onerror = () => finish()
-            })
-          )
-        ).then(() => {
-          try {
-            recorder.start()
-            recordingStartedAt = performance.now()
-            void startPlayback()
-            frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
-            window.setTimeout(() => stopRecording(), targetDurationMs)
-          } catch {
-            finish()
-          }
-        }).catch(() => {
-          finish()
-        })
+        } catch (err) {
+          cleanup()
+          reject(err)
+        }
       })
 
       // ── 3. GIF dari foto raw + grade ───────────────────────────────────────

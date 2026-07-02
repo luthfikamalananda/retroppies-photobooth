@@ -180,6 +180,9 @@ ipcMain.handle("check-printer", async () => {
   }
 });
 
+app.commandLine.appendSwitch('disable-gpu-video-decode')
+
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+
