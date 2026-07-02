@@ -651,7 +651,7 @@ export function DragDropPage() {
       const resultPhotoProductionDataUrl = photoProductionCanvas.toDataURL('image/png', 0.95)
 
       // ── 2. Composite video → satu video (FINAL FIX untuk Intel UHD 630) ─────────
-      const TARGET_DURATION_MS = countDownPhoto * 1000
+      const TARGET_DURATION_MS = (countDownPhoto + 2) * 1000
       const VIDEO_RENDER_FPS = 24 // Turunkan ke 24fps untuk stabilitas di low-spec
       const VIDEO_BITRATE = 400_000
 
