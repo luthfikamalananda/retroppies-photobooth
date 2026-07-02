@@ -23,9 +23,11 @@ function createWindow() {
   });
 
   const isDev = !app.isPackaged;
+  // TEMPORARY DEBUG — log error loading ke console main process juga
+  mainWindow.webContents.openDevTools({ mode: "detach" });
   if (isDev) {
     mainWindow.loadURL("http://localhost:5173");
-
+    
     // TEMPORARY DEBUG — log error loading ke console main process juga
     mainWindow.webContents.openDevTools({ mode: "detach" });
 

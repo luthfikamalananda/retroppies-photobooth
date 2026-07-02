@@ -650,15 +650,13 @@ export function DragDropPage() {
       photoProductionCtx.drawImage(productionTemplateImg, 0, 0, prodW, prodH)
       const resultPhotoProductionDataUrl = photoProductionCanvas.toDataURL('image/png', 0.95)
 
-      // ── 2. Composite video → satu video ───────────────────────────────────────────
-      // ── 2. Composite video → satu video (REFactored untuk low-spec hardware) ─────
+      // ── 2. Composite video → satu video (FINAL FIX untuk Intel UHD 630) ─────────
       const TARGET_DURATION_MS = countDownPhoto * 1000
-      const VIDEO_RENDER_FPS = 30 // Naikkan ke 30fps untuk smoothness
-      const VIDEO_BITRATE = 500_000 // Naikkan bitrate untuk kualitas lebih baik
+      const VIDEO_RENDER_FPS = 24 // Turunkan ke 24fps untuk stabilitas di low-spec
+      const VIDEO_BITRATE = 400_000
 
       console.log('[VideoComposite] Starting video compositing...')
       console.log('[VideoComposite] Target duration:', TARGET_DURATION_MS, 'ms')
-      console.log('[VideoComposite] Number of video slots:', capturesVideo.length)
 
       const videoSlots: {
         videoEl: HTMLVideoElement;
@@ -729,6 +727,7 @@ export function DragDropPage() {
           }
         })
 
+        // ── FIX: Handle Infinity duration ──
         const durationMs = Number.isFinite(videoEl.duration) && videoEl.duration > 0
           ? Math.round(videoEl.duration * 1000)
           : TARGET_DURATION_MS
@@ -737,7 +736,6 @@ export function DragDropPage() {
         videoSlots.push({ videoEl, slot, durationMs })
       }
 
-      // Target duration = max dari TARGET_DURATION_MS atau durasi video terpanjang
       const targetDurationMs = Math.max(TARGET_DURATION_MS, ...videoSlots.map(v => v.durationMs))
       console.log('[VideoComposite] Final target duration:', targetDurationMs, 'ms')
 
@@ -765,8 +763,8 @@ export function DragDropPage() {
         document.body.appendChild(hiddenVideoContainer)
         videoSlots.forEach(({ videoEl }) => hiddenVideoContainer.appendChild(videoEl))
 
-        // ── FIX: Gunakan captureStream dengan FPS tetap (lebih reliable di low-spec) ──
-        const stream = canvas.captureStream(VIDEO_RENDER_FPS)
+        // ── FIX: Gunakan captureStream(0) + requestFrame() manual ──
+        const stream = canvas.captureStream(0)
         const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
           ? 'video/webm;codecs=vp9'
           : MediaRecorder.isTypeSupported('video/webm')
@@ -780,11 +778,14 @@ export function DragDropPage() {
           videoBitsPerSecond: VIDEO_BITRATE,
         })
 
+        const captureTrack = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack | undefined
+
         const chunks: Blob[] = []
         let recordingStartedAt = 0
         let animationFrameId: number | null = null
         let isRecording = false
         let framesRendered = 0
+        let lastFrameTime = 0
 
         recorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
@@ -834,22 +835,22 @@ export function DragDropPage() {
             } catch { }
           })
 
-          // Stop recorder after small delay to ensure last frames are captured
+          // Stop recorder after small delay
           window.setTimeout(() => {
             if (recorder.state !== 'inactive') {
               try {
+                recorder.requestData()
                 recorder.stop()
               } catch { }
             }
-          }, 100)
+          }, 150)
         }
 
-        // ── FIX: Render loop menggunakan requestAnimationFrame (lebih smooth & akurat) ──
+        // ── FIX: Render loop dengan requestFrame() manual ──
         const renderLoop = (timestamp: number) => {
           if (!isRecording) return
 
           const elapsedMs = performance.now() - recordingStartedAt
-          framesRendered++
 
           // Check if we've reached target duration
           if (elapsedMs >= targetDurationMs) {
@@ -858,10 +859,20 @@ export function DragDropPage() {
             return
           }
 
+          // ── FIX: Kontrol frame rate manual ──
+          const frameInterval = 1000 / VIDEO_RENDER_FPS
+          if (timestamp - lastFrameTime < frameInterval) {
+            animationFrameId = requestAnimationFrame(renderLoop)
+            return
+          }
+
+          lastFrameTime = timestamp
+          framesRendered++
+
           // Clear canvas
           ctx.clearRect(0, 0, outputWidth, outputHeight)
 
-          // ── FIX: Gambar VIDEO DULU (di bawah template) ──
+          // ── Gambar VIDEO DULU (di bawah template) ──
           for (const { videoEl, slot } of videoSlots) {
             if (videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) {
               continue
@@ -890,41 +901,18 @@ export function DragDropPage() {
             ctx.restore()
           }
 
-          // ── FIX: Gambar template DI ATAS video ──
+          // ── Gambar template DI ATAS video ──
           ctx.drawImage(templateFrameCanvas, 0, 0, outputWidth, outputHeight)
+
+          // ── FIX: Request frame manual SETELAH canvas di-render ──
+          try {
+            captureTrack?.requestFrame?.()
+          } catch (err) {
+            console.warn('[VideoComposite] requestFrame failed:', err)
+          }
 
           // Continue loop
           animationFrameId = requestAnimationFrame(renderLoop)
-        }
-
-        // ── FIX: Tunggu semua video benar-benar PLAYING sebelum mulai timer ──
-        const waitForVideoPlaying = (videoEl: HTMLVideoElement, timeoutMs: number = 3000): Promise<boolean> => {
-          return new Promise((resolve) => {
-            const timeout = window.setTimeout(() => {
-              console.warn('[VideoComposite] Video playing timeout')
-              cleanup()
-              resolve(false)
-            }, timeoutMs)
-
-            const cleanup = () => {
-              window.clearTimeout(timeout)
-              videoEl.onplaying = null
-            }
-
-            // Check if already playing
-            if (!videoEl.paused && videoEl.readyState >= 3) {
-              console.log('[VideoComposite] Video already playing')
-              cleanup()
-              resolve(true)
-              return
-            }
-
-            videoEl.onplaying = () => {
-              console.log('[VideoComposite] Video started playing')
-              cleanup()
-              resolve(true)
-            }
-          })
         }
 
         // Start playback semua video
@@ -936,35 +924,26 @@ export function DragDropPage() {
               videoEl.currentTime = 0
               videoEl.playbackRate = 1
 
-              // Try to play
               await videoEl.play()
               console.log('[VideoComposite] Video play() called for slot', slot.index)
 
-              // Wait for video to actually start playing
-              const isPlaying = await waitForVideoPlaying(videoEl, 3000)
+              // ── FIX: Tunggu video benar-benar playing ──
+              await new Promise<void>((resolve) => {
+                const checkPlaying = () => {
+                  if (!videoEl.paused && videoEl.currentTime > 0) {
+                    resolve()
+                  } else {
+                    setTimeout(checkPlaying, 50)
+                  }
+                }
+                setTimeout(checkPlaying, 100)
+              })
 
-              if (!isPlaying) {
-                console.warn('[VideoComposite] Video did not start playing for slot', slot.index)
-                // Retry once after short delay
-                await new Promise(r => setTimeout(r, 200))
-                try {
-                  await videoEl.play()
-                  await waitForVideoPlaying(videoEl, 2000)
-                } catch { }
-              }
-
-              return isPlaying
+              console.log('[VideoComposite] Video started playing for slot', slot.index, 'currentTime:', videoEl.currentTime)
+              return true
             } catch (err) {
               console.error('[VideoComposite] Video play failed for slot', slot.index, err)
-              // Fallback: try again after small delay
-              await new Promise(r => setTimeout(r, 200))
-              try {
-                await videoEl.play()
-                await waitForVideoPlaying(videoEl, 2000)
-                return true
-              } catch {
-                return false
-              }
+              return false
             }
           })
 
@@ -978,7 +957,7 @@ export function DragDropPage() {
         // Start recording
         try {
           console.log('[VideoComposite] Starting MediaRecorder...')
-          recorder.start(100) // Request data every 100ms
+          recorder.start(100)
 
           // Start video playback FIRST
           const playbackStarted = await startPlayback()
@@ -990,15 +969,19 @@ export function DragDropPage() {
             return
           }
 
+          // ── FIX: Tunggu 200ms sebelum mulai render ──
+          await new Promise(r => setTimeout(r, 200))
+
           // THEN start timer and render loop
           recordingStartedAt = performance.now()
           isRecording = true
+          lastFrameTime = recordingStartedAt
           console.log('[VideoComposite] Recording started at', recordingStartedAt)
 
           // Start render loop
           animationFrameId = requestAnimationFrame(renderLoop)
 
-          // Safety timeout: stop recording setelah targetDurationMs + buffer
+          // Safety timeout
           window.setTimeout(() => {
             if (isRecording) {
               console.warn('[VideoComposite] Safety timeout triggered')
