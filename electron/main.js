@@ -44,6 +44,9 @@ function createWindow() {
   }
 }
 
+app.commandLine.appendSwitch('disable-gpu-video-decode')
+app.commandLine.appendSwitch('disable-software-rasterizer')
+
 app.whenReady().then(() => {
   createWindow();
   app.on("activate", () => {
@@ -179,8 +182,6 @@ ipcMain.handle("check-printer", async () => {
     return false;
   }
 });
-
-app.commandLine.appendSwitch('disable-gpu-video-decode')
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
