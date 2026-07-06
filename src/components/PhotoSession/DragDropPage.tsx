@@ -743,6 +743,10 @@ export function DragDropPage() {
       const targetDurationMs = Math.max(TARGET_DURATION_MS, ...videoSlots.map(({ durationMs }) => durationMs))
 
       const resultVideoBlob = await new Promise<Blob>((resolve, reject) => {
+        // Resolusi output video = ukuran template (1414×2000), KONSTAN dan tidak
+        // bergantung pada resolusi monitor. Sengaja dipertahankan penuh: pada
+        // monitor 1080p resolusi ini sudah terbukti ter-encode real-time di
+        // UHD 630, jadi beban encoder bukan akar masalah "video 1-2 detik".
         const outputWidth = layoutDef.templateSize?.w ?? width
         const outputHeight = layoutDef.templateSize?.h ?? height
 
@@ -774,12 +778,17 @@ export function DragDropPage() {
           ? 'video/webm'
           : 'video/mp4'
 
-        const stream = canvas.captureStream(0)
+        // captureStream dengan frame-rate TETAP (bukan 0 / manual requestFrame).
+        // Dengan fps tetap, browser men-sample canvas memakai clock real-time-nya
+        // sendiri, sehingga DURASI video selalu mengikuti wall-clock (mis. 6 dtk)
+        // walau sebagian frame di-drop encoder di iGPU lemah. Bandingkan dengan
+        // captureStream(0) yang durasinya bergantung pada frame yang sempat
+        // ter-encode — sumber bug "video cuma 1-2 detik" di UHD 630.
+        const stream = canvas.captureStream(VIDEO_RENDER_FPS)
         const recorder = new MediaRecorder(stream, {
           mimeType,
           videoBitsPerSecond: VIDEO_BITRATE,
         })
-        const captureTrack = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack | undefined
         const chunks: Blob[] = []
         let frameTimer: number | null = null
         let recordingStartedAt = 0
@@ -889,13 +898,13 @@ export function DragDropPage() {
             ctx.drawImage(videoEl, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
             ctx.restore()
           }
-
-          captureTrack?.requestFrame?.()
+          // Tidak perlu requestFrame lagi — captureStream(fps) men-sample
+          // canvas otomatis; renderLoop cukup menjaga isi canvas tetap fresh.
         }
 
         if (videoSlots.length === 0) {
           try {
-            recorder.start()
+            recorder.start(500)
             recordingStartedAt = performance.now()
             frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
             window.setTimeout(() => stopRecording(), targetDurationMs)
@@ -969,7 +978,7 @@ export function DragDropPage() {
           )
         ).then(() => {
           try {
-            recorder.start()
+            recorder.start(500)
             recordingStartedAt = performance.now()
             void startPlayback()
             frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
