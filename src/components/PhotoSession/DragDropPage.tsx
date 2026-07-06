@@ -650,21 +650,32 @@ export function DragDropPage() {
       photoProductionCtx.drawImage(productionTemplateImg, 0, 0, prodW, prodH)
       const resultPhotoProductionDataUrl = photoProductionCanvas.toDataURL('image/png', 0.95)
 
-      // ── 2. Composite video → satu video ───────────────────────────────────
+      // ── 2. Composite video → satu video (FINAL FIX untuk Intel UHD 630) ─────────
+      const TARGET_DURATION_MS = (countDownPhoto + 2) * 1000
+      const VIDEO_RENDER_FPS = 24 // Turunkan ke 24fps untuk stabilitas di low-spec
+      const VIDEO_BITRATE = 400_000
 
-      const TARGET_DURATION_MS = countDownPhoto * 1000
-      const VIDEO_RENDER_FPS = 16
-      const VIDEO_BITRATE = 300_000
+      console.log('[VideoComposite] Starting video compositing...')
+      console.log('[VideoComposite] Target duration:', TARGET_DURATION_MS, 'ms')
 
-      const videoSlots: { videoEl: HTMLVideoElement; slot: typeof layoutDef.slots[0]; durationMs: number }[] = []
+      const videoSlots: {
+        videoEl: HTMLVideoElement;
+        slot: typeof layoutDef.slots[0];
+        durationMs: number
+      }[] = []
 
+      // Load semua video elements
       for (const slot of layoutDef.slots) {
         const assignedDataUrl = currentSlotMap[slot.index]
         if (!assignedDataUrl) continue
+
         const matchedCapture = captures.find(c => c.dataUrl === assignedDataUrl)
         if (!matchedCapture) continue
+
         const matchedVideo = capturesVideo.find(v => v.slotIndex === matchedCapture.slotIndex)
         if (!matchedVideo) continue
+
+        console.log('[VideoComposite] Loading video for slot', slot.index)
 
         const videoEl = document.createElement('video')
         videoEl.muted = true
@@ -673,80 +684,62 @@ export function DragDropPage() {
         videoEl.preload = 'auto'
         videoEl.src = URL.createObjectURL(matchedVideo.videoBlob)
 
+        // Wait for video to be ready
         await new Promise<void>((resolve) => {
-          let settled = false
+          const timeout = window.setTimeout(() => {
+            console.warn('[VideoComposite] Video loading timeout for slot', slot.index)
+            cleanup()
+            resolve()
+          }, 5000)
+
           const cleanup = () => {
+            window.clearTimeout(timeout)
             videoEl.onloadedmetadata = null
             videoEl.onloadeddata = null
             videoEl.oncanplaythrough = null
             videoEl.onerror = null
           }
-          const settle = () => {
-            if (settled) return
-            settled = true
+
+          videoEl.onloadedmetadata = () => {
+            console.log('[VideoComposite] Video metadata loaded, duration:', videoEl.duration, 's')
+            try {
+              videoEl.currentTime = 0
+              videoEl.pause()
+            } catch { }
             cleanup()
             resolve()
           }
 
-          const timeoutId = window.setTimeout(() => {
-            try {
-              videoEl.currentTime = 0
-              videoEl.pause()
-            } catch {
-              // noop
-            }
-            settle()
-          }, 3000)
-
-          const finish = () => {
-            window.clearTimeout(timeoutId)
-            settle()
-          }
-
-          videoEl.onloadedmetadata = () => {
-            try {
-              videoEl.currentTime = 0
-              videoEl.playbackRate = 1
-              videoEl.pause()
-            } catch {
-              // noop
-            }
-            finish()
-          }
-          videoEl.onloadeddata = () => {
-            try {
-              videoEl.currentTime = 0
-              videoEl.playbackRate = 1
-              videoEl.pause()
-            } catch {
-              // noop
-            }
-            finish()
-          }
           videoEl.oncanplaythrough = () => {
+            console.log('[VideoComposite] Video can play through')
             try {
               videoEl.currentTime = 0
-              videoEl.playbackRate = 1
               videoEl.pause()
-            } catch {
-              // noop
-            }
-            finish()
+            } catch { }
+            cleanup()
+            resolve()
           }
-          videoEl.onerror = () => finish()
+
+          videoEl.onerror = () => {
+            console.error('[VideoComposite] Video loading error for slot', slot.index)
+            cleanup()
+            resolve()
+          }
         })
 
-        const durationMs = Number.isFinite(videoEl.duration) ? Math.round(videoEl.duration * 1000) : TARGET_DURATION_MS
+        // ── FIX: Handle Infinity duration ──
+        const durationMs = Number.isFinite(videoEl.duration) && videoEl.duration > 0
+          ? Math.round(videoEl.duration * 1000)
+          : TARGET_DURATION_MS
+
+        console.log('[VideoComposite] Video slot', slot.index, 'duration:', durationMs, 'ms')
         videoSlots.push({ videoEl, slot, durationMs })
       }
 
-      const targetDurationMs = Math.max(TARGET_DURATION_MS, ...videoSlots.map(({ durationMs }) => durationMs))
+      const targetDurationMs = Math.max(TARGET_DURATION_MS, ...videoSlots.map(v => v.durationMs))
+      console.log('[VideoComposite] Final target duration:', targetDurationMs, 'ms')
 
-      const resultVideoBlob = await new Promise<Blob>((resolve, reject) => {
-        // Resolusi output video = ukuran template (1414×2000), KONSTAN dan tidak
-        // bergantung pada resolusi monitor. Sengaja dipertahankan penuh: pada
-        // monitor 1080p resolusi ini sudah terbukti ter-encode real-time di
-        // UHD 630, jadi beban encoder bukan akar masalah "video 1-2 detik".
+      const resultVideoBlob = await new Promise<Blob>(async (resolve, reject) => {
         const outputWidth = layoutDef.templateSize?.w ?? width
         const outputHeight = layoutDef.templateSize?.h ?? height
 
@@ -755,132 +748,141 @@ export function DragDropPage() {
         canvas.height = outputHeight
         const ctx = canvas.getContext('2d', { alpha: false })!
         ctx.imageSmoothingEnabled = true
-        ctx.imageSmoothingQuality = 'low'
+        ctx.imageSmoothingQuality = 'high'
 
+        // Prepare template frame (static)
         const templateFrameCanvas = document.createElement('canvas')
         templateFrameCanvas.width = outputWidth
         templateFrameCanvas.height = outputHeight
         const templateFrameCtx = templateFrameCanvas.getContext('2d')!
         templateFrameCtx.drawImage(templateImg, 0, 0, outputWidth, outputHeight)
 
+        // Hidden container for video elements
         const hiddenVideoContainer = document.createElement('div')
-        hiddenVideoContainer.style.position = 'fixed'
-        hiddenVideoContainer.style.left = '-9999px'
-        hiddenVideoContainer.style.top = '-9999px'
-        hiddenVideoContainer.style.width = '1px'
-        hiddenVideoContainer.style.height = '1px'
-        hiddenVideoContainer.style.opacity = '0'
-        hiddenVideoContainer.style.pointerEvents = 'none'
+        hiddenVideoContainer.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;'
         document.body.appendChild(hiddenVideoContainer)
         videoSlots.forEach(({ videoEl }) => hiddenVideoContainer.appendChild(videoEl))
 
-        const mimeType = MediaRecorder.isTypeSupported('video/webm')
-          ? 'video/webm'
-          : 'video/mp4'
+        // ── FIX: Gunakan captureStream(0) + requestFrame() manual ──
+        const stream = canvas.captureStream(0)
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+          ? 'video/webm;codecs=vp9'
+          : MediaRecorder.isTypeSupported('video/webm')
+            ? 'video/webm'
+            : 'video/mp4'
 
-        // captureStream dengan frame-rate TETAP (bukan 0 / manual requestFrame).
-        // Dengan fps tetap, browser men-sample canvas memakai clock real-time-nya
-        // sendiri, sehingga DURASI video selalu mengikuti wall-clock (mis. 6 dtk)
-        // walau sebagian frame di-drop encoder di iGPU lemah. Bandingkan dengan
-        // captureStream(0) yang durasinya bergantung pada frame yang sempat
-        // ter-encode — sumber bug "video cuma 1-2 detik" di UHD 630.
-        const stream = canvas.captureStream(VIDEO_RENDER_FPS)
+        console.log('[VideoComposite] Using mimeType:', mimeType)
+
         const recorder = new MediaRecorder(stream, {
           mimeType,
           videoBitsPerSecond: VIDEO_BITRATE,
         })
+
+        const captureTrack = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack | undefined
+
         const chunks: Blob[] = []
-        let frameTimer: number | null = null
         let recordingStartedAt = 0
-        let stopRequested = false
-        let finished = false
+        let animationFrameId: number | null = null
+        let isRecording = false
+        let framesRendered = 0
+        let lastFrameTime = 0
 
         recorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             chunks.push(event.data)
           }
         }
-        recorder.onerror = () => reject(new Error('MediaRecorder failed'))
 
-        const stopRecording = () => {
-          if (stopRequested || finished) return
-          stopRequested = true
-
-          if (frameTimer) {
-            window.clearInterval(frameTimer)
-            frameTimer = null
-          }
-
-          if (recorder.state !== 'inactive') {
-            try {
-              recorder.requestData()
-              recorder.stop()
-            } catch {
-              // noop
-            }
-          }
-
-          window.setTimeout(() => {
-            if (!finished) finish()
-          }, 250)
-        }
-
-        const finish = () => {
-          if (finished) return
-          finished = true
-
-          if (frameTimer) {
-            window.clearInterval(frameTimer)
-            frameTimer = null
-          }
-          hiddenVideoContainer.remove()
-          videoSlots.forEach(({ videoEl }) => URL.revokeObjectURL(videoEl.src))
-          resolve(new Blob(chunks, { type: mimeType }))
+        recorder.onerror = (e) => {
+          console.error('[VideoComposite] MediaRecorder error:', e)
+          cleanup()
+          reject(new Error('MediaRecorder failed'))
         }
 
         recorder.onstop = () => {
-          finish()
+          console.log('[VideoComposite] Recording stopped. Total frames rendered:', framesRendered)
+          console.log('[VideoComposite] Total chunks:', chunks.length)
+          cleanup()
+          const blob = new Blob(chunks, { type: mimeType })
+          console.log('[VideoComposite] Final video blob size:', blob.size, 'bytes')
+          resolve(blob)
         }
 
-        const startPlayback = async () => {
-          for (const { videoEl } of videoSlots) {
-            try {
-              videoEl.currentTime = 0
-              videoEl.playbackRate = 1
-              await videoEl.play()
-            } catch {
-              try {
-                videoEl.currentTime = 0
-                videoEl.pause()
-              } catch {
-                // noop
-              }
-            }
+        const cleanup = () => {
+          if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId)
+            animationFrameId = null
           }
+          hiddenVideoContainer.remove()
+          videoSlots.forEach(({ videoEl }) => {
+            try {
+              videoEl.pause()
+              URL.revokeObjectURL(videoEl.src)
+            } catch { }
+          })
         }
 
-        const renderLoop = () => {
-          if (recorder.state === 'inactive') return
+        const stopRecording = () => {
+          if (!isRecording) return
+          isRecording = false
+
+          console.log('[VideoComposite] Stopping recording...')
+
+          // Pause all videos
+          videoSlots.forEach(({ videoEl }) => {
+            try {
+              videoEl.pause()
+            } catch { }
+          })
+
+          // Stop recorder after small delay
+          window.setTimeout(() => {
+            if (recorder.state !== 'inactive') {
+              try {
+                recorder.requestData()
+                recorder.stop()
+              } catch { }
+            }
+          }, 150)
+        }
+
+        // ── FIX: Render loop dengan requestFrame() manual ──
+        const renderLoop = (timestamp: number) => {
+          if (!isRecording) return
 
           const elapsedMs = performance.now() - recordingStartedAt
+
+          // Check if we've reached target duration
           if (elapsedMs >= targetDurationMs) {
+            console.log('[VideoComposite] Target duration reached. Elapsed:', elapsedMs, 'ms')
             stopRecording()
             return
           }
 
-          ctx.clearRect(0, 0, outputWidth, outputHeight)
-          ctx.drawImage(templateFrameCanvas, 0, 0, outputWidth, outputHeight)
+          // ── FIX: Kontrol frame rate manual ──
+          const frameInterval = 1000 / VIDEO_RENDER_FPS
+          if (timestamp - lastFrameTime < frameInterval) {
+            animationFrameId = requestAnimationFrame(renderLoop)
+            return
+          }
 
+          lastFrameTime = timestamp
+          framesRendered++
+
+          // Clear canvas
+          ctx.clearRect(0, 0, outputWidth, outputHeight)
+
+          // ── Gambar VIDEO DULU (di bawah template) ──
           for (const { videoEl, slot } of videoSlots) {
+            if (videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) {
+              continue
+            }
+
             const slotCX = slot.cx * outputWidth
             const slotCY = slot.cy * outputHeight
             const slotW = slot.w * outputWidth
             const slotH = slot.h * outputHeight
             const angle = slot.angle ?? 0
-
-            if (videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) {
-              continue
-            }
 
             const { sx, sy, sw, sh } = getCropParams(
               videoEl.videoWidth,
@@ -898,98 +900,103 @@ export function DragDropPage() {
             ctx.drawImage(videoEl, sx, sy, sw, sh, -slotW / 2, -slotH / 2, slotW, slotH)
             ctx.restore()
           }
-          // Tidak perlu requestFrame lagi — captureStream(fps) men-sample
-          // canvas otomatis; renderLoop cukup menjaga isi canvas tetap fresh.
+
+          // ── Gambar template DI ATAS video ──
+          ctx.drawImage(templateFrameCanvas, 0, 0, outputWidth, outputHeight)
+
+          // ── FIX: Request frame manual SETELAH canvas di-render ──
+          try {
+            captureTrack?.requestFrame?.()
+          } catch (err) {
+            console.warn('[VideoComposite] requestFrame failed:', err)
+          }
+
+          // Continue loop
+          animationFrameId = requestAnimationFrame(renderLoop)
         }
 
-        if (videoSlots.length === 0) {
-          try {
-            recorder.start(500)
-            recordingStartedAt = performance.now()
-            frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
-            window.setTimeout(() => stopRecording(), targetDurationMs)
-          } catch {
-            finish()
-          }
-          return
+        // Start playback semua video
+        const startPlayback = async () => {
+          console.log('[VideoComposite] Starting video playback...')
+
+          const playPromises = videoSlots.map(async ({ videoEl, slot }) => {
+            try {
+              videoEl.currentTime = 0
+              videoEl.playbackRate = 1
+
+              await videoEl.play()
+              console.log('[VideoComposite] Video play() called for slot', slot.index)
+
+              // ── FIX: Tunggu video benar-benar playing ──
+              await new Promise<void>((resolve) => {
+                const checkPlaying = () => {
+                  if (!videoEl.paused && videoEl.currentTime > 0) {
+                    resolve()
+                  } else {
+                    setTimeout(checkPlaying, 50)
+                  }
+                }
+                setTimeout(checkPlaying, 100)
+              })
+
+              console.log('[VideoComposite] Video started playing for slot', slot.index, 'currentTime:', videoEl.currentTime)
+              return true
+            } catch (err) {
+              console.error('[VideoComposite] Video play failed for slot', slot.index, err)
+              return false
+            }
+          })
+
+          const results = await Promise.all(playPromises)
+          const successCount = results.filter(r => r).length
+          console.log('[VideoComposite] Videos started playing:', successCount, '/', videoSlots.length)
+
+          return successCount > 0
         }
 
-        Promise.all(
-          videoSlots.map(({ videoEl }) =>
-            new Promise<void>((resolve) => {
-              let settled = false
-              const cleanup = () => {
-                videoEl.onloadedmetadata = null
-                videoEl.onloadeddata = null
-                videoEl.oncanplaythrough = null
-                videoEl.onerror = null
-              }
-              const settle = () => {
-                if (settled) return
-                settled = true
-                cleanup()
-                resolve()
-              }
+        // Start recording
+        try {
+          console.log('[VideoComposite] Starting MediaRecorder...')
+          recorder.start(100)
 
-              const timeoutId = window.setTimeout(() => {
-                try {
-                  videoEl.currentTime = 0
-                  videoEl.pause()
-                } catch {
-                  // noop
-                }
-                settle()
-              }, 2000)
+          // Start video playback FIRST
+          const playbackStarted = await startPlayback()
 
-              const finish = () => {
-                window.clearTimeout(timeoutId)
-                settle()
-              }
-
-              videoEl.onloadedmetadata = () => {
-                try {
-                  videoEl.currentTime = 0
-                  videoEl.pause()
-                } catch {
-                  // noop
-                }
-                finish()
-              }
-              videoEl.onloadeddata = () => {
-                try {
-                  videoEl.currentTime = 0
-                  videoEl.pause()
-                } catch {
-                  // noop
-                }
-                finish()
-              }
-              videoEl.oncanplaythrough = () => {
-                try {
-                  videoEl.currentTime = 0
-                  videoEl.pause()
-                } catch {
-                  // noop
-                }
-                finish()
-              }
-              videoEl.onerror = () => finish()
-            })
-          )
-        ).then(() => {
-          try {
-            recorder.start(500)
-            recordingStartedAt = performance.now()
-            void startPlayback()
-            frameTimer = window.setInterval(renderLoop, 1000 / VIDEO_RENDER_FPS)
-            window.setTimeout(() => stopRecording(), targetDurationMs)
-          } catch {
-            finish()
+          if (!playbackStarted) {
+            console.error('[VideoComposite] No videos started playing, aborting')
+            cleanup()
+            reject(new Error('No videos started playing'))
+            return
           }
-        }).catch(() => {
-          finish()
-        })
+
+          // ── FIX: Tunggu 200ms sebelum mulai render ──
+          await new Promise(r => setTimeout(r, 200))
+
+          // THEN start timer and render loop
+          recordingStartedAt = performance.now()
+          isRecording = true
+          lastFrameTime = recordingStartedAt
+          console.log('[VideoComposite] Recording started at', recordingStartedAt)
+
+          // Start render loop
+          animationFrameId = requestAnimationFrame(renderLoop)
+
+          // Safety timeout
+          window.setTimeout(() => {
+            if (isRecording) {
+              console.warn('[VideoComposite] Safety timeout triggered')
+              stopRecording()
+            }
+          }, targetDurationMs + 500)
+
+        } catch (err) {
+          console.error('[VideoComposite] Error starting recording:', err)
+          cleanup()
+          reject(err)
+        }
       })
+
+      console.log('[VideoComposite] Video compositing complete. Blob size:', resultVideoBlob.size)
 
       // ── 3. GIF dari foto raw + grade ───────────────────────────────────────
 

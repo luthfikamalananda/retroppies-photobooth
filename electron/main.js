@@ -25,7 +25,7 @@ function createWindow() {
   const isDev = !app.isPackaged;
   if (isDev) {
     mainWindow.loadURL("http://localhost:5173");
-
+    
     // TEMPORARY DEBUG — log error loading ke console main process juga
     mainWindow.webContents.openDevTools({ mode: "detach" });
 
@@ -43,6 +43,9 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 }
+
+app.commandLine.appendSwitch('disable-gpu-video-decode')
+app.commandLine.appendSwitch('disable-software-rasterizer')
 
 app.whenReady().then(() => {
   createWindow();
@@ -183,3 +186,4 @@ ipcMain.handle("check-printer", async () => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+
