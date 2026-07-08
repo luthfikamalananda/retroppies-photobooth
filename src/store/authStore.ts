@@ -15,7 +15,14 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       setUser: (response) => set({ user: response }),
-      clearUser: () => set({ user: null }),
+      clearUser: () => {
+        set({ user: null })
+        // Buang cache templat tenant lama. Dynamic import untuk menghindari
+        // circular dependency (templateStore → templateService → apiClient → authStore).
+        import('@/store/templateStore')
+          .then((m) => m.useTemplateStore.getState().clear())
+          .catch(() => {})
+      },
     }),
     {
       name: 'auth',

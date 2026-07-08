@@ -1,78 +1,42 @@
 import { btnBackGold, btnNextGold, logoBack, logoChooseFrame } from "@/assets";
-import { getTemplates, Template } from "@/services/templateService";
 import { useAuthStore } from "@/store/authStore";
 import { useSessionStore } from "@/store/sessionStore";
-import { CapturedPhoto, usePhotoStore } from "@/store/photoStore";
+import { usePhotoStore } from "@/store/photoStore";
 import { useUIStore } from "@/store/uiStore";
+import { useTemplateStore } from "@/store/templateStore";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import { SlotDef } from "@/types/layout";
+import { useEffect, useLayoutEffect } from "react";
 import { getLayoutDef } from "@/config/layouts.config";
-
-interface SlotState {
-  slotDef: SlotDef;
-  photo: CapturedPhoto | null;
-}
 
 export function TemplatePage() {
   const { goNext, goBack } = useSessionStore();
   const { captures, setTemplate } = usePhotoStore();
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
-    null,
-  );
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [loading, setLoading] = useState(true);
   const setBg = useUIStore((s) => s.setBackgroundVariant);
   const { user } = useAuthStore();
-  const [error, setError] = useState<string | null>(null);
 
-  let isInitialized = false; // flag untuk memastikan init hanya sekali
+  // Data templat berasal dari store yang sudah di-prefetch di TakePhotoPage.
+  // Pada titik ini list + gambar umumnya sudah hangat di HTTP cache, jadi
+  // carousel langsung tampil tanpa menunggu.
+  const templates = useTemplateStore((s) => s.templates);
+  const selectedTemplate = useTemplateStore((s) => s.selectedTemplate);
+  const setSelectedTemplate = useTemplateStore((s) => s.setSelectedTemplate);
+  const storeLoading = useTemplateStore((s) => s.loading);
+  const ensureTemplatesLoaded = useTemplateStore((s) => s.ensureTemplatesLoaded);
 
-  useEffect(() => {
+  const loading = storeLoading && templates.length === 0;
+
+  // Terapkan background SEBELUM paint pertama agar tidak ada kedip
+  // image-white → image-black saat halaman ini muncul.
+  useLayoutEffect(() => {
     setBg("image-black");
-  }, []);
+  }, [setBg]);
 
+  // Jaring pengaman: kalau user mendarat di sini tanpa lewat prefetch
+  // (mis. reload di tengah sesi), muat sekarang. Idempoten — no-op bila
+  // sudah dimuat.
   useEffect(() => {
-    if (isInitialized) return;
-    isInitialized = true;
-    if (!user) {
-      setError("User tidak ditemukan. Silakan login ulang.");
-      setLoading(false);
-      return;
-    }
-    setTemplates([]);
-    setSelectedTemplate(null);
-    getTemplates({
-      tenantId: user.tenantId,
-      keyword: "",
-      page: 1,
-      limit: 999,
-    })
-      .then((res) => {
-        if (res.result.total > 0) {
-          // sort the template by layoutId
-          const sortedResult = [...res.result.templates].sort((a, b) => a.layoutId - b.layoutId);
-          setTemplates(sortedResult);
-          const defaultTemplate = sortedResult.find((t) => t.isDefault === true)
-          if (defaultTemplate) {
-            setSelectedTemplate(defaultTemplate);
-          } else {
-            setSelectedTemplate(sortedResult[0]);
-          }
-        }
-      })
-      .catch((error) => {
-        console.error(error);
-        setError("Gagal memuat template. Silakan coba lagi.");
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  // slotMap: { [slotIndex]: dataUrl }
-  const [slotMap, setSlotMap] = useState<Record<number, string>>({});
-
-  // ── Derive layout from template.layoutId ──────────────────────────────────
-  const layoutDef = selectedTemplate ? getLayoutDef(selectedTemplate.layoutId) : null;
+    if (user) ensureTemplatesLoaded(user.tenantId);
+  }, [user, ensureTemplatesLoaded]);
 
   if (captures.length === 0) {
     return (
@@ -212,6 +176,8 @@ export function TemplatePage() {
                               src={t.displayUrl}
                               alt={`Template-${indx}`}
                               draggable={false}
+                              loading="lazy"
+                              decoding="async"
                               className="absolute inset-0 h-full w-full pointer-events-none rounded-xl"
                               style={{ objectFit: 'fill' }}
                             />

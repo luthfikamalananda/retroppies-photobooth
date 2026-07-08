@@ -106,3 +106,14 @@ Env penting: `VITE_API_BASE_URL`, `VITE_PRINT_PAPER_SIZE` (A4/A6). Printer di
 - `src/services/colorGrading.ts` — engine filter Canvas 2D + 6 preset.
 - `src/config/layouts.config.ts` — koordinat slot per `layoutId` (relatif 0..1) + `templateSize`.
 - `src/store/*` — state. `electron/main.js` + `preload.js` — window kiosk + IPC print.
+- `src/store/templateStore.ts` — cache templat per-tenant + **prefetch/warm** gambar
+  (lihat [ADR 0002](./docs/adr/0002-prefetch-dan-warm-template-di-halaman-sebelumnya.md)).
+
+## 7. Istilah
+
+- **Prefetch templat**: memanggil `ensureTemplatesLoaded(tenantId)` di **halaman
+  sebelum** TemplatePage (yakni TakePhotoPage) supaya daftar templat sudah siap saat
+  user tiba. _Hindari_: "preload data" (rancu dengan warm gambar).
+- **Warm gambar**: menembakkan `new Image()` untuk setiap `displayUrl` agar file
+  full-res masuk **HTTP cache** browser lebih dulu; decode tetap terjadi saat render.
+  _Hindari_: "cache gambar" (browser yang meng-cache, kita hanya memicu unduhan).

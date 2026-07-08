@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useSessionStore } from "@/store/sessionStore";
 import { usePhotoStore } from "@/store/photoStore";
 import { useUIStore } from "@/store/uiStore";
+import { useAuthStore } from "@/store/authStore";
+import { useTemplateStore } from "@/store/templateStore";
 import {
   btnNextBlack,
   btnNextWhite,
@@ -110,6 +112,8 @@ export function TakePhotoPage() {
 
   const webcamRef = useRef<Webcam>(null);
   const setBg = useUIStore((s) => s.setBackgroundVariant);
+  const user = useAuthStore((s) => s.user);
+  const ensureTemplatesLoaded = useTemplateStore((s) => s.ensureTemplatesLoaded);
 
   const [countdown, setCountdown] = useState<number | null>(null);
   const [showPose, setShowPose] = useState(false);
@@ -130,6 +134,13 @@ export function TakePhotoPage() {
   useEffect(() => {
     setBg("image-white");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Prefetch templat + hangatkan semua gambar displayUrl selagi user
+  // mengambil foto, sehingga TemplatePage (halaman berikutnya) tampil
+  // instan. Idempoten — hanya fetch sekali per tenant.
+  useEffect(() => {
+    if (user) ensureTemplatesLoaded(user.tenantId);
+  }, [user, ensureTemplatesLoaded]);
 
   useEffect(() => {
     return () => {
