@@ -653,9 +653,9 @@ export function DragDropPage() {
 
       // ── 2. Composite video → satu video (FINAL FIX untuk Intel UHD 630) ─────────
       const TARGET_DURATION_MS = countDownPhoto * 1000 // durasi output = countdown (hard-locked)
-      const VIDEO_RENDER_FPS = 20 // 20fps: headroom encode di UHD 630 (naikkan ke 24/30 bila sudah stabil)
+      const VIDEO_RENDER_FPS = 24 // 20fps: headroom encode di UHD 630 (naikkan ke 24/30 bila sudah stabil)
       const VIDEO_BITRATE = 400_000
-      const VIDEO_MAX_WIDTH = 720 // cap lebar CANVAS VIDEO saja (foto/print tetap full-res)
+      const VIDEO_MAX_WIDTH = 900 // cap lebar CANVAS VIDEO saja (foto/print tetap full-res)
 
       console.log('[VideoComposite] Starting video compositing...')
       console.log('[VideoComposite] Target duration:', TARGET_DURATION_MS, 'ms')
