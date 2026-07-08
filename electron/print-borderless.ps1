@@ -69,7 +69,29 @@ $image = [System.Drawing.Image]::FromFile($ImagePath)
 
 $printDoc.add_PrintPage({
     param($sender, $e)
-    $rect = New-Object System.Drawing.Rectangle(0, 0, $e.PageBounds.Width, $e.PageBounds.Height)
+
+    $hardMarginX   = $e.PageSettings.HardMarginX
+    $hardMarginY   = $e.PageSettings.HardMarginY
+    $printableArea = $e.PageSettings.PrintableArea
+    $pageBoundsW   = $e.PageBounds.Width
+    $pageBoundsH   = $e.PageBounds.Height
+
+    Write-Host "DEBUG GEOMETRY: HardMarginX=$hardMarginX HardMarginY=$hardMarginY"
+    Write-Host "DEBUG GEOMETRY: PrintableArea X=$($printableArea.X) Y=$($printableArea.Y) W=$($printableArea.Width) H=$($printableArea.Height)"
+    Write-Host "DEBUG GEOMETRY: PageBounds W=$pageBoundsW H=$pageBoundsH"
+
+    # Size = printable area (stretch-to-fill; template aspect ~0.707 matches A6/A4 ~0.707)
+    $imgW = $printableArea.Width
+    $imgH = $printableArea.Height
+
+    # Center on physical paper, then convert to graphics coords by subtracting hard-margin
+    # (Graphics origin sits at the top-left of the printable area, i.e. offset by hard-margins)
+    $xGfx = [float](($pageBoundsW - $imgW) / 2.0 - $hardMarginX)
+    $yGfx = [float](($pageBoundsH - $imgH) / 2.0 - $hardMarginY)
+
+    Write-Host "DEBUG GEOMETRY: FinalRect x=$xGfx y=$yGfx w=$imgW h=$imgH"
+
+    $rect = New-Object System.Drawing.RectangleF($xGfx, $yGfx, [float]$imgW, [float]$imgH)
     $e.Graphics.DrawImage($image, $rect)
 })
 
