@@ -22,10 +22,13 @@ function createWindow() {
     frame: true,
   });
 
+  // TEMPORARY DEBUG — log error loading ke console main process juga
+  mainWindow.webContents.openDevTools({ mode: "detach" });
+
   const isDev = !app.isPackaged;
   if (isDev) {
     mainWindow.loadURL("http://localhost:5173");
-    
+
     // TEMPORARY DEBUG — log error loading ke console main process juga
     mainWindow.webContents.openDevTools({ mode: "detach" });
 
@@ -120,7 +123,7 @@ ipcMain.handle(
           (error, stdout, stderr) => {
             try {
               fs.unlinkSync(tempImagePath);
-            } catch {}
+            } catch { }
             if (error) {
               console.error("PowerShell print error:", stderr || error.message);
               reject(new Error(stderr || error.message));
@@ -152,7 +155,7 @@ ipcMain.handle(
           (error, stdout, stderr) => {
             try {
               fs.unlinkSync(tempImagePath);
-            } catch {}
+            } catch { }
             if (error) {
               console.error("lp print error:", stderr || error.message);
               reject(new Error(stderr || error.message));
