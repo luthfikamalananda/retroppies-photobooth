@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { VideoPreviewModal } from "./VideoPreviewModal";
 import { countDownPhoto } from "@/const/timers";
+import fixWebmDuration from "fix-webm-duration";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1005,6 +1006,21 @@ export function DragDropPage() {
 
       console.log('[VideoComposite] Video compositing complete. Blob size:', resultVideoBlob.size)
 
+      // ── 2b. Suntik metadata Duration ke WebM ────────────────────────────────
+      // MediaRecorder WebM tak selalu menulis elemen Duration yang reliable → sebagian
+      // player/webview membaca durasi sebagai Infinity/unknown sampai video diputar habis.
+      // Karena durasi target kita PASTI (targetDurationMs), tulis eksplisit ke header.
+      let finalVideoBlob = resultVideoBlob
+      if (resultVideoBlob.type.includes('webm') && resultVideoBlob.size > 0) {
+        try {
+          finalVideoBlob = await fixWebmDuration(resultVideoBlob, targetDurationMs, { logger: false })
+          console.log('[VideoComposite] Duration metadata injected:', targetDurationMs, 'ms. New blob size:', finalVideoBlob.size)
+        } catch (e) {
+          console.warn('[VideoComposite] fixWebmDuration gagal, pakai blob asli:', e)
+          finalVideoBlob = resultVideoBlob
+        }
+      }
+
       // ── 3. GIF dari foto raw + grade ───────────────────────────────────────
 
       const resultGifBlob = await (async () => {
@@ -1071,13 +1087,13 @@ export function DragDropPage() {
             photo4: dataUrlToFile(getRawPhoto(2), 'photo4.jpg'),
             photo5: dataUrlToFile(getRawPhoto(3), 'photo5.jpg'),
             gif: resultGifBlob,
-            video: resultVideoBlob,
+            video: finalVideoBlob,
           })
           if (result.success === true) {
             setTemplateAndGif({
               templateWithPhoto: resultPhotoDataUrl,
               templateWithPhotoProduction: resultPhotoProductionDataUrl,
-              templateWithVideo: resultVideoBlob,
+              templateWithVideo: finalVideoBlob,
               capturesToGIF: resultGifBlob,
             })
             continueToFinalization(result.result.sessionCode)

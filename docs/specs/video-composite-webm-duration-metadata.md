@@ -1,6 +1,10 @@
 # Known Issue (DITUNDA) — Metadata Durasi WebM Hilang pada Composite Video
 
-- Status: **Deferred** (ditunda sampai fix konten diverifikasi di device)
+- Status: **RESOLVED (implemented)** — 2026-07-09. Blob WebM hasil composite kini di-post-process
+  dengan `fix-webm-duration` di `handleNext` (menyuntik elemen `Duration` = `targetDurationMs`
+  = 6000ms secara eksplisit) sebelum di-upload/disimpan ke store. Diverifikasi: file yang
+  semula tanpa `Duration` menjadi `Duration = 6000`. Alasan un-defer: webview playback tak
+  langsung mengetahui durasi (MediaRecorder WebM tak selalu menulis `Duration` yang reliable).
 - Tanggal dicatat: 2026-07-08
 - Konteks kode: `src/components/PhotoSession/DragDropPage.tsx` → `handleNext` (blok "Composite video")
 - Device terdampak: mini PC Dell OptiPlex 7060 (i7-8700t, Intel UHD 630, RAM 16GB)
