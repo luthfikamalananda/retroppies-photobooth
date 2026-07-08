@@ -21,6 +21,7 @@ export function TemplatePage() {
   const selectedTemplate = useTemplateStore((s) => s.selectedTemplate);
   const setSelectedTemplate = useTemplateStore((s) => s.setSelectedTemplate);
   const storeLoading = useTemplateStore((s) => s.loading);
+  const thumbs = useTemplateStore((s) => s.thumbs);
   const ensureTemplatesLoaded = useTemplateStore((s) => s.ensureTemplatesLoaded);
 
   const loading = storeLoading && templates.length === 0;
@@ -173,10 +174,9 @@ export function TemplatePage() {
 
                             {/* Layer 2: Template PNG overlay */}
                             <img
-                              src={t.displayUrl}
+                              src={thumbs[t.id] ?? t.displayUrl}
                               alt={`Template-${indx}`}
                               draggable={false}
-                              loading="lazy"
                               decoding="async"
                               className="absolute inset-0 h-full w-full pointer-events-none rounded-xl"
                               style={{ objectFit: 'fill' }}

@@ -33,9 +33,12 @@ tabrakan decode saat mount**.
    tampil dari cache tanpa menunggu jaringan. `TemplatePage` tetap memanggilnya juga
    sebagai jaring pengaman (mis. reload di tengah sesi).
 
-3. **Warm SEMUA gambar.** Setelah daftar kembali, `new Image()` ditembakkan untuk
-   **setiap** `displayUrl` agar masuk HTTP cache. Referensi ditahan sampai `onload`
-   supaya unduhan tidak ke-GC di tengah jalan.
+3. **Warm SEMUA gambar + thumbnail carousel.** Setelah daftar kembali, setiap
+   `displayUrl` di-fetch (menghangatkan HTTP cache full-res untuk composite di
+   DragDropPage) lalu **di-downscale ke thumbnail WebP** (tinggi 700px, konkurensi 3)
+   yang disimpan di `thumbs[id]`. Carousel TemplatePage merender thumbnail ini
+   (`thumbs[id] ?? displayUrl`), bukan PNG full-res 2000px — decode per file jadi jauh
+   lebih ringan. `displayUrl` full-res **tidak diganti** karena masih dipakai composite.
 
 4. **`useLayoutEffect` untuk background.** Flip ke `image-black` dipindah ke
    `useLayoutEffect` (sebelum paint pertama) untuk menghapus kedip putih saat kedatangan.
@@ -54,8 +57,11 @@ tabrakan decode saat mount**.
 
 ## Konsekuensi
 
-- 10+ bitmap full-res bisa menetap di memori (~10MB per gambar setelah decode). Pada
-  kiosk kelas OptiPlex kemungkinan aman; bila muncul tekanan memori, mitigasi lanjutan =
-  **downscale di sisi klien** (canvas/`createImageBitmap`). Belum dilakukan.
-- `decoding="async"` + `loading="lazy"` dipasang pada `<img>` templat agar decode
-  serempak saat mount tidak menghambat main thread.
+- Tekanan memori dari full-res kini rendah: thumbnail WebP kecil (~puluhan KB) yang
+  ditahan, bukan 10+ bitmap full-res. Full-res hanya di-decode sekejap saat membuat
+  thumbnail lalu dilepas.
+- Object URL thumbnail wajib di-`revokeObjectURL` saat refetch/`clear` (mis. ganti
+  tenant / logout) agar tidak bocor.
+- Butuh `OffscreenCanvas` + `createImageBitmap({resizeQuality})` + `convertToBlob`
+  (WebP). Aman di Chromium/Electron target. Ada fallback: bila gagal, UI memakai
+  `displayUrl` full-res (`decoding="async"` tetap terpasang).

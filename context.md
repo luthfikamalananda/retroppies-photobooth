@@ -114,6 +114,9 @@ Env penting: `VITE_API_BASE_URL`, `VITE_PRINT_PAPER_SIZE` (A4/A6). Printer di
 - **Prefetch templat**: memanggil `ensureTemplatesLoaded(tenantId)` di **halaman
   sebelum** TemplatePage (yakni TakePhotoPage) supaya daftar templat sudah siap saat
   user tiba. _Hindari_: "preload data" (rancu dengan warm gambar).
-- **Warm gambar**: menembakkan `new Image()` untuk setiap `displayUrl` agar file
-  full-res masuk **HTTP cache** browser lebih dulu; decode tetap terjadi saat render.
-  _Hindari_: "cache gambar" (browser yang meng-cache, kita hanya memicu unduhan).
+- **Warm gambar**: mem-fetch setiap `displayUrl` agar file full-res masuk **HTTP
+  cache** browser lebih dulu (dipakai composite di DragDropPage). _Hindari_: "cache
+  gambar" (browser yang meng-cache, kita hanya memicu unduhan).
+- **Thumbnail templat**: versi WebP kecil hasil downscale `displayUrl` (di
+  `templateStore.thumbs[id]`) yang **hanya** dipakai preview carousel TemplatePage,
+  supaya decode per file ringan. `displayUrl` full-res tetap dipakai untuk composite.

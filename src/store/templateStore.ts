@@ -19,6 +19,12 @@ interface TemplateState {
   loading: boolean
   error: string | null
 
+  /**
+   * Peta id templat → object URL thumbnail WebP kecil untuk preview carousel.
+   * `displayUrl` full-res TIDAK diganti (masih dipakai composite di DragDropPage).
+   */
+  thumbs: Record<number, string>
+
   /** tenantId yang datanya sedang tersimpan; null = belum pernah dimuat. */
   loadedTenantId: number | null
 
@@ -37,21 +43,80 @@ interface TemplateState {
 // bukan di state, agar tidak memicu re-render.
 let inflight: { tenantId: number; promise: Promise<void> } | null = null
 
-// Menahan referensi Image sampai selesai load supaya download tidak di-GC
-// sebelum sempat masuk HTTP cache.
-const warming = new Set<HTMLImageElement>()
+// Tinggi thumbnail (px). Carousel menampilkan h-80 (320px), dikali ~2x untuk
+// layar hi-dpi. Cukup tajam tapi jauh lebih ringan dari full-res 2000px.
+const THUMB_HEIGHT = 700
 
-function warmImages(templates: Template[]) {
-  for (const t of templates) {
-    if (!t.displayUrl) continue
-    const img = new Image()
-    img.decoding = 'async'
-    const done = () => warming.delete(img)
-    img.onload = done
-    img.onerror = done
-    img.src = t.displayUrl
-    warming.add(img)
+/**
+ * Buat thumbnail WebP kecil dari sebuah displayUrl full-res.
+ * Efek samping: fetch-nya sekaligus menghangatkan HTTP cache untuk full-res
+ * (dipakai composite di DragDropPage). Mengembalikan object URL, atau null
+ * bila lingkungan tidak mendukung (fallback ke full-res di UI).
+ */
+async function makeThumb(url: string): Promise<string | null> {
+  try {
+    const blob = await (await fetch(url)).blob()
+    // Decode untuk tahu rasio aslinya.
+    const probe = await createImageBitmap(blob)
+    const scale = THUMB_HEIGHT / probe.height
+    const w = Math.max(1, Math.round(probe.width * scale))
+    const h = THUMB_HEIGHT
+    probe.close?.()
+
+    const bmp = await createImageBitmap(blob, {
+      resizeWidth: w,
+      resizeHeight: h,
+      resizeQuality: 'high',
+    })
+    const canvas = new OffscreenCanvas(w, h)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(bmp, 0, 0)
+    bmp.close?.()
+
+    const out = await canvas.convertToBlob({ type: 'image/webp', quality: 0.85 })
+    return URL.createObjectURL(out)
+  } catch (e) {
+    console.warn('makeThumb gagal, fallback ke full-res:', e)
+    return null
   }
+}
+
+/**
+ * Hasilkan thumbnail untuk semua templat dengan konkurensi terbatas (agar
+ * decode full-res tidak menyerbu sekaligus). Progresif — tiap thumb yang
+ * selesai langsung masuk state. Berhenti menulis bila tenant sudah berganti.
+ */
+async function warmThumbs(
+  tenantId: number,
+  templates: Template[],
+  set: (partial: Partial<TemplateState>) => void,
+  get: () => TemplateState,
+) {
+  const CONCURRENCY = 3
+  const queue = templates.filter((t) => t.displayUrl)
+  let i = 0
+
+  async function worker() {
+    while (i < queue.length) {
+      const t = queue[i++]
+      const objUrl = await makeThumb(t.displayUrl)
+      // Tenant berganti / cache dibersihkan selama proses → buang hasil.
+      if (get().loadedTenantId !== tenantId) {
+        if (objUrl) URL.revokeObjectURL(objUrl)
+        return
+      }
+      if (objUrl) set({ thumbs: { ...get().thumbs, [t.id]: objUrl } })
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker),
+  )
+}
+
+function revokeThumbs(thumbs: Record<number, string>) {
+  for (const url of Object.values(thumbs)) URL.revokeObjectURL(url)
 }
 
 export const useTemplateStore = create<TemplateState>((set, get) => ({
@@ -59,6 +124,7 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
   selectedTemplate: null,
   loading: false,
   error: null,
+  thumbs: {},
   loadedTenantId: null,
 
   setSelectedTemplate: (t) => set({ selectedTemplate: t }),
@@ -76,7 +142,9 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
       return inflight.promise
     }
 
-    set({ loading: true, error: null })
+    // Tenant berganti / muat ulang → buang thumbnail lama.
+    revokeThumbs(get().thumbs)
+    set({ loading: true, error: null, thumbs: {} })
 
     const promise = getTemplates({
       tenantId,
@@ -98,8 +166,9 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
             loadedTenantId: tenantId,
           })
 
-          // Hangatkan semua gambar ke HTTP cache di latar belakang.
-          warmImages(sorted)
+          // Bikin thumbnail ringan untuk carousel (sekaligus menghangatkan
+          // HTTP cache full-res untuk composite). Jalan di latar belakang.
+          void warmThumbs(tenantId, sorted, set, get)
         } else {
           set({ templates: [], selectedTemplate: null, loadedTenantId: tenantId })
         }
@@ -119,12 +188,13 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
 
   clear: () => {
     inflight = null
-    warming.clear()
+    revokeThumbs(get().thumbs)
     set({
       templates: [],
       selectedTemplate: null,
       loading: false,
       error: null,
+      thumbs: {},
       loadedTenantId: null,
     })
   },
