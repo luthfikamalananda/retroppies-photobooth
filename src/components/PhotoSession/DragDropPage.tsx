@@ -35,16 +35,17 @@ interface Filter {
   id: FilterId
   label: string
   grade?: ColorGradeOptions
+  videoFilter?: string
 }
 
 const FILTERS: Array<Filter> = [
   { id: 'original', label: 'Original', grade: undefined },
-  { id: 'kodakVintage', label: 'Kodak Vintage', grade: COLOR_GRADE_PRESETS.kodakVintage },
-  { id: 'noirFilm', label: 'Noir Film', grade: COLOR_GRADE_PRESETS.noirFilm },
-  { id: 'digicam2000s', label: 'Digicam 2000s', grade: COLOR_GRADE_PRESETS.digicam2000s },
-  { id: '80sRetro', label: '80s Retro', grade: COLOR_GRADE_PRESETS['80sRetro'] },
-  { id: 'dramaticBW', label: 'Dramatic B&W', grade: COLOR_GRADE_PRESETS.dramaticBW },
-  { id: 'dreamyVintage', label: 'Dreamy Vintage', grade: COLOR_GRADE_PRESETS.dreamyVintage },
+  { id: 'kodakVintage', label: 'Kodak Vintage', grade: COLOR_GRADE_PRESETS.kodakVintage, videoFilter: 'saturate(0.85) contrast(0.92) brightness(1.03) sepia(0.15)' },
+  { id: 'noirFilm', label: 'Noir Film', grade: COLOR_GRADE_PRESETS.noirFilm, videoFilter: 'grayscale(1) contrast(1.35) brightness(0.98)' },
+  { id: 'digicam2000s', label: 'Digicam 2000s', grade: COLOR_GRADE_PRESETS.digicam2000s, videoFilter: 'saturate(1.45) contrast(1.2) brightness(1.05)' },
+  { id: '80sRetro', label: '80s Retro', grade: COLOR_GRADE_PRESETS['80sRetro'], videoFilter: 'saturate(1.15) contrast(0.95) brightness(1.02) sepia(0.1)' },
+  { id: 'dramaticBW', label: 'Dramatic B&W', grade: COLOR_GRADE_PRESETS.dramaticBW, videoFilter: 'grayscale(1) contrast(1.6) brightness(0.96)' },
+  { id: 'dreamyVintage', label: 'Dreamy Vintage', grade: COLOR_GRADE_PRESETS.dreamyVintage, videoFilter: 'saturate(0.75) contrast(0.8) brightness(1.06) sepia(0.08)' },
 ]
 
 // ─── Helper: render foto + color grade ke sebuah <canvas> ────────────────────
@@ -878,6 +879,7 @@ export function DragDropPage() {
           ctx.clearRect(0, 0, outputWidth, outputHeight)
 
           // ── Gambar VIDEO DULU (di bawah template) ──
+          ctx.filter = selectedFilter.videoFilter ?? 'none'
           for (const { videoEl, slot } of videoSlots) {
             if (videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) {
               continue
@@ -907,6 +909,7 @@ export function DragDropPage() {
           }
 
           // ── Gambar template DI ATAS video ──
+          ctx.filter = 'none'
           ctx.drawImage(templateFrameCanvas, 0, 0, outputWidth, outputHeight)
 
           // Pancarkan frame ini ke MediaRecorder secara eksplisit (timeline = wall-clock tick).
