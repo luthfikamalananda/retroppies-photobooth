@@ -91,7 +91,6 @@ export default function App() {
       setHiddenCountDown((prevCountDown) => prevCountDown - 1)
     }, 1000)
 
-    console.log('hiddenCountDown', hiddenCountDown)
     if (hiddenCountDown === 0 && HIDDEN_TIMER_HALAMAN.includes(currentHalaman)) {
       goTo(1)
     }
