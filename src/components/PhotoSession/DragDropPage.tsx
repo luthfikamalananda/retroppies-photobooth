@@ -654,6 +654,7 @@ export function DragDropPage() {
       const TARGET_DURATION_MS = countDownPhoto * 1000 // durasi output = countdown (hard-locked)
       const VIDEO_RENDER_FPS = 20 // 20fps: headroom encode di UHD 630 (naikkan ke 24/30 bila sudah stabil)
       const VIDEO_BITRATE = 400_000
+      const VIDEO_MAX_WIDTH = 720 // cap lebar CANVAS VIDEO saja (foto/print tetap full-res)
 
       console.log('[VideoComposite] Starting video compositing...')
       console.log('[VideoComposite] Target duration:', TARGET_DURATION_MS, 'ms')
@@ -742,8 +743,13 @@ export function DragDropPage() {
       console.log('[VideoComposite] Final target duration (hard-locked to countdown):', targetDurationMs, 'ms')
 
       const resultVideoBlob = await new Promise<Blob>(async (resolve, reject) => {
-        const outputWidth = layoutDef.templateSize?.w ?? width
-        const outputHeight = layoutDef.templateSize?.h ?? height
+        // Downscale HANYA canvas video → drawImage + encode jauh lebih ringan di UHD 630.
+        const nativeW = layoutDef.templateSize?.w ?? width
+        const nativeH = layoutDef.templateSize?.h ?? height
+        const videoScale = Math.min(1, VIDEO_MAX_WIDTH / nativeW)
+        const outputWidth = Math.round(nativeW * videoScale)
+        const outputHeight = Math.round(nativeH * videoScale)
+        console.log('[VideoComposite] Output video size:', outputWidth, 'x', outputHeight, '(scale', videoScale.toFixed(3), ')')
 
         const canvas = document.createElement('canvas')
         canvas.width = outputWidth
@@ -759,15 +765,21 @@ export function DragDropPage() {
         const templateFrameCtx = templateFrameCanvas.getContext('2d')!
         templateFrameCtx.drawImage(templateImg, 0, 0, outputWidth, outputHeight)
 
-        // Hidden container for video elements
+        // Container video: TETAP di dalam viewport (bukan left:-9999px) tapi 8x8px & nyaris
+        // transparan. Chrome men-throttle decode video muted yang OFF-SCREEN ("paused to save
+        // power") — inilah yang tadi bikin sebagian slot freeze. Di dalam viewport → Chrome
+        // anggap visible → decode jalan terus, walau tak terlihat user (opacity 0.01).
         const hiddenVideoContainer = document.createElement('div')
-        hiddenVideoContainer.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;'
+        hiddenVideoContainer.style.cssText = 'position:fixed;left:0;bottom:0;width:8px;height:8px;opacity:0.01;pointer-events:none;z-index:0;overflow:hidden;'
         document.body.appendChild(hiddenVideoContainer)
         videoSlots.forEach(({ videoEl }) => hiddenVideoContainer.appendChild(videoEl))
 
-        // Browser-driven sampling: browser meng-sample canvas di clock-nya SENDIRI pada
-        // VIDEO_RENDER_FPS, independen dari rAF kita → DURASI terlepas dari throughput render.
-        const stream = canvas.captureStream(VIDEO_RENDER_FPS)
+        // captureStream(0): stream TIDAK meng-sample otomatis. Kita pancarkan frame secara
+        // eksplisit via captureTrack.requestFrame() dari pump setInterval (berbasis timer).
+        // Ini kunci fix: di Chrome, captureStream(fps) hanya memancarkan frame saat canvas
+        // di-paint (terikat rAF) — dan rAF MATI saat GPU stall, bikin timeline kolaps ke ~0,3s.
+        const stream = canvas.captureStream(0)
+        const captureTrack = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack | undefined
         // Prioritaskan VP8 — UHD 630 tak punya HW VP9 encoder; VP8 software encode jauh lebih ringan.
         const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
           ? 'video/webm;codecs=vp8'
@@ -784,7 +796,7 @@ export function DragDropPage() {
 
         const chunks: Blob[] = []
         let recordingStartedAt = 0
-        let animationFrameId: number | null = null
+        let renderIntervalId: number | null = null
         let stopTimeoutId: number | null = null
         let isRecording = false
         let framesRendered = 0
@@ -811,9 +823,9 @@ export function DragDropPage() {
         }
 
         const cleanup = () => {
-          if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId)
-            animationFrameId = null
+          if (renderIntervalId) {
+            clearInterval(renderIntervalId)
+            renderIntervalId = null
           }
           if (stopTimeoutId) {
             clearTimeout(stopTimeoutId)
@@ -852,12 +864,11 @@ export function DragDropPage() {
           }, 150)
         }
 
-        // Render loop: HANYA menggambar frame video terbaru ke canvas secepat rAF bisa.
-        // Durasi TIDAK bergantung pada loop ini — captureStream(FPS) yang meng-sample canvas
-        // di clock browser, dan stop dikendalikan setTimeout. Kalau loop stall karena GPU
-        // sibuk, browser meng-sample ulang frame terakhir → durasi tetap utuh (paling banter
-        // sedikit freeze), tidak lagi kolaps ke 1-2 detik.
-        const renderLoop = () => {
+        // drawFrame: gambar SATU frame ke canvas lalu pancarkan EKSPLISIT ke stream via
+        // requestFrame(). Dipompa oleh setInterval (berbasis timer), BUKAN rAF — timer tetap
+        // firing walau compositor/rAF stall di bawah beban GPU, sehingga frame tersebar penuh
+        // sepanjang 6 dtk dan durasi tak lagi kolaps.
+        const drawFrame = () => {
           if (!isRecording) return
 
           framesRendered++
@@ -897,8 +908,10 @@ export function DragDropPage() {
           // ── Gambar template DI ATAS video ──
           ctx.drawImage(templateFrameCanvas, 0, 0, outputWidth, outputHeight)
 
-          // Continue loop (hanya untuk update visual; browser yang meng-sample untuk encode)
-          animationFrameId = requestAnimationFrame(renderLoop)
+          // Pancarkan frame ini ke MediaRecorder secara eksplisit (timeline = wall-clock tick).
+          try {
+            captureTrack?.requestFrame?.()
+          } catch { }
         }
 
         // Start playback semua video
@@ -958,13 +971,14 @@ export function DragDropPage() {
           // ── FIX: Tunggu 200ms sebelum mulai render ──
           await new Promise(r => setTimeout(r, 200))
 
-          // THEN start timer and render loop
+          // THEN start timer and render pump
           recordingStartedAt = performance.now()
           isRecording = true
           console.log('[VideoComposite] Recording started at', recordingStartedAt)
 
-          // Start render loop (visual only)
-          animationFrameId = requestAnimationFrame(renderLoop)
+          // Pump gambar+requestFrame via setInterval (timer) — tahan terhadap rAF/compositor stall.
+          drawFrame() // frame pertama segera
+          renderIntervalId = window.setInterval(drawFrame, Math.round(1000 / VIDEO_RENDER_FPS))
 
           // ── Stop berbasis timer (independen dari rAF): INILAH yang menjamin durasi = countdown.
           // setTimeout tetap fire walau rAF/compositor stall, jadi durasi tak lagi kolaps.
