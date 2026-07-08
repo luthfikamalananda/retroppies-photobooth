@@ -651,8 +651,8 @@ export function DragDropPage() {
       const resultPhotoProductionDataUrl = photoProductionCanvas.toDataURL('image/png', 0.95)
 
       // ── 2. Composite video → satu video (FINAL FIX untuk Intel UHD 630) ─────────
-      const TARGET_DURATION_MS = (countDownPhoto + 2) * 1000
-      const VIDEO_RENDER_FPS = 24 // Turunkan ke 24fps untuk stabilitas di low-spec
+      const TARGET_DURATION_MS = countDownPhoto * 1000 // durasi output = countdown (hard-locked)
+      const VIDEO_RENDER_FPS = 20 // 20fps: headroom encode di UHD 630 (naikkan ke 24/30 bila sudah stabil)
       const VIDEO_BITRATE = 400_000
 
       console.log('[VideoComposite] Starting video compositing...')
@@ -736,8 +736,10 @@ export function DragDropPage() {
         videoSlots.push({ videoEl, slot, durationMs })
       }
 
-      const targetDurationMs = Math.max(TARGET_DURATION_MS, ...videoSlots.map(v => v.durationMs))
-      console.log('[VideoComposite] Final target duration:', targetDurationMs, 'ms')
+      // Hard-lock durasi output = countdown. TIDAK memakai Math.max dengan durasi video
+      // sumber, karena metadata durasi WebM sumber tak reliable (kadang Infinity/melebihi).
+      const targetDurationMs = TARGET_DURATION_MS
+      console.log('[VideoComposite] Final target duration (hard-locked to countdown):', targetDurationMs, 'ms')
 
       const resultVideoBlob = await new Promise<Blob>(async (resolve, reject) => {
         const outputWidth = layoutDef.templateSize?.w ?? width
@@ -763,10 +765,12 @@ export function DragDropPage() {
         document.body.appendChild(hiddenVideoContainer)
         videoSlots.forEach(({ videoEl }) => hiddenVideoContainer.appendChild(videoEl))
 
-        // ── FIX: Gunakan captureStream(0) + requestFrame() manual ──
-        const stream = canvas.captureStream(0)
-        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-          ? 'video/webm;codecs=vp9'
+        // Browser-driven sampling: browser meng-sample canvas di clock-nya SENDIRI pada
+        // VIDEO_RENDER_FPS, independen dari rAF kita → DURASI terlepas dari throughput render.
+        const stream = canvas.captureStream(VIDEO_RENDER_FPS)
+        // Prioritaskan VP8 — UHD 630 tak punya HW VP9 encoder; VP8 software encode jauh lebih ringan.
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+          ? 'video/webm;codecs=vp8'
           : MediaRecorder.isTypeSupported('video/webm')
             ? 'video/webm'
             : 'video/mp4'
@@ -778,14 +782,12 @@ export function DragDropPage() {
           videoBitsPerSecond: VIDEO_BITRATE,
         })
 
-        const captureTrack = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack | undefined
-
         const chunks: Blob[] = []
         let recordingStartedAt = 0
         let animationFrameId: number | null = null
+        let stopTimeoutId: number | null = null
         let isRecording = false
         let framesRendered = 0
-        let lastFrameTime = 0
 
         recorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
@@ -812,6 +814,10 @@ export function DragDropPage() {
           if (animationFrameId) {
             cancelAnimationFrame(animationFrameId)
             animationFrameId = null
+          }
+          if (stopTimeoutId) {
+            clearTimeout(stopTimeoutId)
+            stopTimeoutId = null
           }
           hiddenVideoContainer.remove()
           videoSlots.forEach(({ videoEl }) => {
@@ -846,27 +852,14 @@ export function DragDropPage() {
           }, 150)
         }
 
-        // ── FIX: Render loop dengan requestFrame() manual ──
-        const renderLoop = (timestamp: number) => {
+        // Render loop: HANYA menggambar frame video terbaru ke canvas secepat rAF bisa.
+        // Durasi TIDAK bergantung pada loop ini — captureStream(FPS) yang meng-sample canvas
+        // di clock browser, dan stop dikendalikan setTimeout. Kalau loop stall karena GPU
+        // sibuk, browser meng-sample ulang frame terakhir → durasi tetap utuh (paling banter
+        // sedikit freeze), tidak lagi kolaps ke 1-2 detik.
+        const renderLoop = () => {
           if (!isRecording) return
 
-          const elapsedMs = performance.now() - recordingStartedAt
-
-          // Check if we've reached target duration
-          if (elapsedMs >= targetDurationMs) {
-            console.log('[VideoComposite] Target duration reached. Elapsed:', elapsedMs, 'ms')
-            stopRecording()
-            return
-          }
-
-          // ── FIX: Kontrol frame rate manual ──
-          const frameInterval = 1000 / VIDEO_RENDER_FPS
-          if (timestamp - lastFrameTime < frameInterval) {
-            animationFrameId = requestAnimationFrame(renderLoop)
-            return
-          }
-
-          lastFrameTime = timestamp
           framesRendered++
 
           // Clear canvas
@@ -904,14 +897,7 @@ export function DragDropPage() {
           // ── Gambar template DI ATAS video ──
           ctx.drawImage(templateFrameCanvas, 0, 0, outputWidth, outputHeight)
 
-          // ── FIX: Request frame manual SETELAH canvas di-render ──
-          try {
-            captureTrack?.requestFrame?.()
-          } catch (err) {
-            console.warn('[VideoComposite] requestFrame failed:', err)
-          }
-
-          // Continue loop
+          // Continue loop (hanya untuk update visual; browser yang meng-sample untuk encode)
           animationFrameId = requestAnimationFrame(renderLoop)
         }
 
@@ -975,19 +961,26 @@ export function DragDropPage() {
           // THEN start timer and render loop
           recordingStartedAt = performance.now()
           isRecording = true
-          lastFrameTime = recordingStartedAt
           console.log('[VideoComposite] Recording started at', recordingStartedAt)
 
-          // Start render loop
+          // Start render loop (visual only)
           animationFrameId = requestAnimationFrame(renderLoop)
 
-          // Safety timeout
+          // ── Stop berbasis timer (independen dari rAF): INILAH yang menjamin durasi = countdown.
+          // setTimeout tetap fire walau rAF/compositor stall, jadi durasi tak lagi kolaps.
+          stopTimeoutId = window.setTimeout(() => {
+            const elapsedMs = performance.now() - recordingStartedAt
+            console.log('[VideoComposite] Stop timer fired. Elapsed:', elapsedMs, 'ms, framesRendered:', framesRendered)
+            stopRecording()
+          }, targetDurationMs)
+
+          // Safety timeout (jaring pengaman kalau stop utama gagal)
           window.setTimeout(() => {
             if (isRecording) {
               console.warn('[VideoComposite] Safety timeout triggered')
               stopRecording()
             }
-          }, targetDurationMs + 500)
+          }, targetDurationMs + 800)
 
         } catch (err) {
           console.error('[VideoComposite] Error starting recording:', err)
