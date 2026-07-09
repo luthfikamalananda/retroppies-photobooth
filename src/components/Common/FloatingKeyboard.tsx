@@ -1,6 +1,7 @@
 import { useMotionValue, motion, AnimatePresence } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useKeyboardStore } from '@/store/keyboardStore'
+import { useSessionStore } from '@/store/sessionStore'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -121,8 +122,20 @@ function Key({ label, onPress, cfg, variant = 'default', grow, wide }: KeyProps)
 // ─── Main component ───────────────────────────────────────────────────────────
 export function FloatingKeyboard() {
     const { isOpen, onKeyPress, close, position, setPosition } = useKeyboardStore()
+    const currentHalaman = useSessionStore((s) => s.currentHalaman)
     const [mode, setMode] = useState<KeyboardMode>('normal')
     const [size, setSize] = useState<KeyboardSize>('besar')
+
+    // Close the keyboard on any page change. The keyboard lives in a global store,
+    // so navigation (goNext/goTo/back) would otherwise orphan an open keyboard onto
+    // the next page. Guarded to only act on an actual change, never on mount.
+    const prevHalaman = useRef(currentHalaman)
+    useEffect(() => {
+        if (prevHalaman.current !== currentHalaman) {
+            prevHalaman.current = currentHalaman
+            close()
+        }
+    }, [currentHalaman, close])
 
     const cfg = SIZE_CFG[size]
     const layout = LAYOUTS[mode]
