@@ -205,6 +205,9 @@ ipcMain.handle("transcode-to-mp4", async (_, { bytes, durationSec }) => {
   const args = [
     "-y",
     "-i", inPath,
+    // H.264 yuv420p (4:2:0) wajib dimensi genap. Ukuran composite dari template bisa
+    // ganjil (mis. 900x1273) → bulatkan ke genap terdekat agar libx264 tak menolak.
+    "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
     "-c:v", "libx264",
     "-preset", "veryfast",
     "-pix_fmt", "yuv420p",      // wajib untuk iOS Safari
