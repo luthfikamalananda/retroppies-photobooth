@@ -319,9 +319,78 @@ interface PhotoTrayProps {
   onDragEnd: (photo: CapturedPhoto) => void;
 }
 
+// Ambang gerakan (px) untuk membedakan KLIK vs DRAG. Di bawah ambang saat
+// pointer dilepas → dianggap klik (assign ke slot aktif); di atas ambang →
+// drag dimulai (ghost muncul).
+const DRAG_THRESHOLD = 6
+
 function PhotoTray({ captures, activeSlotIndex, onAssign, onDrag, onDragEnd }: PhotoTrayProps) {
   const [draggingPhoto, setDraggingPhoto] = useState<CapturedPhoto | null>(null)
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 })
+
+  // Ref agar handler pointer tidak bergantung pada re-render (stabil selama gesture).
+  const gesture = useRef<{
+    photo: CapturedPhoto
+    startX: number
+    startY: number
+    started: boolean // sudah melewati DRAG_THRESHOLD?
+  } | null>(null)
+
+  // ─── Native pointer drag ──────────────────────────────────────────────────
+  //
+  // Sengaja TIDAK memakai framer-motion `drag` di sini. Framer melakukan lazy
+  // init projection/measurement pada gesture PERTAMA → itulah sumber lag "sekali
+  // di awal" saat drag foto pertama. Karena kita sudah punya ghost manual via
+  // portal + tracking dragPosition, pointer event native sudah cukup dan bebas
+  // dari overhead init tersebut.
+
+  const handlePointerDown = (e: React.PointerEvent, photo: CapturedPhoto) => {
+    // Warm-up decode JPEG (1920×1080) supaya bitmap siap sebelum ghost mount —
+    // menutup sisa micro-jank dari decode gambar pertama di GPU low-end.
+    const warm = new Image()
+    warm.src = photo.dataUrl
+    warm.decode?.().catch(() => { })
+
+    gesture.current = { photo, startX: e.clientX, startY: e.clientY, started: false }
+      ; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const g = gesture.current
+    if (!g) return
+
+    if (!g.started) {
+      const dist = Math.hypot(e.clientX - g.startX, e.clientY - g.startY)
+      if (dist < DRAG_THRESHOLD) return
+      g.started = true
+      setDraggingPhoto(g.photo)
+    }
+
+    setDragPosition({ x: e.clientX, y: e.clientY })
+    // Hormati kontrak parent: handleDrag membaca info.point.{x,y}.
+    onDrag(e, { point: { x: e.clientX, y: e.clientY } })
+  }
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    const g = gesture.current
+    gesture.current = null
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId) } catch { }
+
+    if (!g) return
+
+    if (g.started) {
+      onDragEnd(g.photo)
+      setDraggingPhoto(null)
+    } else {
+      // Tidak melewati ambang → perlakukan sebagai klik.
+      if (activeSlotIndex !== null) onAssign(activeSlotIndex, g.photo.dataUrl)
+    }
+  }
+
+  const handlePointerCancel = () => {
+    gesture.current = null
+    setDraggingPhoto(null)
+  }
 
   return (
     <div className="flex flex-col h-full gap-2 justify-between items-center w-[50%] z-50">
@@ -344,37 +413,24 @@ function PhotoTray({ captures, activeSlotIndex, onAssign, onDrag, onDragEnd }: P
                 ? "border-retro-amber/60 hover:border-retro-amber hover:scale-[1.02]"
                 : "border-[#B23E3E] hover:border-retro-amber/40",
             ].join(" ")}
-            onClick={() => {
-              if (activeSlotIndex !== null) onAssign(activeSlotIndex, photo.dataUrl)
+            style={{
+              touchAction: 'none',
+              // Dim sumber saat sedang di-drag (pengganti whileDrag opacity).
+              opacity: draggingPhoto?.slotIndex === photo.slotIndex ? 0.3 : 1,
             }}
-            onPointerDown={(e) => {
-              setDraggingPhoto(photo)
-              setDragPosition({ x: e.clientX, y: e.clientY })
-            }}
+            onPointerDown={(e) => handlePointerDown(e, photo)}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
           >
-            <motion.div
-              drag
-              dragSnapToOrigin
-              dragElastic={0.6}
-              style={{ touchAction: 'none' }}
-              onDrag={(event, info) => {
-                setDragPosition({ x: info.point.x, y: info.point.y })
-                onDrag(event, info)
-              }}
-              onDragStart={() => setDraggingPhoto(photo)}
-              onDragEnd={() => {
-                onDragEnd(photo)
-                setDraggingPhoto(null)
-              }}
-              whileDrag={{ opacity: 0.3 }}
-              className="w-full h-full aspect-square overflow-hidden"
-            >
+            <div className="w-full h-full aspect-square overflow-hidden">
               <img
                 src={photo.dataUrl}
                 alt={`Foto ${photo.slotIndex + 1}`}
                 className="w-full h-full object-cover pointer-events-none"
+                draggable={false}
               />
-            </motion.div>
+            </div>
           </div>
         ))}
       </div>
@@ -392,6 +448,7 @@ function PhotoTray({ captures, activeSlotIndex, onAssign, onDrag, onDragEnd }: P
             src={draggingPhoto.dataUrl}
             className="w-48 h-72 object-cover rounded-xl shadow-2xl opacity-90 border-2 border-retro-amber"
             draggable={false}
+            decoding="async"
           />
         </div>,
         document.body
