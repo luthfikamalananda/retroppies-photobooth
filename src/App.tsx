@@ -11,6 +11,7 @@ import { FloatingKeyboard } from '@/components/Common/FloatingKeyboard'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useCartStore } from './store/cartStore'
 import { usePhotoStore } from './store/photoStore'
+import { useTemplateStore } from '@/store/templateStore'
 import { timerBeforePayment } from './const/timers'
 
 const AdminLoginPage = lazy(() => import('@/components/Auth/AdminLoginPage').then(m => ({ default: m.AdminLoginPage })))
@@ -57,6 +58,11 @@ const MUSTHAVE_PRODUCTS = [4, 5, 6] // ProductPage and ExtraPrintPage require a 
 const MUSHAVE_TRANSACTION_DATA = [8, 9, 10, 11, 12, 13] // Pages that require transaction data to be present (i.e. after payment success)
 
 const RESET_SESSION = [0, 1, 2, 3, 4, 5, 6, 7]
+
+// Halaman tempat cache templat yang sudah di-prefetch HARUS bertahan. Di luar
+// ini store templat selalu di-reset agar pelanggan baru tidak melihat daftar /
+// pilihan templat yang basi dari sesi sebelumnya.
+const TEMPLATE_KEEP_HALAMAN = [10, 11]
 
 export default function App() {
   const { goTo, resetSession, transaction, currentHalaman } = useSessionStore()
@@ -119,6 +125,14 @@ export default function App() {
     if (isMustResetSession) {
       resetSession()
       clearPhotoTrigger()
+    }
+  }, [currentHalaman])
+
+  // Reset store templat di setiap halaman KECUALI TakePhotoPage (10) dan
+  // TemplatePage (11), tempat prefetch + pilihan templat harus bertahan.
+  useEffect(() => {
+    if (!TEMPLATE_KEEP_HALAMAN.includes(currentHalaman)) {
+      useTemplateStore.getState().clear()
     }
   }, [currentHalaman])
 

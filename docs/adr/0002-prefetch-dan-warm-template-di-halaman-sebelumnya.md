@@ -1,9 +1,9 @@
 # ADR 0002 — Prefetch + Warm-All Templat di Halaman Sebelumnya (TakePhotoPage)
 
-- Status: Accepted
+- Status: Accepted (diamandemen 2026-07-09 — lihat "Amandemen: reset per-halaman")
 - Tanggal: 2026-07-09
 - Konteks kode: `src/store/templateStore.ts`, `src/components/PhotoSession/TakePhotoPage.tsx`,
-  `src/components/PhotoSession/TemplatePage.tsx`
+  `src/components/PhotoSession/TemplatePage.tsx`, `src/App.tsx`
 
 ## Konteks
 
@@ -25,8 +25,9 @@ tabrakan decode saat mount**.
 1. **Cache di store, sekali per-tenant.** Templat dipindah dari `useState` lokal ke
    `templateStore` (Zustand) dengan aksi idempoten `ensureTemplatesLoaded(tenantId)`:
    dedupe fetch bersamaan, no-op bila sudah termuat, refetch bila tenant berganti.
-   Cache bertahan selama masa hidup sesi kiosk; dibersihkan lewat `clearUser`
-   (dynamic import, hindari circular dependency ke `apiClient`).
+   Cache di-reset di setiap halaman **kecuali** TakePhotoPage (10) dan TemplatePage (11)
+   — lihat "Amandemen: reset per-halaman" di bawah. `clearUser` juga tetap memanggil
+   `clear` (dynamic import, hindari circular dependency ke `apiClient`).
 
 2. **Prefetch di halaman sebelumnya.** `TakePhotoPage` memanggil `ensureTemplatesLoaded`
    saat mount — templat dimuat **selagi user mengambil foto**, sehingga `TemplatePage`
@@ -60,8 +61,41 @@ tabrakan decode saat mount**.
 - Tekanan memori dari full-res kini rendah: thumbnail WebP kecil (~puluhan KB) yang
   ditahan, bukan 10+ bitmap full-res. Full-res hanya di-decode sekejap saat membuat
   thumbnail lalu dilepas.
-- Object URL thumbnail wajib di-`revokeObjectURL` saat refetch/`clear` (mis. ganti
-  tenant / logout) agar tidak bocor.
+- Object URL thumbnail wajib di-`revokeObjectURL` saat refetch/`clear` (kini terjadi
+  di tiap perpindahan halaman ke luar flow, ganti tenant, atau logout) agar tidak bocor.
+  `clear` sudah menangani ini.
 - Butuh `OffscreenCanvas` + `createImageBitmap({resizeQuality})` + `convertToBlob`
   (WebP). Aman di Chromium/Electron target. Ada fallback: bila gagal, UI memakai
   `displayUrl` full-res (`decoding="async"` tetap terpasang).
+
+## Amandemen: reset per-halaman (2026-07-09)
+
+**Perubahan.** Semula cache bertahan selama seluruh masa hidup sesi kiosk dan hanya
+dibersihkan saat logout (`clearUser`). Akibatnya, lintas beberapa pelanggan dalam satu
+sesi kiosk, daftar/pilihan templat basi bisa ikut terbawa. Kini `templateStore.clear()`
+dipanggil di `App.tsx` pada **setiap** perpindahan halaman **kecuali** TakePhotoPage
+(halaman 10) dan TemplatePage (halaman 11):
+
+```ts
+const TEMPLATE_KEEP_HALAMAN = [10, 11]
+
+useEffect(() => {
+  if (!TEMPLATE_KEEP_HALAMAN.includes(currentHalaman)) {
+    useTemplateStore.getState().clear()
+  }
+}, [currentHalaman])
+```
+
+**Mengapa aman dengan prefetch/warm.** Prefetch tetap dijalankan di TakePhotoPage (10)
+dan pilihan bertahan sampai TemplatePage (11) — dua halaman itu di-*keep*, jadi carousel
+tetap terasa instan. Saat NEXT di TemplatePage, templat terpilih **disalin ke
+`photoStore`** (`setTemplate`), sehingga DragDropPage (12) & FinishedPhotoPage (13) —
+yang tidak membaca `templateStore` sama sekali — tetap bisa composite meski store
+di-reset di halaman-halaman itu. `clear` hanya me-revoke object URL thumbnail lokal,
+bukan `displayUrl` full-res (URL statis remote yang masih hangat di HTTP cache).
+
+**Konsekuensi.** Kembali ke belakang keluar dari flow (mis. 10 → 9) mereset cache;
+maju lagi ke 10 akan prefetch ulang (fetch daftar + bangun thumbnail lagi). Ini
+disengaja demi kebaruan data per pelanggan. Perpindahan di dalam flow (10 ⇄ 11) tidak
+mereset. Panggilan `clear` di `clearUser` sengaja **dipertahankan** sebagai jaring
+pengaman defensif meski kini sebagian redundan.
