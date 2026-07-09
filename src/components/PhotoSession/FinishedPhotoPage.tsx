@@ -295,7 +295,7 @@ export function FinishedPhotoPage() {
           </div>
         </div>
 
-        <VideoPreviewModal type="template" />
+        {/* <VideoPreviewModal type="template" /> */}
 
         {/* ── Footer row ── */}
         <div className="flex flex-row w-full justify-end items-center flex-shrink-0 invisible">

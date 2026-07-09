@@ -31,7 +31,7 @@ function createWindow() {
   });
 
   // TEMPORARY DEBUG — log error loading ke console main process juga
-  mainWindow.webContents.openDevTools({ mode: "detach" });
+  // mainWindow.webContents.openDevTools({ mode: "detach" });
 
   const isDev = !app.isPackaged;
   if (isDev) {
