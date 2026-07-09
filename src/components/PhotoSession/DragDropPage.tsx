@@ -3,6 +3,7 @@ import { getLayoutDef } from "@/config/layouts.config";
 import { applyColorGrade, COLOR_GRADE_PRESETS, type ColorGradeOptions } from "@/services/colorGrading";
 import { createSessions } from "@/services/finalizeService";
 import { printPhotoBorderless } from '@/services/printService';
+import { transcodeToMp4 } from '@/services/videoService';
 import { useAuthStore } from "@/store/authStore";
 import { CapturedPhoto, usePhotoStore } from "@/store/photoStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -590,6 +591,9 @@ export function DragDropPage() {
   };
 
   const [isProcessing, setIsProcessing] = useState(false)
+  const [processingError, setProcessingError] = useState<string | null>(null)
+  // Simpan argumen handleNext terakhir agar tombol "Coba lagi" bisa mengulang persis.
+  const lastNextArgsRef = useRef<{ permission: boolean; overrideSlotMap?: Record<number, string> } | null>(null)
 
   const handleNext = async ({
     permission = false,
@@ -602,11 +606,14 @@ export function DragDropPage() {
     const isFilled = Object.keys(currentSlotMap).length >= slotCount
     if (!isFilled || !layoutDef || !template) return
 
+    lastNextArgsRef.current = { permission, overrideSlotMap }
+
     const containerEl = document.getElementById('template-composite-container')
     const width = containerEl ? containerEl.getBoundingClientRect().width : 600
     const height = containerEl ? containerEl.getBoundingClientRect().height : 850
 
     setIsProcessing(true)
+    setProcessingError(null)
 
     try {
       const loadImage = (src: string): Promise<HTMLImageElement> =>
@@ -1081,6 +1088,17 @@ export function DragDropPage() {
         }
       }
 
+      // ── 2c. Transcode WebM (VP8) → MP4 (H.264) kompatibel iOS ───────────────
+      // iPhone/Safari tak bisa memutar VP8/WebM. ffmpeg native di Electron main
+      // meng-transcode ke H.264 + yuv420p + faststart. Bila GAGAL → lempar (fail-loud):
+      // JANGAN upload WebM yang tak bisa diputar iPhone secara diam-diam.
+      // Lihat docs/adr/0003-transcode-video-composite-ke-mp4-h264-untuk-ios.md
+      if (finalVideoBlob.size > 0) {
+        console.log('[VideoComposite] Transcoding WebM → MP4 (H.264)...')
+        finalVideoBlob = await transcodeToMp4(finalVideoBlob, targetDurationMs)
+        console.log('[VideoComposite] Transcode selesai. MP4 blob size:', finalVideoBlob.size)
+      }
+
       // ── 3. GIF dari foto raw + grade ───────────────────────────────────────
 
       const resultGifBlob = await (async () => {
@@ -1174,6 +1192,9 @@ export function DragDropPage() {
       }
     } catch (err) {
       console.error('handleNext error:', err)
+      setProcessingError(
+        'Gagal memproses video (transcode ke MP4). Sesi tidak disimpan — silakan coba lagi.'
+      )
     } finally {
       setIsProcessing(false)
     }
@@ -1348,6 +1369,31 @@ export function DragDropPage() {
             <p className="font-gaming text-retro-amber text-sm mt-4">
               Memproses...
             </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {processingError && (
+          <motion.div
+            className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm px-8 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <p className="font-gaming text-red-400 text-base max-w-md">
+              {processingError}
+            </p>
+            <button
+              onClick={() => {
+                setProcessingError(null)
+                const args = lastNextArgsRef.current
+                if (args) handleNext(args)
+              }}
+              className="font-body text-black bg-retro-amber px-6 py-3 rounded-lg mt-6 text-lg"
+            >
+              Coba lagi
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

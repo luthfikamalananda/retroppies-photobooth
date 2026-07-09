@@ -20,4 +20,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
   printPhotoBorderless: (params) =>
     ipcRenderer.invoke("print-photo-borderless", params),
+  transcodeToMp4: (bytes, durationSec) =>
+    ipcRenderer.invoke("transcode-to-mp4", { bytes, durationSec }),
 });

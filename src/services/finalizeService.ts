@@ -60,10 +60,10 @@ export async function createSessions(req: createSessionRequest): Promise<BaseRes
 
     const videoBlob = req.video.type
       ? req.video
-      : new Blob([req.video], { type: 'video/webm' }) // fallback jika type kosong
+      : new Blob([req.video], { type: 'video/mp4' }) // fallback jika type kosong (sudah MP4/H.264 hasil transcode)
 
     form.append('gif', gifBlob, 'result.gif')      // ← filename wajib untuk Blob
-    form.append('video', videoBlob, 'result.webm') // ← filename wajib untuk Blob
+    form.append('video', videoBlob, 'result.mp4')  // ← MP4/H.264 (kompatibel iOS); lihat ADR 0003
     const res = await apiClient.post<BaseResponse<createSessionResult>>(`/photobooth/sessions`, form, {
       headers: {
         'Content-Type': 'multipart/form-data', // ← Pastikan header ini ada

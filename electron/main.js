@@ -4,6 +4,14 @@ const fs = require("fs");
 const os = require("os");
 const { execFile } = require("child_process");
 
+// Path binary ffmpeg (dari ffmpeg-static). Saat dikemas, binary di-unpack dari arsip
+// asar (lihat "asarUnpack" di package.json) → path require menunjuk ke dalam app.asar,
+// jadi harus dialihkan ke app.asar.unpacked agar file benar-benar bisa dieksekusi.
+const ffmpegStaticPath = require("ffmpeg-static");
+const ffmpegPath = app.isPackaged
+  ? ffmpegStaticPath.replace("app.asar", "app.asar.unpacked")
+  : ffmpegStaticPath;
+
 let mainWindow;
 
 console.log("MAIN PROCESS START");
@@ -174,6 +182,67 @@ ipcMain.handle(
     );
   },
 );
+
+// ─────────────────────────────────────────────────────────────────────────
+// Handler: Transcode video composite WebM (VP8) → MP4 (H.264) kompatibel iOS.
+// Renderer hanya bisa menghasilkan VP8/WebM via MediaRecorder, sedang iOS Safari
+// butuh H.264 + yuv420p + moov atom di depan (+faststart). Kita transcode di sini
+// (main process) dengan ffmpeg native — libx264 (CPU-only, agnostik GPU/CPU vendor).
+// Lihat docs/adr/0003-transcode-video-composite-ke-mp4-h264-untuk-ios.md
+// ─────────────────────────────────────────────────────────────────────────
+ipcMain.handle("transcode-to-mp4", async (_, { bytes, durationSec }) => {
+  const stamp = Date.now();
+  const inPath = path.join(os.tmpdir(), `composite-${stamp}.webm`);
+  const outPath = path.join(os.tmpdir(), `composite-${stamp}.mp4`);
+
+  const cleanup = () => {
+    try { fs.unlinkSync(inPath); } catch { }
+    try { fs.unlinkSync(outPath); } catch { }
+  };
+
+  fs.writeFileSync(inPath, Buffer.from(bytes));
+
+  const args = [
+    "-y",
+    "-i", inPath,
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-pix_fmt", "yuv420p",      // wajib untuk iOS Safari
+    "-movflags", "+faststart",  // moov atom di depan → bisa stream progресif
+    "-an",                       // tak ada audio (video di-composite muted)
+  ];
+  // Kunci durasi output = countdown (metadata durasi WebM sumber tak reliable).
+  if (Number.isFinite(durationSec) && durationSec > 0) {
+    args.push("-t", String(durationSec));
+  }
+  args.push(outPath);
+
+  return new Promise((resolve, reject) => {
+    execFile(
+      ffmpegPath,
+      args,
+      { windowsHide: true, maxBuffer: 1024 * 1024 * 64 },
+      (error, _stdout, stderr) => {
+        if (error) {
+          cleanup();
+          console.error("[transcode-to-mp4] ffmpeg gagal:", stderr || error.message);
+          reject(new Error(stderr || error.message));
+          return;
+        }
+        try {
+          const mp4 = fs.readFileSync(outPath);
+          cleanup();
+          console.log("[transcode-to-mp4] OK. MP4 size:", mp4.length, "bytes");
+          // Uint8Array aman dilewatkan structured-clone lewat IPC.
+          resolve(new Uint8Array(mp4));
+        } catch (e) {
+          cleanup();
+          reject(e);
+        }
+      },
+    );
+  });
+});
 
 // IPC: Printer capability check
 ipcMain.handle("check-printer", async () => {
