@@ -21,6 +21,12 @@ function createWindow() {
     height: 1080,
     fullscreen: true,
     kiosk: true,
+    // Ikon window/taskbar. Saat DEV pakai file build/icon.ico langsung. Saat PACKAGED
+    // dibiarkan undefined agar window mewarisi ikon dari exe (yang sudah di-embed
+    // electron-builder dari win.icon) — build/ tidak ikut dikemas ke dalam app.
+    icon: app.isPackaged
+      ? undefined
+      : path.join(__dirname, "..", "build", "icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
