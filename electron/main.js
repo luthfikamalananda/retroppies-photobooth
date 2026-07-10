@@ -56,8 +56,15 @@ function createWindow() {
   }
 }
 
-app.commandLine.appendSwitch('disable-gpu-video-decode')
-app.commandLine.appendSwitch('disable-software-rasterizer')
+// GPU acceleration DIBIARKAN AKTIF (switch di bawah sengaja dinonaktifkan).
+// Kedua switch ini dulu ditambahkan 3 Juli untuk menekan suatu bug rendering, tapi
+// efek sampingnya: decode video dipaksa ke CPU + rasterizer software dimatikan → SELURUH
+// rendering (transisi Framer Motion, load halaman, decode gambar) drop di mini PC.
+// Dihapus untuk memulihkan performa umum. Jika bug lama (mis. frame video hijau/hitam/
+// rusak, atau crash GPU) muncul lagi, aktifkan kembali HANYA baris pertama:
+//   app.commandLine.appendSwitch('disable-gpu-video-decode')
+// app.commandLine.appendSwitch('disable-gpu-video-decode')
+// app.commandLine.appendSwitch('disable-software-rasterizer')
 
 app.whenReady().then(() => {
   createWindow();
