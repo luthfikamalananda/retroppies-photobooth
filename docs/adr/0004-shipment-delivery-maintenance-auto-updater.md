@@ -51,11 +51,14 @@ dan sisakan hanya *unduh + pasang* di booth.
    kendala "MacBook tak bisa build Windows" karena runner-nya native Windows dan
    `ffmpeg-static` ikut terbundel benar tanpa cross-compile.
 
-2. **Rilis dipicu git tag `vX.Y.Z`.** Developer menaikkan `version` di `package.json`
-   lalu `git tag v0.2.0 && git push --tags`. Workflow menjalankan `npm ci` →
-   `electron:build` (NSIS) → publish installer ke **GitHub Releases** dengan versi itu.
-   Booth hanya melihat update saat developer **sengaja** nge-tag (kontrol rilis jelas,
-   nomor versi eksplisit untuk pembandingan updater).
+2. **Rilis dipicu kenaikan `version` di `package.json` (bukan git tag manual).**
+   Workflow berjalan pada setiap push ke `main`, membaca `version` dari `package.json`,
+   lalu **hanya** `npm ci` → `electron:build` (NSIS) → publish bila rilis `v{version}`
+   belum ada (dicek via `gh release view`). Jadi developer cukup menaikkan `version`
+   lalu push — tanpa perlu `git tag`. Tag `v{version}` tetap dibuat otomatis oleh
+   electron-builder di sisi GitHub saat publish. Kontrol rilis tetap eksplisit (booth
+   hanya naik versi bila developer sengaja menaikkan `version`), dan build tidak
+   berulang untuk versi yang sama.
 
 3. **Updater desktop mandiri berbasis PowerShell — bukan `electron-updater`.**
    Karena update dipilih **manual saja**, nilai utama `electron-updater` (cek & unduh
@@ -114,9 +117,14 @@ berjalan benar**:
   dan yang terpenting, updater in-app **tak berfungsi bila binary app rusak** —
   kehilangan kemampuan recovery. Updater desktop mandiri tetap bisa memasang versi
   perbaikan walau app gagal dibuka.
-- **Rilis otomatis tiap push ke `main`.** Ditolak: tiap commit kecil jadi "update" yang
-  tersedia ke semua booth; sulit mengontrol kapan booth naik versi. Tag `vX.Y.Z` memberi
-  kontrol eksplisit.
+- **Rilis otomatis tiap push ke `main` tanpa penjaga versi.** Ditolak: tiap commit kecil
+  jadi "update" yang tersedia ke booth; sulit mengontrol kapan booth naik versi. Solusi
+  yang dipakai memicu pada push ke `main` **tetapi** hanya publish bila `version` di
+  `package.json` naik (rilis `v{version}` belum ada) — kontrol tetap eksplisit tanpa
+  membebani developer dengan `git tag` manual.
+- **Git tag manual (`git tag vX.Y.Z && git push --tags`).** Sempat dipilih, lalu diganti:
+  atas permintaan, alur cukup menaikkan `version` di `package.json` tanpa langkah tag
+  terpisah. Fungsional setara (tag tetap terbentuk otomatis oleh electron-builder).
 - **Per-machine install (Program Files).** Ditolak: memunculkan popup UAC tiap update →
   friction untuk operator awam. Per-user menghindarinya.
 - **Exe updater terpisah (Node/pkg).** Ditolak: artefak kedua yang harus di-build &

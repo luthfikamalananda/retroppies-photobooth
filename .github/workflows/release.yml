@@ -1,10 +1,14 @@
 name: Release Windows Build
 
-# Dipicu saat Anda push tag versi, mis:  git tag v0.2.0 && git push --tags
+# Dipicu setiap push ke main. CI membaca "version" dari package.json dan HANYA
+# build + publish bila rilis untuk versi itu belum ada. Jadi cukup naikkan
+# "version" di package.json lalu push — tanpa perlu membuat git tag manual.
+# (Tag vX.Y.Z tetap dibuat otomatis oleh electron-builder saat publish.)
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+  workflow_dispatch: {} # opsional: bisa juga dijalankan manual dari tab Actions
 
 # Diperlukan agar electron-builder bisa membuat GitHub Release & meng-upload installer.
 permissions:
@@ -23,12 +27,32 @@ jobs:
           node-version: 20
           cache: npm
 
+      # Baca versi dari package.json & cek apakah rilisnya sudah ada di GitHub.
+      - name: Determine version & check release
+        id: check
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Rilis v$VERSION sudah ada — build dilewati."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Rilis v$VERSION belum ada — akan di-build."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install dependencies
+        if: steps.check.outputs.exists == 'false'
         run: npm ci
 
       # tsc + vite build + electron-builder (NSIS). --publish always meng-upload
-      # installer ke GitHub Releases sesuai konfig "publish" di package.json.
+      # installer ke GitHub Releases sesuai konfig "publish" di package.json;
+      # rilis + tag v${version} dibuat otomatis dari versi package.json.
       - name: Build & publish installer
+        if: steps.check.outputs.exists == 'false'
         run: npm run electron:build -- --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
