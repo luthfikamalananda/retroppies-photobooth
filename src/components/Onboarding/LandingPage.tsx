@@ -9,7 +9,7 @@ import { useUIStore } from '@/store/uiStore'
 import { CloseAppModal, closeApp } from '../Common/CloseAppModal'
 
 // Lama hold pada logo play (pojok kiri atas) untuk memicu tutup aplikasi.
-const HOLD_MS = 5000
+const HOLD_MS = 3000
 
 export function LandingPage() {
   const goNext = useSessionStore(s => s.goNext)
