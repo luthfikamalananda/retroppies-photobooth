@@ -120,3 +120,20 @@ Env penting: `VITE_API_BASE_URL`, `VITE_PRINT_PAPER_SIZE` (A4/A6). Printer di
 - **Thumbnail templat**: versi WebP kecil hasil downscale `displayUrl` (di
   `templateStore.thumbs[id]`) yang **hanya** dipakai preview carousel TemplatePage,
   supaya decode per file ringan. `displayUrl` full-res tetap dipakai untuk composite.
+- **VFR / CFR** (Variable / Constant Frame Rate): VFR = jarak antar-frame tak konstan
+  (timestamp bebas); CFR = interval tetap. Renderer menghasilkan **VFR ~1000fps** karena
+  `captureStream(0)` dipompa `setInterval` wall-clock (timestamp milidetik). **iOS menolak
+  VFR ber-fps tak wajar** → transcode **wajib** menormalkan ke **CFR 24fps** (`fps=24` +
+  `-vsync cfr` di `electron/main.js`). Lihat [ADR 0003](./docs/adr/0003-transcode-video-composite-ke-mp4-h264-untuk-ios.md).
+- **SAR / DAR** (Sample/Display Aspect Ratio): SAR = bentuk tiap pixel, DAR = bentuk
+  frame tampil. Pembulatan dimensi ganjil→genap bisa membuat **SAR non-square** (mis.
+  1272:1273) yang ditolak iOS → dipaksa **SAR 1:1** via `setsar=1`.
+- **captureStream(0) + timer-pump**: pola render composite di DragDropPage — canvas
+  di-stream tanpa auto-sample (`captureStream(0)`), frame dipancarkan **manual** via
+  `requestFrame()` yang dipompa `setInterval` (bukan rAF, tahan compositor stall). Efek
+  samping: timestamp VFR milidetik → **harus** dinormalkan CFR saat transcode (lihat VFR/CFR).
+- **Codec sumber ≠ playability output** (catatan diagnosa): renderer menulis WebM
+  (VP8/VP9); ffmpeg **decode penuh** lalu encode ulang ke H.264 identik. **Pilihan VP8/VP9
+  tak pernah memengaruhi** apakah MP4 output jalan di iPhone. Bila video gagal di iOS,
+  `ffprobe` output dulu (cek `codec`=h264, `fps` wajar/konstan, `SAR`=1:1) — **jangan**
+  utak-atik codec sumber.

@@ -228,13 +228,27 @@ ipcMain.handle("transcode-to-mp4", async (_, { bytes, durationSec }) => {
   const args = [
     "-y",
     "-i", inPath,
-    // H.264 yuv420p (4:2:0) wajib dimensi genap. Ukuran composite dari template bisa
-    // ganjil (mis. 900x1273) → bulatkan ke genap terdekat agar libx264 tak menolak.
-    "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+    // Filter chain (urutan penting):
+    //  1. scale=trunc(../2)*2 → H.264 yuv420p (4:2:0) wajib dimensi genap. Ukuran composite
+    //     dari template bisa ganjil (mis. 900x1273) → bulatkan ke genap terdekat.
+    //  2. setsar=1 → pembulatan di atas bisa menggeser aspect ratio jadi non-square
+    //     (mis. SAR 1272:1273 / anamorphic). iOS menolak SAR aneh → paksa pixel persegi.
+    //  3. fps=24 → SUMBER dari renderer memakai captureStream(0) + pump setInterval (timer),
+    //     sehingga timestamp WebM ber-granularitas milidetik → ffmpeg menyimpulkan ~1000fps
+    //     VFR. iOS VideoToolbox MENOLAK H.264 dengan fps tak wajar (main "cannot play",
+    //     WhatsApp "this media cannot be saved"); Android jadi choppy; hanya macOS yang
+    //     toleran. Normalisasi ke 24fps CFR (VIDEO_RENDER_FPS di DragDropPage) adalah WAJIB,
+    //     bukan opsional. Lihat ADR 0003 bagian "Normalisasi frame-rate (VFR → CFR)".
+    "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,fps=24",
     "-c:v", "libx264",
+    "-profile:v", "high",       // profil eksplisit (bukan bergantung default preset)
+    "-level", "4.0",            // level konservatif → aman lintas iPhone lama/baru
     "-preset", "veryfast",
     "-pix_fmt", "yuv420p",      // wajib untuk iOS Safari
-    "-movflags", "+faststart",  // moov atom di depan → bisa stream progресif
+    "-r", "24",                 // kunci output CFR 24fps
+    "-vsync", "cfr",            // buang timestamp VFR sumber → frame pacing konstan (kunci iOS)
+    "-g", "48",                 // GOP 2 detik @24fps → seek/decode ramah
+    "-movflags", "+faststart",  // moov atom di depan → bisa stream progresif
     "-an",                       // tak ada audio (video di-composite muted)
   ];
   // Kunci durasi output = countdown (metadata durasi WebM sumber tak reliable).

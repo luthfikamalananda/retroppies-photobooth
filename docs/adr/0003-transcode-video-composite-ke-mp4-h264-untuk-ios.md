@@ -1,7 +1,7 @@
 # ADR 0003 — Transcode Video Composite ke MP4/H.264 (kompatibel iOS) via ffmpeg Native di Electron Main
 
-- Status: Accepted — implementasi menyusul (rencana disepakati 2026-07-09)
-- Tanggal: 2026-07-09
+- Status: Accepted — diimplementasikan; **diamandemen 2026-07-10** (normalisasi frame-rate VFR→CFR)
+- Tanggal: 2026-07-09 (amandemen 2026-07-10)
 - Konteks kode: `src/components/PhotoSession/DragDropPage.tsx` (blok `[VideoComposite]`,
   ~baris 712–1080), `src/services/finalizeService.ts`, `electron/main.js`,
   `electron/preload.js`, `package.json` (deps + `build`)
@@ -54,6 +54,18 @@ di Electron main process. Pipeline render WebM di renderer **tidak disentuh**.
 
    `-pix_fmt yuv420p` dan `-movflags +faststart` adalah syarat wajib iOS; `-an` karena
    tak ada audio; `-t 6` mengunci durasi (metadata durasi WebM sumber tak reliable).
+
+   > **Amandemen 2026-07-10 — perintah final.** Perintah di atas TERNYATA belum cukup
+   > untuk iOS. Lihat bagian **"Normalisasi frame-rate (VFR → CFR) — amandemen 2026-07-10"**
+   > di bawah. Perintah yang benar-benar dipakai sekarang:
+   >
+   > ```
+   > -i in.webm \
+   > -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,fps=24" \
+   > -c:v libx264 -profile:v high -level 4.0 -preset veryfast \
+   > -pix_fmt yuv420p -r 24 -vsync cfr -g 48 \
+   > -movflags +faststart -an -t 6 out.mp4
+   > ```
 
 3. **Encoder = `libx264` (software), preset `veryfast`.** Bukan hardware encoder.
    Alasannya lihat bagian **"Portabilitas perangkat / ganti GPU"** — ini keputusan
@@ -132,6 +144,50 @@ device/GPU/CPU = tidak ada refactor. Ganti OS/arsitektur hanya menyentuh konfigu
 build (target + binary), bukan logika. Hardware encode hanyalah optimasi opsional di masa
 depan, terisolasi di satu handler, dengan jalur migrasi yang sudah didokumentasikan di
 tabel GPU di atas.
+
+## Normalisasi frame-rate (VFR → CFR) — amandemen 2026-07-10
+
+**Gejala.** Setelah transcode H.264/yuv420p/faststart terpasang, video **masih** gagal di
+iOS: di website "video tidak dapat di-play", dan saat dikirim via WhatsApp muncul
+**"this media cannot be saved"**. Anehnya file yang sama **lancar di macOS**, **choppy di
+Android**, dan **tidak bisa diputar di iPhone**.
+
+**Jalur buntu yang perlu diingat (jangan diulang).** Sempat diduga penyebabnya **codec
+sumber**, sehingga per-slot clip diubah VP9 → VP8 (dan sebaliknya) dua siklus. Ini
+**salah arah total**: renderer selalu menghasilkan WebM (VP8/VP9), tetapi keduanya
+**di-decode penuh oleh ffmpeg lalu di-encode ulang ke H.264 yang identik**. **Codec sumber
+tidak pernah memengaruhi playability MP4 output.** "VP9 sempat bisa" adalah kebetulan, bukan
+sebab. Bila video gagal di iOS lagi, **jangan sentuh pilihan VP8/VP9** — periksa metadata
+output (lihat di bawah).
+
+**Akar masalah sebenarnya — VFR ~1000fps.** `ffprobe` file yang gagal:
+
+```
+Video: h264 (High), yuv420p, 900x1272 [SAR 1272:1273 DAR 900:1273], 1k fps, 1k tbr
+```
+
+Renderer memancarkan frame lewat `canvas.captureStream(0)` + `captureTrack.requestFrame()`
+yang dipompa oleh **`setInterval` (timer wall-clock)**. Timestamp WebM jadi ber-granularitas
+**milidetik**, sehingga ffmpeg menyimpulkan stream **Variable Frame Rate dengan nominal
+~1000fps**. Perintah lama tak punya `-r`/`-vsync`, jadi libx264 **mempertahankan** timing
+gila itu. **iOS VideoToolbox menolak H.264 ber-fps tak wajar** → gagal play & gagal save;
+Android mencoba menghormati pacing → choppy; hanya macOS yang toleran. Ini menjelaskan
+**ketiga** gejala sekaligus.
+
+**Masalah kedua — SAR non-square.** `scale=trunc(iw/2)*2:trunc(ih/2)*2` membulatkan
+1273 → 1272, menggeser aspect ratio jadi **SAR 1272:1273** (anamorphic). iOS juga rewel
+soal pixel non-persegi.
+
+**Perbaikan (hanya di handler `transcode-to-mp4`, renderer tak disentuh):** tambah ke
+filter chain `setsar=1,fps=24` dan flag output `-r 24 -vsync cfr`. Hasil ffprobe sesudah:
+`24 fps, 24 tbr, SAR 1:1` → **terverifikasi bisa diputar & disimpan di iPhone** (uji nyata
+via WhatsApp, 2026-07-10). Ditambahkan pula `-profile:v high -level 4.0` (eksplisit, aman
+lintas iPhone lama/baru) dan `-g 48` (GOP 2 dtk).
+
+**Pelajaran / aturan diagnosa ke depan.** Kalau video gagal di iOS: **`ffprobe` dulu file
+outputnya.** Cek tiga hal — (1) `codec` harus `h264` (bukan vp8/vp9 → berarti transcode
+tak jalan), (2) `fps`/`tbr` harus wajar/konstan (bukan ~1k → VFR), (3) `SAR` harus `1:1`.
+Ini 10 detik dan langsung menuding sebab; jangan menebak dari codec sumber.
 
 ## Alternatif yang dipertimbangkan
 
