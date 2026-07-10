@@ -145,7 +145,7 @@ function PaymentTimer({ expiredAt }: { expiredAt: string }) {
       transition={isExpired ? { duration: 0.6, repeat: Infinity } : { duration: 0 }}
     >
       <h2 className="font-bebas text-[#090C0E] text-3xl tracking-[0.05em]">
-        SELESAIKAN PEMBAYARAN SEBELUM
+        FINISH PAYMENT BEFORE
       </h2>
 
       <div className="flex items-center gap-2">

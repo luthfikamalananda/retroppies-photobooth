@@ -84,6 +84,7 @@ export function StartPhotoPage() {
   const [error, setError] = useState<string | null>(null)
   const [timeLeft, setTimeLeft] = useState({ minutes: '00', seconds: '00' })
   const [camError, setCamError] = useState({ hasError: false, message: '' })
+  const [isStarting, setIsStarting] = useState(false)
 
   // Fix bug isInitialized — useRef agar tidak reset tiap render
   const initialized = useRef(false)
@@ -134,13 +135,15 @@ export function StartPhotoPage() {
   // ── Camera handler ────────────────────────────────────────────────────
 
   const handleStart = async () => {
-    // Reset error kamera setiap kali coba lagi
+    if (isStarting) return
     setCamError({ hasError: false, message: '' })
+    setIsStarting(true)
     try {
       await navigator.mediaDevices.getUserMedia({ video: true })
       goToAndStartTimer(10)
     } catch (e) {
       console.error('Camera access error:', e)
+      setIsStarting(false)
       setCamError({
         hasError: true,
         message:
@@ -212,11 +215,11 @@ export function StartPhotoPage() {
           variants={fadeIn}
           whileTap={{ scale: 0.95 }}
           // Disable saat loading atau ada error timer (bukan camera error)
-          disabled={loading || !!error}
+          disabled={loading || !!error || isStarting}
           onClick={handleStart}
           className="touch-target w-96 bg-[#E9C140] text-retro-brown font-gaming font-semibold text-3xl rounded-full py-8 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          START PHOTO
+          {isStarting ? 'STARTING...' : 'START PHOTO'}
         </motion.button>
       </motion.div>
 

@@ -42,13 +42,13 @@ export function CloseAppModal({ isOpen, onConfirm, onCancel, autoDismissMs }: Cl
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-[#F7CC40] px-5 py-4 flex items-center justify-between">
-              <h2 className="font-gaming text-[#2C2C2C] text-3xl">TUTUP APLIKASI</h2>
+              <h2 className="font-gaming text-[#2C2C2C] text-3xl">CLOSE APP</h2>
               <img src={logoWindowControl} alt="Window-Control" className="select-none pointer-events-none h-auto" />
             </div>
 
             <div className="bg-[#FCF8EF] px-8 py-8 flex flex-col gap-6">
               <p className="font-gaming text-[#2C2C2C] text-2xl py-2 text-center">
-                Yakin ingin menutup aplikasi?
+                Are you sure you want to close the app?
               </p>
 
               <div className="flex gap-4 justify-center mt-4">
@@ -57,14 +57,14 @@ export function CloseAppModal({ isOpen, onConfirm, onCancel, autoDismissMs }: Cl
                   onClick={onCancel}
                   className="flex-1 bg-[#4CAF50] hover:bg-[#45a049] text-white font-gaming text-xl py-5 px-6 rounded-lg border-2 border-[#2E7D32] transition-colors"
                 >
-                  Batal
+                  Cancel
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={onConfirm}
                   className="flex-1 bg-[#BA371E] hover:bg-[#9A2C15] text-white font-gaming text-xl py-5 px-6 rounded-lg border-2 border-[#7A1E0A] transition-colors"
                 >
-                  Tutup
+                  Close
                 </motion.button>
               </div>
             </div>
