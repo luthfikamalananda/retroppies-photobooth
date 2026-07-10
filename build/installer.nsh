@@ -11,7 +11,7 @@
   CreateShortcut "$DESKTOP\Update Retroppies.lnk" \
     "$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" \
     "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File $\"$INSTDIR\resources\updater.ps1$\"" \
-    "$INSTDIR\Retroppies Photobooth.exe" 0
+    "$INSTDIR\resources\updater-icon.ico" 0
 !macroend
 
 !macro customUnInstall

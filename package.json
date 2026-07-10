@@ -62,6 +62,10 @@
       {
         "from": "build/updater.ps1",
         "to": "updater.ps1"
+      },
+      {
+        "from": "build/updater-icon.ico",
+        "to": "updater-icon.ico"
       }
     ],
     "win": {
