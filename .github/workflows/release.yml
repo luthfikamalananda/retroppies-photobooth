@@ -1,0 +1,34 @@
+name: Release Windows Build
+
+# Dipicu saat Anda push tag versi, mis:  git tag v0.2.0 && git push --tags
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Diperlukan agar electron-builder bisa membuat GitHub Release & meng-upload installer.
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # tsc + vite build + electron-builder (NSIS). --publish always meng-upload
+      # installer ke GitHub Releases sesuai konfig "publish" di package.json.
+      - name: Build & publish installer
+        run: npm run electron:build -- --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

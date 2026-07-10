@@ -1,11 +1,13 @@
 # ADR 0004 — Shipment / Delivery Maintenance: Auto-Updater via CI Build + Desktop Updater
 
-- Status: Proposed (disepakati 2026-07-10; implementasi ditunda atas permintaan)
+- Status: Accepted (diimplementasikan 2026-07-10)
 - Tanggal: 2026-07-10
-- Konteks kode (rencana): `.github/workflows/release.yml` (baru), `package.json`
-  (blok `build`/`nsis`), `electron-builder.json`, `build/updater.ps1` (baru),
-  `build/installer.nsh` (baru, custom NSIS include), `electron/main.js` +
-  `src/components/Auth/AdminLoginPage.tsx` (tombol "Keluar").
+- Konteks kode: `.github/workflows/release.yml` (baru), `package.json`
+  (blok `build`/`nsis`/`publish`), `build/updater.ps1` (baru),
+  `build/installer.nsh` (baru, custom NSIS include), `electron-builder.json`
+  (dihapus — konfig dikonsolidasi ke `package.json`). Tombol "Keluar" ternyata
+  sudah ada sebelumnya (× di `AdminLoginPage` → `CloseAppModal` → IPC `close-app`),
+  jadi tidak perlu dibuat ulang.
 
 ## Konteks
 

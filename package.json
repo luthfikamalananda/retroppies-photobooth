@@ -43,6 +43,9 @@
   "build": {
     "appId": "com.retroppies.photobooth",
     "productName": "Retroppies Photobooth",
+    "directories": {
+      "output": "dist-electron"
+    },
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -55,11 +58,34 @@
       {
         "from": "electron/print-borderless.ps1",
         "to": "print-borderless.ps1"
+      },
+      {
+        "from": "build/updater.ps1",
+        "to": "updater.ps1"
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Retroppies Photobooth",
+      "include": "build/installer.nsh",
+      "artifactName": "Retroppies-Photobooth-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "luthfikamalananda",
+        "repo": "retroppies-photobooth",
+        "releaseType": "release"
+      }
+    ],
     "mac": {
       "target": "dmg"
     }
