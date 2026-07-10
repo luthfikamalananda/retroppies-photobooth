@@ -9,7 +9,7 @@ import { useEffect, useLayoutEffect } from "react";
 import { getLayoutDef } from "@/config/layouts.config";
 
 export function TemplatePage() {
-  const { goNext, goBack } = useSessionStore();
+  const { goTo, goBack } = useSessionStore();
   const { captures, setTemplate } = usePhotoStore();
   const setBg = useUIStore((s) => s.setBackgroundVariant);
   const { user } = useAuthStore();
@@ -211,7 +211,7 @@ export function TemplatePage() {
             if (selectedTemplate) {
               setTemplate(selectedTemplate);
             }
-            goNext();
+            goTo(12);
           }}
           className="touch-target w-48 h-max select-none cursor-pointer transition-all"
           initial={{ opacity: 0 }}

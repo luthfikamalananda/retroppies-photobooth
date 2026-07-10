@@ -103,7 +103,7 @@ const PoseOverlay = memo(function PoseOverlay({ visible }: { visible: boolean })
 // ─── TakePhotoPage ────────────────────────────────────────────────────────────
 
 export function TakePhotoPage() {
-  const { goNext, goBack } = useSessionStore();
+  const { goTo, goBack } = useSessionStore();
   const {
     captures, capturesVideo,
     addCapture, addVideoCapture,
@@ -365,7 +365,7 @@ export function TakePhotoPage() {
               src={captures.length === TOTAL_SLOTS ? btnNextBlack : btnNextWhite}
               alt="NEXT"
               whileTap={{ scale: 0.95 }}
-              onClick={() => { if (captures.length === TOTAL_SLOTS) goNext(); }}
+              onClick={() => { if (captures.length === TOTAL_SLOTS) goTo(11); }}
               className="touch-target w-48 h-max select-none cursor-pointer"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
