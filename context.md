@@ -132,6 +132,17 @@ Env penting: `VITE_API_BASE_URL`, `VITE_PRINT_PAPER_SIZE` (A4/A6). Printer di
   di-stream tanpa auto-sample (`captureStream(0)`), frame dipancarkan **manual** via
   `requestFrame()` yang dipompa `setInterval` (bukan rAF, tahan compositor stall). Efek
   samping: timestamp VFR milidetik → **harus** dinormalkan CFR saat transcode (lihat VFR/CFR).
+- **Softlock kiosk**: kondisi di mana UI mengurung pengguna tanpa jalur keluar — mis. overlay
+  full-screen dengan satu tombol "Coba lagi" yang mengulang operasi gagal-deterministik →
+  loop, kiosk mati sampai restart fisik. **Aturan:** setiap overlay error di kiosk **wajib**
+  punya jalur keluar yang tak bergantung pada operasi yang sama berhasil. Lihat [ADR 0003](./docs/adr/0003-transcode-video-composite-ke-mp4-h264-untuk-ios.md) amandemen.
+- **Fallback graceful (video)**: bila transcode MP4 gagal, upload **WebM apa adanya** (senyap,
+  otomatis) alih-alih men-throw. Sesi tetap tersimpan; konsekuensi: video itu tak jalan di
+  iPhone. Menggantikan pola **fail-loud** lama (throw → overlay → softlock). WebM fallback
+  di-upload jujur sebagai `result.webm`/`video/webm` (bukan `.mp4`).
+- **"Ulangi Foto" (bukan reset sesi)**: jalur keluar dari overlay katastrofik → `clearPhotos()`
+  + `goTo(9)` StartPhotoPage. **Mempertahankan transaksi** (halaman 8–13 di luar
+  `RESET_SESSION`) sehingga pelanggan **tak bayar ulang**, beda dari reset-ke-landing.
 - **Codec sumber ≠ playability output** (catatan diagnosa): renderer menulis WebM
   (VP8/VP9); ffmpeg **decode penuh** lalu encode ulang ke H.264 identik. **Pilihan VP8/VP9
   tak pernah memengaruhi** apakah MP4 output jalan di iPhone. Bila video gagal di iOS,

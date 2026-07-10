@@ -80,6 +80,14 @@ di Electron main process. Pipeline render WebM di renderer **tidak disentuh**.
    Lempar error & tampilkan ke operator agar sesi bisa diulang. Ini menjamin apa pun yang
    tersimpan di backend **selalu** MP4 yang bisa diputar iPhone.
 
+   > **⚠️ DIBALIK — amandemen 2026-07-10.** Keputusan fail-loud ini **tidak** memikirkan UX
+   > kiosk dan berubah jadi **softlock**: overlay error menutupi layar dengan satu tombol
+   > "Coba lagi" yang mengulang input yang sama → untuk kegagalan deterministik (ffmpeg
+   > hilang/crash) gagal lagi → loop tak berujung, kiosk mati sampai restart fisik, hasil
+   > pelanggan hilang. Diganti dengan **fallback graceful**: transcode gagal → **upload WebM
+   > apa adanya secara senyap** & lanjut. Lihat bagian **"Softlock & fallback graceful —
+   > amandemen 2026-07-10"**.
+
 6. **Upload sebagai MP4.** `finalizeService.ts`: nama file `result.webm` → `result.mp4`,
    fallback type `video/webm` → `video/mp4`.
 
@@ -188,6 +196,54 @@ lintas iPhone lama/baru) dan `-g 48` (GOP 2 dtk).
 outputnya.** Cek tiga hal — (1) `codec` harus `h264` (bukan vp8/vp9 → berarti transcode
 tak jalan), (2) `fps`/`tbr` harus wajar/konstan (bukan ~1k → VFR), (3) `SAR` harus `1:1`.
 Ini 10 detik dan langsung menuding sebab; jangan menebak dari codec sumber.
+
+## Softlock & fallback graceful — amandemen 2026-07-10
+
+**Gejala.** Saat konversi MP4 gagal, muncul overlay error + tombol **"Coba lagi"**. Karena
+overlay `absolute inset-0 z-[110]` menutupi seluruh layar dan **hanya** tombol itu yang bisa
+ditekan, sedangkan tak ada idle-timeout di DragDropPage (halaman 12), pengguna **softlock**:
+"Coba lagi" mengulang `handleNext` dengan **argumen identik** → untuk kegagalan
+**deterministik** (binary ffmpeg tak ketemu di build packaged, exit non-zero, output kosong,
+IPC gagal) hasilnya gagal lagi → loop. Di kiosk fullscreen tanpa operator = mesin mati sampai
+restart fisik; pelanggan yang sudah bayar & sudah foto kehilangan hasil.
+
+**Kenapa retry adalah jebakan.** Retry hanya menolong kegagalan *transient*. Kegagalan
+transcode di sini justru *persisten/environment* → retry buta = loop. (Catatan: kegagalan
+"video jelek tapi valid" — mis. VFR 1000fps sebelum fix — **tak pernah** men-throw ke sini;
+yang men-throw hanyalah kegagalan ffmpeg sungguhan.)
+
+**Keputusan (mengganti keputusan #5).**
+
+1. **Fallback graceful, senyap, otomatis.** Transcode gagal → **jangan throw**; pertahankan
+   `finalVideoBlob` WebM & lanjut upload. Zero interaksi, zero softlock. Kegagalan cukup
+   `console.error` untuk debug. Implementasi: `try/catch` di sekitar `transcodeToMp4`
+   (`DragDropPage.tsx`, blok "2c").
+
+   - **Konsekuensi sadar & diterima:** WebM fallback **tak jalan di iPhone** (persis bug
+     awal), tapi jalan di Android/desktop/kiosk. Trade-off: *"video sesi ini tak
+     iPhone-compatible"* jauh lebih baik daripada *"kiosk mati + hasil hilang"*. Aman karena
+     — setelah fix CFR — kegagalan transcode **langka**; ini jaring pengaman, bukan jalur normal.
+
+2. **Penamaan jujur.** WebM fallback **wajib** di-upload sebagai `result.webm` /
+   `video/webm`, **bukan** `.mp4`. `finalizeService.createSessions` menurunkan nama +
+   Content-Type dari `blob.type` asli. Menamai WebM sebagai `.mp4` justru sumber kebingungan
+   iOS sebelumnya. **Verifikasi terpisah:** backend/viewer harus melayani `videoUrl` `.webm`
+   dengan `Content-Type: video/webm` yang benar (Android/desktop OK; iPhone memang tak main).
+
+3. **Overlay tak boleh jadi dead-end.** Overlay error terluar (untuk kegagalan
+   **katastrofik non-transcode**: compositing/MediaRecorder gagal total → tak ada video sama
+   sekali) kini punya **dua** tombol: "Coba lagi" (transient) **dan "Ulangi Foto"**. "Ulangi
+   Foto" memanggil `clearPhotos()` lalu `goTo(9)` (StartPhotoPage).
+
+   - **Kenapa halaman 9, bukan landing/reset:** halaman 8–13 **tidak** masuk `RESET_SESSION`
+     (`App.tsx`), jadi **transaksi/pembayaran tetap utuh** — pelanggan **tak bayar ulang**,
+     cukup foto ulang. Reset ke landing akan memaksa bayar lagi. `clearPhotos()` membuang
+     captures/video/template lama agar foto-ulang mulai bersih (transaksi ada di
+     `sessionStore`, tak ikut terhapus).
+
+**Prinsip yang dipertahankan.** "Jangan simpan video rusak" tetap dihormati untuk **jalur
+normal** (selalu MP4 saat transcode sukses). Yang dibuang hanyalah **fail-loud yang mengurung
+pelanggan**. Integritas data & UX kiosk dipisah: kiosk **tak boleh pernah** softlock.
 
 ## Alternatif yang dipertimbangkan
 

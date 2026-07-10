@@ -58,12 +58,19 @@ export async function createSessions(req: createSessionRequest): Promise<BaseRes
       ? req.gif
       : new Blob([req.gif], { type: 'image/gif' })  // fallback jika type kosong
 
+    // Jalur normal: MP4/H.264 hasil transcode (kompatibel iOS). Jalur fallback (ADR 0003
+    // amandemen 2026-07-10): bila transcode gagal, DragDropPage mengirim WebM apa adanya.
+    // Nama file & Content-Type WAJIB jujur mengikuti blob.type asli — JANGAN menamai WebM
+    // sebagai .mp4 (justru itu yang dulu bikin iPhone bingung). Default ke MP4 bila type kosong.
+    const isWebm = req.video.type.includes('webm')
+    const videoType = req.video.type || 'video/mp4'
+    const videoName = isWebm ? 'result.webm' : 'result.mp4'
     const videoBlob = req.video.type
       ? req.video
-      : new Blob([req.video], { type: 'video/mp4' }) // fallback jika type kosong (sudah MP4/H.264 hasil transcode)
+      : new Blob([req.video], { type: videoType })
 
-    form.append('gif', gifBlob, 'result.gif')      // ← filename wajib untuk Blob
-    form.append('video', videoBlob, 'result.mp4')  // ← MP4/H.264 (kompatibel iOS); lihat ADR 0003
+    form.append('gif', gifBlob, 'result.gif')       // ← filename wajib untuk Blob
+    form.append('video', videoBlob, videoName)      // ← .mp4 (normal) / .webm (fallback); lihat ADR 0003
     const res = await apiClient.post<BaseResponse<createSessionResult>>(`/photobooth/sessions`, form, {
       headers: {
         'Content-Type': 'multipart/form-data', // ← Pastikan header ini ada

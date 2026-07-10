@@ -525,9 +525,9 @@ export function DragDropPage() {
 
   const [selectedFilter, setSelectedFilter] = useState<Filter>(FILTERS[0])
 
-  const { goBack, continueToFinalization, transaction, autoSubmit } = useSessionStore();
+  const { goBack, goTo, continueToFinalization, transaction, autoSubmit } = useSessionStore();
   const { user } = useAuthStore()
-  const { template, captures, capturesVideo, setTemplateAndGif } = usePhotoStore();
+  const { template, captures, capturesVideo, setTemplateAndGif, clearPhotos } = usePhotoStore();
 
   const [slotMap, setSlotMap] = useState<Record<number, string>>({});
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
@@ -1090,13 +1090,29 @@ export function DragDropPage() {
 
       // ── 2c. Transcode WebM (VP8) → MP4 (H.264) kompatibel iOS ───────────────
       // iPhone/Safari tak bisa memutar VP8/WebM. ffmpeg native di Electron main
-      // meng-transcode ke H.264 + yuv420p + faststart. Bila GAGAL → lempar (fail-loud):
-      // JANGAN upload WebM yang tak bisa diputar iPhone secara diam-diam.
-      // Lihat docs/adr/0003-transcode-video-composite-ke-mp4-h264-untuk-ios.md
+      // meng-transcode ke H.264 + yuv420p + faststart + CFR 24fps (lihat ADR 0003).
+      //
+      // AMANDEMEN 2026-07-10 — fallback graceful (bukan lagi fail-loud):
+      // Jika transcode GAGAL (ffmpeg hilang/crash/output kosong), JANGAN men-throw ke
+      // overlay error — itu dulu men-softlock kiosk (satu tombol "Coba lagi" yang
+      // mengulang input sama → gagal lagi → loop). Sebagai gantinya: upload WebM apa
+      // adanya secara diam-diam & lanjut ke finalisasi. Konsekuensi sadar: video sesi
+      // ini TAK jalan di iPhone (tapi jalan di Android/desktop/kiosk) — trade-off yang
+      // diterima karena transcode gagal itu langka (setelah fix CFR) dan jauh lebih baik
+      // daripada kiosk mati + hasil hilang total. WAJIB: kalau fallback, jangan menamai
+      // WebM sebagai .mp4 — finalizeService menurunkan nama/mime dari blob.type asli.
       if (finalVideoBlob.size > 0) {
-        console.log('[VideoComposite] Transcoding WebM → MP4 (H.264)...')
-        finalVideoBlob = await transcodeToMp4(finalVideoBlob, targetDurationMs)
-        console.log('[VideoComposite] Transcode selesai. MP4 blob size:', finalVideoBlob.size)
+        try {
+          console.log('[VideoComposite] Transcoding WebM → MP4 (H.264)...')
+          finalVideoBlob = await transcodeToMp4(finalVideoBlob, targetDurationMs)
+          console.log('[VideoComposite] Transcode selesai. MP4 blob size:', finalVideoBlob.size)
+        } catch (transcodeErr) {
+          // Fallback senyap: pertahankan WebM (finalVideoBlob saat ini), lanjut upload.
+          console.error(
+            '[VideoComposite] Transcode MP4 GAGAL — fallback upload WebM apa adanya (video sesi ini tak iPhone-compatible):',
+            transcodeErr,
+          )
+        }
       }
 
       // ── 3. GIF dari foto raw + grade ───────────────────────────────────────
@@ -1192,8 +1208,11 @@ export function DragDropPage() {
       }
     } catch (err) {
       console.error('handleNext error:', err)
+      // Catatan: kegagalan transcode MP4 TIDAK lagi sampai sini (sudah fallback WebM senyap
+      // di blok 2c). Overlay ini hanya untuk kegagalan katastrofik pemrosesan (compositing/
+      // MediaRecorder gagal total → tak ada video sama sekali). Sesi tak tersimpan.
       setProcessingError(
-        'Gagal memproses video (transcode ke MP4). Sesi tidak disimpan — silakan coba lagi.'
+        'Gagal memproses foto/video. Sesi belum tersimpan — coba lagi, atau ulangi pengambilan foto (pembayaran tetap aman).'
       )
     } finally {
       setIsProcessing(false)
@@ -1384,16 +1403,34 @@ export function DragDropPage() {
             <p className="font-gaming text-red-400 text-base max-w-md">
               {processingError}
             </p>
-            <button
-              onClick={() => {
-                setProcessingError(null)
-                const args = lastNextArgsRef.current
-                if (args) handleNext(args)
-              }}
-              className="font-body text-black bg-retro-amber px-6 py-3 rounded-lg mt-6 text-lg"
-            >
-              Coba lagi
-            </button>
+            {/* Dua jalur keluar agar kiosk TAK PERNAH softlock (lihat ADR 0003 amandemen):
+                - "Coba lagi": untuk kegagalan transient (mis. kamera glitch sesaat).
+                - "Ulangi Foto": jaring pengaman untuk kegagalan persisten → bersihkan foto
+                  lama & kembali ke StartPhotoPage (halaman 9). Transaksi/pembayaran TETAP
+                  utuh (halaman 8–13 tidak masuk RESET_SESSION), jadi pelanggan tak bayar
+                  ulang — cukup foto ulang. */}
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={() => {
+                  setProcessingError(null)
+                  const args = lastNextArgsRef.current
+                  if (args) handleNext(args)
+                }}
+                className="font-body text-black bg-retro-amber px-6 py-3 rounded-lg text-lg"
+              >
+                Coba lagi
+              </button>
+              <button
+                onClick={async () => {
+                  setProcessingError(null)
+                  await clearPhotos()   // buang captures/video/template lama → foto-ulang bersih
+                  goTo(9)               // StartPhotoPage; transaksi tetap (tak bayar ulang)
+                }}
+                className="font-body text-white border border-white/60 px-6 py-3 rounded-lg text-lg"
+              >
+                Ulangi Foto
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
