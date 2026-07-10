@@ -1,8 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useUIStore } from '@/store/uiStore'
 import bgVideoBlack from '@/assets/bg-black.mp4'
-import bgImageWhite from '@/assets/bg-white.svg'
-import bgImageBlack from '@/assets/bg-black.svg'
+// Background diubah dari SVG (yang isinya PNG 4K ~15-20MB di-base64) ke WebP 1920x1080
+// ~50-100KB. SVG lama memaksa decode 4096x2304 lalu downscale tiap transisi → berat &
+// crossfade hitam↔putih patah-patah di mini PC. WebP kecil = decode instan.
+import bgImageWhite from '@/assets/bg-white.webp'
+import bgImageBlack from '@/assets/bg-black.webp'
 
 /**
  * Renders either the VHS video loop or one of the SVG backgrounds,
