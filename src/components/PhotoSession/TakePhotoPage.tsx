@@ -170,9 +170,14 @@ export function TakePhotoPage() {
     const videoEl = webcamRef.current?.video as HTMLVideoElement | null;
     if (!videoEl || isCapturingRef.current) return;
 
+    // VP8 (bukan VP9): encoding VP8 real-time jauh lebih ringan di CPU. Di mini PC
+    // dengan `disable-gpu-video-decode`, VP9 real-time membuat countdown patah-patah.
+    // Kualitas tak jadi soal — klip per-slot ini cuma sumber intermediate: DragDropPage
+    // meng-composite ulang ke VP8 lalu transcode ke MP4/H.264 (ffmpeg) untuk iPhone,
+    // jadi codec sumber tidak memengaruhi kompatibilitas output. Lihat ADR 0003.
     const mimeType =
-      MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-        ? "video/webm;codecs=vp9"
+      MediaRecorder.isTypeSupported("video/webm;codecs=vp8")
+        ? "video/webm;codecs=vp8"
         : MediaRecorder.isTypeSupported("video/webm")
           ? "video/webm"
           : "video/mp4";

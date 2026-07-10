@@ -37,8 +37,9 @@ function createWindow() {
   if (isDev) {
     mainWindow.loadURL("http://localhost:5173");
 
-    // TEMPORARY DEBUG — log error loading ke console main process juga
-    mainWindow.webContents.openDevTools({ mode: "detach" });
+    // DevTools dimatikan: panel yang terbuka (apalagi detached) menguras CPU/GPU dan
+    // ikut membuat countdown patah-patah di mini PC. Aktifkan manual saat perlu debug.
+    // mainWindow.webContents.openDevTools({ mode: "detach" });
 
     // TEMPORARY DEBUG — log error loading ke console main process juga
     mainWindow.webContents.on(
