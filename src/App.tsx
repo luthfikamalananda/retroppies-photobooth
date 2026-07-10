@@ -62,7 +62,7 @@ const RESET_SESSION = [0, 1, 2, 3, 4, 5, 6, 7]
 // Halaman tempat cache templat yang sudah di-prefetch HARUS bertahan. Di luar
 // ini store templat selalu di-reset agar pelanggan baru tidak melihat daftar /
 // pilihan templat yang basi dari sesi sebelumnya.
-const TEMPLATE_KEEP_HALAMAN = [10, 11]
+const TEMPLATE_KEEP_HALAMAN = [10, 11, 12]
 
 export default function App() {
   const { goTo, resetSession, transaction, currentHalaman } = useSessionStore()
