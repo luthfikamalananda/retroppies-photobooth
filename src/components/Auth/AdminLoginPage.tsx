@@ -1,4 +1,4 @@
-import { logoRetroppies } from '@/assets'
+import { logoRetroppies, logoWindowControl } from '@/assets'
 import { login } from '@/services/authService'
 import { checkHardware } from '@/services/hardwareService'
 import { useAuthStore } from '@/store/authStore'
@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { useKeyboardInput } from '../Common/FloatingKeyboard'
 import { useKeyboardStore } from '@/store/keyboardStore'
+import { CloseAppModal, closeApp } from '../Common/CloseAppModal'
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -29,15 +30,18 @@ function useAdminLogin(options?: {
     /** Whether to navigate to page 1 after login (default: true) */
     navigateOnSuccess?: boolean
     /** Initial paper type (only relevant for page variant) */
-    initialPaperType?: 'A4' | 'A6'
+    initialPaperType?: PaperSize | null
+    /** When true, a paper type must be selected before login is allowed */
+    requirePaper?: boolean
 }) {
-    const { navigateOnSuccess = true, onSuccess, initialPaperType = 'A4', withoutSetAuth = false } = options ?? {}
+    const { navigateOnSuccess = true, onSuccess, initialPaperType = null, withoutSetAuth = false, requirePaper = false } = options ?? {}
 
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState<string | null>(null)
     const [hardwareStatus, setHardwareStatus] = useState<HardwareStatus | null>(null)
-    const [selectedPaper, setSelectedPaper] = useState<'A4' | 'A6'>(initialPaperType)
+    const [selectedPaper, setSelectedPaper] = useState<PaperSize | null>(initialPaperType)
+    const [showPaperModal, setShowPaperModal] = useState(false)
 
     const { setUser } = useAuthStore()
     const { goTo, resetSession } = useSessionStore()
@@ -51,6 +55,10 @@ function useAdminLogin(options?: {
     }
 
     const handleLogin = async () => {
+        if (requirePaper && !selectedPaper) {
+            setShowPaperModal(true)
+            return
+        }
         if (!username || !password) {
             setError('Username dan password wajib diisi.')
             return
@@ -62,7 +70,7 @@ function useAdminLogin(options?: {
             const res = await login({ username, password })
             if (res.result && res.success) {
                 if (!withoutSetAuth) {
-                    setUser({ ...res.result, paperType: selectedPaper })
+                    setUser({ ...res.result, paperType: selectedPaper as PaperSize })
                 }
                 onSuccess?.()
                 if (navigateOnSuccess) {
@@ -95,6 +103,7 @@ function useAdminLogin(options?: {
         reset,
         resetSession,
         paperType: selectedPaper, setPaperType: setSelectedPaper,
+        showPaperModal, closePaperModal: () => setShowPaperModal(false),
     }
 }
 
@@ -127,8 +136,8 @@ interface LoginFormContentProps {
     hardwareStatus: HardwareStatus | null
     /** Controls size; 'page' uses large inputs (py-6 text-xl), 'modal' uses compact ones (py-4) */
     variant?: 'page' | 'modal'
-    /** Paper type selection — only rendered when variant === 'page' */
-    paperType?: PaperSize
+    /** Paper type selection — only rendered when variant === 'page'; null = nothing chosen yet */
+    paperType?: PaperSize | null
     setPaperType?: (v: PaperSize) => void
 }
 
@@ -234,6 +243,55 @@ function LoginFormContent({
 }
 
 // ---------------------------------------------------------------------------
+// SelectPaperModal — windowed warning when no paper size is chosen
+// ---------------------------------------------------------------------------
+
+function SelectPaperModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <motion.div
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={onClose}
+                >
+                    <motion.div
+                        className="bg-white rounded-xl border-4 border-[#F7CC40] shadow-2xl overflow-hidden w-[650px]"
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="bg-[#F7CC40] px-5 py-4 flex items-center justify-between">
+                            <h2 className="font-gaming text-[#2C2C2C] text-3xl">PILIH UKURAN KERTAS</h2>
+                            <img src={logoWindowControl} alt="Window-Control" className="select-none pointer-events-none h-auto" />
+                        </div>
+
+                        <div className="bg-[#FCF8EF] px-8 py-8 flex flex-col gap-6">
+                            <p className="font-gaming text-[#2C2C2C] text-2xl py-2 text-center">
+                                Silakan pilih ukuran kertas terlebih dahulu sebelum masuk.
+                            </p>
+
+                            <div className="flex justify-center mt-4">
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={onClose}
+                                    className="bg-[#F7CC40] hover:bg-[#e0b833] text-[#2C2C2C] font-gaming text-xl py-5 px-12 rounded-lg border-2 border-[#c9a02c] transition-colors"
+                                >
+                                    MENGERTI
+                                </motion.button>
+                            </div>
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    )
+}
+
+// ---------------------------------------------------------------------------
 // AdminLoginPage — full-page, same behaviour as before
 // ---------------------------------------------------------------------------
 
@@ -248,11 +306,15 @@ export function AdminLoginPage() {
         handleLogin,
         resetSession,
         paperType, setPaperType,
-    } = useAdminLogin({ navigateOnSuccess: true })
+        showPaperModal, closePaperModal,
+    } = useAdminLogin({ navigateOnSuccess: true, requirePaper: true })
 
     // Hook menerima getter dan setter
     const kbUsername = useKeyboardInput(setUsername)
     const kbPassword = useKeyboardInput(setPassword)
+
+    // Konfirmasi tutup aplikasi (tombol × pojok kanan atas)
+    const [showCloseConfirm, setShowCloseConfirm] = useState(false)
 
 
     const isInitialized = useRef(false)
@@ -273,6 +335,16 @@ export function AdminLoginPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
+            {/* Tombol tutup aplikasi — pojok kanan atas layar */}
+            <button
+                type="button"
+                onClick={() => setShowCloseConfirm(true)}
+                aria-label="Tutup aplikasi"
+                className="touch-target absolute top-6 right-6 z-20 w-14 h-14 flex items-center justify-center rounded-lg bg-black/50 border border-retro-amber/40 text-retro-cream text-3xl leading-none hover:bg-red-700/80 hover:border-red-700 transition-colors"
+            >
+                ×
+            </button>
+
             <LoginFormContent
                 username={username} setUsername={setUsername}
                 kbUsername={kbUsername}
@@ -285,6 +357,14 @@ export function AdminLoginPage() {
                 variant="page"
                 paperType={paperType}
                 setPaperType={setPaperType}
+            />
+
+            <SelectPaperModal isOpen={showPaperModal} onClose={closePaperModal} />
+
+            <CloseAppModal
+                isOpen={showCloseConfirm}
+                onConfirm={closeApp}
+                onCancel={() => setShowCloseConfirm(false)}
             />
         </motion.div>
     )

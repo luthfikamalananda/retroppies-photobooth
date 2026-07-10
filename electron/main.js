@@ -77,6 +77,15 @@ app.whenReady().then(() => {
 // IPC: List semua printer + paper size yang tersedia (untuk debugging)
 // Gunakan ini dulu untuk melihat nama EXACT paper size borderless di driver kamu
 // ─────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────
+// IPC: Tutup aplikasi (kiosk). Dipanggil dari tombol close di halaman login
+// dan dari hold 5 detik pada logo play di landing page.
+// ─────────────────────────────────────────────────────────────────────────
+ipcMain.handle("close-app", () => {
+  app.quit();
+});
+
 ipcMain.handle("list-printers-debug", async () => {
   const win = BrowserWindow.getFocusedWindow() || mainWindow;
   const printers = await win.webContents.getPrintersAsync();
