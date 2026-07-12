@@ -4,8 +4,8 @@
 - Tanggal: 2026-07-13
 - Konteks kode: `build/version-selector.ps1` (baru), `build/version-selector-icon.ico`
   (baru), `build/installer.nsh` (tambah shortcut ke-3 + rename shortcut updater +
-  hapus nama lama), `package.json` (`version` → 1.0.2, `nsis.allowDowngrade: true`,
-  `extraResources` tambah `version-selector.ps1` & ikonnya). Mendaur ulang pola &
+  hapus nama lama), `package.json` (`version` → 1.0.2, `extraResources` tambah
+  `version-selector.ps1` & ikonnya). Mendaur ulang pola &
   sebagian kode `build/updater.ps1`.
 - Terkait: [ADR 0004](0004-shipment-delivery-maintenance-auto-updater.md) — updater
   desktop mandiri; ADR ini bersifat **aditif** di atasnya.
@@ -71,9 +71,16 @@ artefak build baru.
    biasa. Memilih versi **sama** dengan terpasang → info "sudah terpasang", boleh
    pasang-ulang lewat konfirmasi.
 
-6. **`nsis.allowDowngrade: true`.** Agar installer versi lama mau berjalan di atas versi
-   lebih baru (default electron-builder `false` akan memblokir rollback). Berlaku untuk
-   semua instalasi. Ini prasyarat teknis agar rollback berfungsi sama sekali.
+6. **Rollback berfungsi tanpa flag build — installer NSIS oneClick tidak memblokir
+   downgrade.** Rencana awal menyetel `allowDowngrade`, tetapi itu keliru: `allowDowngrade`
+   adalah setting runtime **electron-updater** (yang proyek ini sengaja tidak pakai —
+   ADR 0004), bukan opsi build electron-builder; skema v24 menolaknya baik di `nsis`
+   maupun di root `build`. Verifikasi langsung pada template NSIS bawaan
+   (`app-builder-lib/templates/nsis/installSection.nsh`) menunjukkan **tidak ada
+   perbandingan versi yang membatalkan instalasi**: installer meng-uninstall versi
+   sebelumnya (versi apa pun) lalu memasang target, tanpa peduli arah versi. Maka
+   memasang installer versi lama di atas yang lebih baru cukup menimpa — rollback jalan
+   tanpa konfigurasi tambahan.
 
 7. **Shortcut desktop ke-3 + penyeragaman nama.** Lewat custom NSIS include
    (`installer.nsh`):
@@ -133,9 +140,10 @@ artefak build baru.
   operator me-rollback ke sana. **Diterima**: ikon **"Updater - Retroppies"** ada di
   semua versi → jalur pulih untuk naik lagi ke terbaru selalu tersedia. Alternatif
   "tahan-rollback" ditolak (lihat di atas).
-- **`allowDowngrade: true` melonggarkan penjaga versi installer** untuk semua instalasi,
-  termasuk yang normal. Dampak keamanan minimal untuk deployment internal terkendali;
-  dibutuhkan agar rollback berfungsi.
+- **Rollback bergantung pada perilaku default installer (menimpa apa adanya),** bukan
+  flag khusus. Perlu diverifikasi di mesin Windows nyata bahwa memasang versi lama di
+  atas yang lebih baru benar-benar mulus (mis. tak ada sisa berkas versi baru); analisis
+  template NSIS mengindikasikan aman, tetapi belum diuji end-to-end di Windows.
 - **Ikon disediakan developer.** `build/version-selector-icon.ico` adalah aset desain
   tangan (multi-resolusi hingga 256×256), bukan modifikasi terprogram — kualitas final.
 - **Risiko shortcut ganda saat rename updater.** Update dari 1.0.1 mengandalkan

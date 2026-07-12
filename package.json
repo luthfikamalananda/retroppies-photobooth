@@ -84,7 +84,6 @@
       "oneClick": true,
       "perMachine": false,
       "allowElevation": false,
-      "allowDowngrade": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Retroppies Photobooth",
