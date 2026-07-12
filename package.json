@@ -1,6 +1,6 @@
 {
   "name": "retroppies-photobooth",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -66,6 +66,14 @@
       {
         "from": "build/updater-icon.ico",
         "to": "updater-icon.ico"
+      },
+      {
+        "from": "build/version-selector.ps1",
+        "to": "version-selector.ps1"
+      },
+      {
+        "from": "build/version-selector-icon.ico",
+        "to": "version-selector-icon.ico"
       }
     ],
     "win": {
@@ -76,6 +84,7 @@
       "oneClick": true,
       "perMachine": false,
       "allowElevation": false,
+      "allowDowngrade": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Retroppies Photobooth",
