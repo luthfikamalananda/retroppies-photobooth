@@ -636,6 +636,37 @@ export function DragDropPage() {
 
       const grade = selectedFilter.grade
 
+      // ── Grade PER-FOTO (WYSIWYG dengan preview) ────────────────────────────
+      // Preview (TemplateComposite → GradedImage fullRes) menerapkan applyColorGrade
+      // pada SETIAP foto di resolusi natural-nya, lalu object-cover meng-crop ke slot.
+      // Artinya efek SPASIAL grade (vignette + grain) ter-pusat pada MASING-MASING foto.
+      //
+      // Dulu composite foto/print malah grade SELURUH canvas SETELAH semua foto disusun,
+      // sehingga vignette ter-pusat pada SATU lembar (foto di tengah nyaris tanpa vignette,
+      // pinggir lembar gelap) — beda dari yang dilihat/dipilih pelanggan di preview.
+      //
+      // getGradedPhoto mereproduksi preview persis: draw foto full-res → applyColorGrade →
+      // (nanti) drawImage crop ke slot. Di-cache per dataUrl agar tiap foto di-grade SEKALI
+      // dan DIPAKAI ULANG untuk composite display, production (print), dan GIF → seluruh
+      // still konsisten pixel-per-pixel (termasuk grain yang identik antar output).
+      //
+      // Catatan sadar: VIDEO tetap tone-only (CSS videoFilter, tanpa vignette/grain) — grade
+      // pixel-loop per frame tak muat di budget encode UHD 630. Lihat CONTEXT.md §7.
+      const gradedPhotoCache = new Map<string, HTMLCanvasElement>()
+      const getGradedPhoto = async (dataUrl: string): Promise<HTMLCanvasElement> => {
+        const cached = gradedPhotoCache.get(dataUrl)
+        if (cached) return cached
+        const srcImg = await loadImage(dataUrl)
+        const c = document.createElement('canvas')
+        c.width = srcImg.naturalWidth
+        c.height = srcImg.naturalHeight
+        const cctx = c.getContext('2d')!
+        cctx.drawImage(srcImg, 0, 0)
+        if (grade) applyColorGrade(c, grade)
+        gradedPhotoCache.set(dataUrl, c)
+        return c
+      }
+
       const templateImg = await loadImage(template.displayUrl)
 
       // ── 1. Composite foto → satu gambar (display resolution) ─────────────
@@ -650,7 +681,7 @@ export function DragDropPage() {
       for (const slot of layoutDef.slots) {
         const dataUrl = currentSlotMap[slot.index]
         if (!dataUrl) continue
-        const img = await loadImage(dataUrl)
+        const img = await getGradedPhoto(dataUrl)
         const slotCX = slot.cx * dispW
         const slotCY = slot.cy * dispH
         const slotW = slot.w * dispW
@@ -669,9 +700,9 @@ export function DragDropPage() {
         photoCtx.restore()
       }
 
-      if (grade) {
-        applyColorGrade(photoCanvas, grade)
-      }
+      // Grade sudah diterapkan PER-FOTO via getGradedPhoto (vignette/grain per foto,
+      // WYSIWYG dgn preview). JANGAN grade ulang seluruh canvas — itulah yang dulu
+      // menghasilkan vignette skala-lembar yang beda dari preview.
 
       photoCtx.drawImage(templateImg, 0, 0, dispW, dispH)
       const resultPhotoDataUrl = photoCanvas.toDataURL('image/png', 0.95)
@@ -690,7 +721,7 @@ export function DragDropPage() {
       for (const slot of layoutDef.slots) {
         const dataUrl = currentSlotMap[slot.index]
         if (!dataUrl) continue
-        const img = await loadImage(dataUrl)
+        const img = await getGradedPhoto(dataUrl)
         const slotCX = slot.cx * prodW
         const slotCY = slot.cy * prodH
         const slotW = slot.w * prodW
@@ -709,9 +740,8 @@ export function DragDropPage() {
         photoProductionCtx.restore()
       }
 
-      if (grade) {
-        applyColorGrade(photoProductionCanvas, grade)
-      }
+      // Grade sudah PER-FOTO via getGradedPhoto (sama seperti composite display & preview).
+      // Print sekarang WYSIWYG dengan yang dipilih pelanggan di layar.
 
       photoProductionCtx.drawImage(productionTemplateImg, 0, 0, prodW, prodH)
       const resultPhotoProductionDataUrl = photoProductionCanvas.toDataURL('image/png', 0.95)
@@ -965,6 +995,19 @@ export function DragDropPage() {
             ctx.save()
             ctx.translate(slotCX, slotCY)
             ctx.rotate((angle * Math.PI) / 180)
+            // MIRROR VIDEO agar konsisten dengan foto/gif/template.
+            //
+            // Di TakePhotoPage, <Webcam mirrored /> menerapkan flip horizontal pada
+            // STILL (getScreenshot mem-flip canvas), sehingga captures — dan turunannya
+            // (photowithtemplate, gif) — semuanya ter-mirror (selfie). TAPI video direkam
+            // via videoEl.captureStream() yang mengambil MediaStream KAMERA MENTAH; prop
+            // `mirrored` hanya CSS scaleX(-1) untuk tampilan, tidak menyentuh track. Jadi
+            // frame video di sini TIDAK ter-mirror → tampak terbalik dibanding foto.
+            //
+            // scale(-1,1) DI SINI (setelah rotate, sebelum draw) mereproduksi persis
+            // orientasi still: crop tengah simetris + rotate(angle) + flip horizontal.
+            // Clip rect simetris terhadap origin sehingga tak terpengaruh flip.
+            ctx.scale(-1, 1)
             ctx.beginPath()
             ctx.rect(-slotW / 2, -slotH / 2, slotW, slotH)
             ctx.clip()
@@ -1133,14 +1176,13 @@ export function DragDropPage() {
         const sortedCaptures = [...captures].sort((a, b) => a.slotIndex - b.slotIndex)
 
         for (const capture of sortedCaptures) {
-          const img = await loadImage(capture.dataUrl)
+          // Pakai foto yang SUDAH di-grade per-foto (grade-before-crop) → identik dengan
+          // preview & composite. Sebelumnya GIF grade-after-crop di resolusi gif → vignette/
+          // grain sedikit beda; kini seragam dengan output still lainnya.
+          const img = await getGradedPhoto(capture.dataUrl)
           gifCtx.clearRect(0, 0, gifWidth, gifHeight)
           const { sx, sy, sw, sh } = getCropParams(img.width, img.height, gifWidth, gifHeight)
           gifCtx.drawImage(img, sx, sy, sw, sh, 0, 0, gifWidth, gifHeight)
-
-          if (grade) {
-            applyColorGrade(gifCanvas, grade)
-          }
 
           const imageData = gifCtx.getImageData(0, 0, gifWidth, gifHeight)
           const palette = quantize(imageData.data, 256)

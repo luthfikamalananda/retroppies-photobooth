@@ -143,6 +143,32 @@ Env penting: `VITE_API_BASE_URL`, `VITE_PRINT_PAPER_SIZE` (A4/A6). Printer di
 - **"Ulangi Foto" (bukan reset sesi)**: jalur keluar dari overlay katastrofik → `clearPhotos()`
   + `goTo(9)` StartPhotoPage. **Mempertahankan transaksi** (halaman 8–13 di luar
   `RESET_SESSION`) sehingga pelanggan **tak bayar ulang**, beda dari reset-ke-landing.
+- **Grade per-foto (WYSIWYG)**: filter warna (`applyColorGrade` di `colorGrading.ts`) diterapkan
+  ke **setiap foto di resolusi natural, LALU di-crop** ke slot — bukan ke seluruh lembar composite.
+  Alasan: grade punya efek **spasial** (vignette + grain) yang bergantung ukuran/posisi pixel pada
+  canvas tempat ia dijalankan. Preview (`GradedImage fullRes`) meng-grade per-foto, jadi composite
+  foto, **print**, dan GIF **wajib** ikut per-foto (`getGradedPhoto`, di-cache per dataUrl) agar
+  hasil = apa yang dilihat/dipilih pelanggan. Bug lama: composite/print meng-grade **seluruh lembar
+  SETELAH** foto disusun → vignette ter-pusat pada lembar (foto tengah nyaris tanpa vignette) → beda
+  dari preview. _Aturan:_ untuk foto/print/GIF, grade dulu per-foto full-res baru crop; **jangan**
+  grade ulang canvas composite.
+- **Video tone-only (pengecualian grade)**: berbeda dari still, **VIDEO tidak** memakai
+  `applyColorGrade` (pixel-loop) melainkan **CSS `videoFilter`** (string `saturate/contrast/...`)
+  yang di-set ke `ctx.filter` per frame. Konsekuensi sadar: video **cocok tone/warna** tapi
+  **tanpa vignette & grain** (CSS filter tak bisa vignette; lihat komentar `colorGrading.ts`).
+  Alasannya budget encode **Intel UHD 630** tak sanggup grade pixel-loop 24fps. Jadi video **bukan**
+  pixel-match still — trade-off diterima. Jangan "perbaiki" dengan grade penuh per frame tanpa uji
+  perf di UHD 630 (berisiko regresi durasi/stall — lihat §4).
+- **Orientasi mirror (selfie)**: seluruh output ter-**flip horizontal** (seperti cermin),
+  konvensi selfie yang cocok dengan preview live saat pelanggan berpose. Sumbernya prop
+  `<Webcam mirrored />` di TakePhotoPage, TAPI mirror-nya **tidak seragam by default**:
+  `getScreenshot()` mem-flip canvas → **still (captures) ter-mirror**, dan turunannya
+  (photowithtemplate, gif) ikut ter-mirror. Sebaliknya `videoEl.captureStream()` mengambil
+  **MediaStream kamera mentah** — prop `mirrored` cuma CSS `scaleX(-1)` untuk tampilan,
+  tak menyentuh track — sehingga **klip video sumber TIDAK ter-mirror**. Agar konsisten,
+  composite video di `DragDropPage.drawFrame` menambah `ctx.scale(-1,1)` per-slot (setelah
+  `rotate`, sebelum draw) untuk mereproduksi orientasi still. _Aturan:_ bila menyentuh
+  capture/composite, jaga **semua** output (foto, gif, video, print) tetap satu orientasi.
 - **Codec sumber ≠ playability output** (catatan diagnosa): renderer menulis WebM
   (VP8/VP9); ffmpeg **decode penuh** lalu encode ulang ke H.264 identik. **Pilihan VP8/VP9
   tak pernah memengaruhi** apakah MP4 output jalan di iPhone. Bila video gagal di iOS,
